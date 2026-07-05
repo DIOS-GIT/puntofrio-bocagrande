@@ -59,7 +59,7 @@
           <div id="resultados-cliente" style="margin-top:6px;"></div>
         </div>
         <div class="form-field">
-          <label>Correo electrónico (obligatorio DIAN)</label>
+          <label>Correo electrónico (opcional)</label>
           <input type="email" id="f-correo" placeholder="correo@ejemplo.com" />
         </div>
         <div class="btn-fila">
@@ -500,8 +500,8 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
   const correo = document.getElementById("f-correo").value.trim();
   const metodoPago = document.getElementById("f-metodo-pago").value;
 
-  if (!cedula || !nombre || !correo) {
-    mostrarToast("⚠️ Cédula/NIT, nombre y correo son obligatorios (DIAN).");
+  if (!cedula || !nombre) {
+    mostrarToast("⚠️ Cédula/NIT y nombre son obligatorios.");
     return;
   }
   if (carritoFactura.length === 0) {
@@ -562,15 +562,17 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
       const refCliente = doc(db, "clientes", cedula);
       tx.set(refCliente, { cedula, nombre, correo, actualizadoEn: serverTimestamp() }, { merge: true });
 
-      // 5. Cola de envío de correo
-      const refCorreo = doc(collection(db, "correos_facturas"));
-      tx.set(refCorreo, {
-        facturaId: refFactura.id,
-        numero: siguienteNumero,
-        correoDestino: correo,
-        enviado: false,
-        creadoEn: serverTimestamp()
-      });
+      // 5. Cola de envío de correo (solo si el cliente dio uno)
+      if (correo) {
+        const refCorreo = doc(collection(db, "correos_facturas"));
+        tx.set(refCorreo, {
+          facturaId: refFactura.id,
+          numero: siguienteNumero,
+          correoDestino: correo,
+          enviado: false,
+          creadoEn: serverTimestamp()
+        });
+      }
 
       return { numero: siguienteNumero, facturaId: refFactura.id, facturaData };
     });
@@ -809,7 +811,7 @@ function renderTablaInventario() {
       }
       return `
       <tr class="${filaClase}">
-        <td><img src="${p.imagen || "https://via.placeholder.com/40"}" /></td>
+        <td><img src="${p.imagen || "https://placehold.co/40x40?text=%20"}" /></td>
         <td>${p.nombre}</td>
         <td>${p.categoria || ""}</td>
         <td>${formatCOP(p.precio)}</td>
