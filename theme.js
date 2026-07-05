@@ -48,12 +48,12 @@ import {
  *    https://console.firebase.google.com/  → Configuración del proyecto
  * ----------------------------------------------------------- */
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "puntofrio-bocagrande.firebaseapp.com",
-  projectId: "puntofrio-bocagrande",
-  storageBucket: "puntofrio-bocagrande.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyAlx37xpQo9mV4-oY_SQ6HYaKOw8o3l0_A",
+  authDomain: "puntofriobocagrande.firebaseapp.com",
+  projectId: "puntofriobocagrande",
+  storageBucket: "puntofriobocagrande.firebasestorage.app",
+  messagingSenderId: "1074089795642",
+  appId: "1:1074089795642:web:2c25fb977ecf7650811503"
 };
 
 const app = initializeApp(firebaseConfig);
