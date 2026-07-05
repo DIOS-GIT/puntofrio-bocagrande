@@ -86,7 +86,7 @@ enableIndexedDbPersistence(db).catch((err) => {
  *    https://console.cloudinary.com/  → Settings → Upload
  * ----------------------------------------------------------- */
 const CLOUDINARY_CONFIG = {
-  cloudName: "TU_CLOUD_NAME",
+  cloudName: "Edemphje",
   uploadPreset: "puntofrio_unsigned",
   folder: "puntofrio_productos"
 };
