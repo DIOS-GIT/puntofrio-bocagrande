@@ -101,7 +101,7 @@ function renderProductos() {
       const agotado = Number(p.stock) <= 0;
       return `
       <div class="card-producto">
-        <img src="${p.imagen || "https://via.placeholder.com/300x200?text=Sin+imagen"}" alt="${p.nombre}" loading="lazy" />
+        <img src="${p.imagen || "https://placehold.co/300x200/FFF3CD/999999?text=Sin+imagen"}" alt="${p.nombre}" loading="lazy" />
         <div class="info">
           <span class="categoria">${p.categoria || ""}</span>
           <span class="nombre">${p.nombre}</span>
