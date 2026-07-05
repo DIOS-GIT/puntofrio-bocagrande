@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Panel Admin — Punto Frío Bocagrande</title>
+<link rel="stylesheet" href="../css/admin.css" />
+
+<!-- Cloudinary Upload Widget -->
+<script src="https://widget.cloudinary.com/v2.0/global/all.js" defer></script>
+<!-- jsPDF para descarga/impresión en PDF -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<!-- SheetJS para exportación a Excel/CSV -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+</head>
+<body>
+
+<!-- ============== LOGIN ============== -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <h2>🧊 Punto Frío</h2>
+    <p>Panel de Administración</p>
+    <input type="email" id="login-email" placeholder="Correo electrónico" />
+    <input type="password" id="login-password" placeholder="Contraseña" />
+    <button id="btn-login">Iniciar sesión</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ============== APP (oculta hasta autenticar) ============== -->
+<div id="app" class="oculto">
+
+  <div class="admin-topbar">
+    <h1>🧊 Punto Frío Bocagrande — Admin</h1>
+    <button id="btn-logout">Cerrar sesión</button>
+  </div>
+
+  <nav class="tabs">
+    <button class="tab-btn activo" data-tab="facturacion">🧾 Facturación</button>
+    <button class="tab-btn" data-tab="inventario">📦 Inventario y Reportes</button>
+    <button class="tab-btn" data-tab="caja">💰 Cierre de Caja</button>
+  </nav>
+
+  <!-- ============ MÓDULO A: FACTURACIÓN ============ -->
+  <section class="admin-panel activo" id="panel-facturacion">
+    <h2 class="panel-titulo">Facturación y Clientes (DIAN Colombia)</h2>
+
+    <div class="grid-2">
+      <!-- Datos del cliente -->
+      <div class="card">
+        <h3 style="margin-bottom:10px;">Datos del Cliente</h3>
+        <div class="form-field">
+          <label>Cédula / NIT</label>
+          <input type="text" id="f-cedula" placeholder="Ej: 1234567890" />
+        </div>
+        <div class="form-field">
+          <label>Nombre completo / Razón social</label>
+          <input type="text" id="f-nombre" placeholder="Nombre del cliente" />
+        </div>
+        <div class="form-field">
+          <label>Correo electrónico (obligatorio DIAN)</label>
+          <input type="email" id="f-correo" placeholder="correo@ejemplo.com" />
+        </div>
+        <div class="btn-fila">
+          <button class="btn btn-secundario" id="btn-consumidor-final">⚡ Consumidor Final</button>
+        </div>
+      </div>
+
+      <!-- Carrito de facturación -->
+      <div class="card">
+        <h3 style="margin-bottom:10px;">Productos a facturar</h3>
+        <div class="form-field">
+          <label>Buscar producto</label>
+          <input type="text" id="f-buscar-producto" placeholder="Escribe el nombre..." />
+          <div id="resultados-producto" style="margin-top:6px;"></div>
+        </div>
+        <table class="tabla-factura" id="tabla-factura-items">
+          <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+        <div class="total-carrito" style="text-align:right;font-size:1.2rem;font-weight:800;margin-top:10px;" id="f-total">
+          Total: $ 0
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;">Método de Pago y Emisión</h3>
+      <div class="form-field" style="max-width:260px;">
+        <label>Método de pago</label>
+        <select id="f-metodo-pago">
+          <option value="Efectivo">Efectivo</option>
+          <option value="Nequi">Nequi</option>
+          <option value="Daviplata">Daviplata</option>
+          <option value="Tarjeta">Tarjeta</option>
+        </select>
+      </div>
+      <div class="btn-fila">
+        <button class="btn btn-primario" id="btn-generar-factura">✅ Generar Factura</button>
+      </div>
+      <div id="factura-generada-info" style="margin-top:14px;"></div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;">Historial de Facturas</h3>
+      <div class="form-field" style="max-width:260px;">
+        <input type="text" id="buscar-historial" placeholder="Buscar por consecutivo o cliente..." />
+      </div>
+      <table class="tabla-factura" id="tabla-historial">
+        <thead><tr><th>#</th><th>Cliente</th><th>Total</th><th>Fecha</th><th>Acciones</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ MÓDULO B: INVENTARIO Y REPORTES ============ -->
+  <section class="admin-panel" id="panel-inventario">
+    <h2 class="panel-titulo">Inventario y Reportes</h2>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;" id="titulo-form-producto">Agregar Producto</h3>
+      <input type="hidden" id="p-id" />
+      <div class="grid-2">
+        <div class="form-field">
+          <label>Nombre</label>
+          <input type="text" id="p-nombre" />
+        </div>
+        <div class="form-field">
+          <label>Categoría</label>
+          <select id="p-categoria">
+            <option>Licores</option>
+            <option>Cervezas Nacionales</option>
+            <option>Importadas</option>
+            <option>Bebidas</option>
+            <option>Snacks</option>
+            <option>Hielo</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label>Precio (COP)</label>
+          <input type="number" id="p-precio" min="0" />
+        </div>
+        <div class="form-field">
+          <label>Stock actual</label>
+          <input type="number" id="p-stock" min="0" />
+        </div>
+        <div class="form-field">
+          <label>Stock mínimo (alerta)</label>
+          <input type="number" id="p-stock-minimo" min="0" value="5" />
+        </div>
+        <div class="form-field">
+          <label>Imagen</label>
+          <div class="btn-fila">
+            <button type="button" class="btn btn-secundario" id="btn-subir-imagen">📷 Subir imagen</button>
+          </div>
+          <input type="hidden" id="p-imagen" />
+          <img id="preview-imagen" src="" style="width:60px;height:60px;object-fit:cover;border-radius:8px;margin-top:8px;display:none;" />
+        </div>
+      </div>
+      <div class="btn-fila">
+        <button class="btn btn-primario" id="btn-guardar-producto">💾 Guardar Producto</button>
+        <button class="btn btn-secundario oculto" id="btn-cancelar-edicion">Cancelar edición</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3>Lista de Inventario</h3>
+        <div class="btn-fila">
+          <button class="btn btn-verde" id="btn-export-excel-inv">📊 Excel</button>
+          <button class="btn btn-rojo" id="btn-export-pdf-inv">📄 PDF</button>
+          <button class="btn btn-azul" id="btn-export-json-inv">🗂 JSON</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;margin-top:12px;">
+        <table class="tabla-inventario" id="tabla-inventario">
+          <thead>
+            <tr><th>Img</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3>Historial de Ventas (Reportes)</h3>
+        <div class="btn-fila">
+          <button class="btn btn-verde" id="btn-export-excel-ventas">📊 Excel</button>
+          <button class="btn btn-rojo" id="btn-export-pdf-ventas">📄 PDF</button>
+          <button class="btn btn-azul" id="btn-export-json-ventas">🗂 JSON</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MÓDULO C: CIERRE DE CAJA ============ -->
+  <section class="admin-panel" id="panel-caja">
+    <h2 class="panel-titulo">Cierre de Caja Diario</h2>
+    <div class="card">
+      <div class="form-field" style="max-width:220px;">
+        <label>Fecha</label>
+        <input type="date" id="caja-fecha" />
+      </div>
+      <button class="btn btn-primario" id="btn-calcular-caja">🔄 Calcular Cierre</button>
+
+      <div class="resumen-caja" style="margin-top:18px;">
+        <div class="caja-metric"><div class="valor" id="caja-total">$ 0</div><div class="label">TOTAL DEL DÍA</div></div>
+        <div class="caja-metric"><div class="valor" id="caja-efectivo">$ 0</div><div class="label">Efectivo</div></div>
+        <div class="caja-metric"><div class="valor" id="caja-nequi">$ 0</div><div class="label">Nequi</div></div>
+        <div class="caja-metric"><div class="valor" id="caja-daviplata">$ 0</div><div class="label">Daviplata</div></div>
+        <div class="caja-metric"><div class="valor" id="caja-tarjeta">$ 0</div><div class="label">Tarjeta</div></div>
+        <div class="caja-metric"><div class="valor" id="caja-num-facturas">0</div><div class="label"># Facturas</div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Tiquete POS oculto, solo visible al imprimir -->
+<div class="tiquete-pos" id="tiquete-pos"></div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import {
+  db,
+  auth,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  updateDoc,
+  addDoc,
+  runTransaction,
+  onSnapshot,
+  query,
+  orderBy,
+  serverTimestamp,
+  increment,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  openCloudinaryWidget,
+  formatCOP,
+  formatFecha,
+  debounce
+} from "../js/theme.js";
+import {
+  deleteDoc
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* =====================================================================
+   ESTADO GLOBAL
+===================================================================== */
+let productosCache = [];
+let carritoFactura = [];       // [{id, nombre, precio, cantidad, stockDisponible}]
+let ultimaFacturaGenerada = null;
+
+const CORREO_NEGOCIO = "ventas@puntofriobocagrande.com"; // ⚠️ Reemplazar
+
+/* =====================================================================
+   TOAST (notificaciones)
+===================================================================== */
+function mostrarToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("mostrar");
+  setTimeout(() => t.classList.remove("mostrar"), 3000);
+}
+
+/* =====================================================================
+   AUTENTICACIÓN
+===================================================================== */
+document.getElementById("btn-login").addEventListener("click", async () => {
+  const email = document.getElementById("login-email").value.trim();
+  const password = document.getElementById("login-password").value;
+  const errorEl = document.getElementById("login-error");
+  errorEl.textContent = "";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+  } catch (err) {
+    errorEl.textContent = "Credenciales incorrectas o error de conexión.";
+    console.error(err);
+  }
+});
+
+document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+
+onAuthStateChanged(auth, (user) => {
+  const loginOverlay = document.getElementById("login-overlay");
+  const app = document.getElementById("app");
+  if (user) {
+    loginOverlay.classList.add("oculto");
+    app.classList.remove("oculto");
+    iniciarSuscripcionesFirestore();
+  } else {
+    loginOverlay.classList.remove("oculto");
+    app.classList.add("oculto");
+  }
+});
+
+/* =====================================================================
+   NAVEGACIÓN ENTRE TABS
+===================================================================== */
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("activo"));
+    document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("activo"));
+    btn.classList.add("activo");
+    document.getElementById("panel-" + btn.dataset.tab).classList.add("activo");
+  });
+});
+
+/* =====================================================================
+   SUSCRIPCIÓN EN TIEMPO REAL A PRODUCTOS
+===================================================================== */
+function iniciarSuscripcionesFirestore() {
+  onSnapshot(collection(db, "productos"), (snap) => {
+    productosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderTablaInventario();
+  });
+}
+
+/* =====================================================================
+   MÓDULO A — FACTURACIÓN Y CLIENTES
+===================================================================== */
+
+// Búsqueda de cliente por cédula/NIT al perder el foco (blur)
+document.getElementById("f-cedula").addEventListener(
+  "blur",
+  debounce(async () => {
+    const cedula = document.getElementById("f-cedula").value.trim();
+    if (!cedula) return;
+
+    try {
+      const refCliente = doc(db, "clientes", cedula);
+      const snap = await getDoc(refCliente);
+      if (snap.exists()) {
+        const data = snap.data();
+        document.getElementById("f-nombre").value = data.nombre || "";
+        document.getElementById("f-correo").value = data.correo || "";
+        mostrarToast("Cliente encontrado en la base de datos ✅");
+      }
+    } catch (err) {
+      console.error("Error buscando cliente:", err);
+    }
+  }, 300)
+);
+
+// Botón rápido "Consumidor Final"
+document.getElementById("btn-consumidor-final").addEventListener("click", () => {
+  document.getElementById("f-cedula").value = "222222222222";
+  document.getElementById("f-nombre").value = "Consumidor Final";
+  document.getElementById("f-correo").value = CORREO_NEGOCIO;
+});
+
+// Búsqueda de productos para agregar a la factura
+document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
+  const texto = e.target.value.trim().toLowerCase();
+  const contenedor = document.getElementById("resultados-producto");
+  if (!texto) { contenedor.innerHTML = ""; return; }
+
+  const coincidencias = productosCache
+    .filter((p) => p.nombre.toLowerCase().includes(texto) && Number(p.stock) > 0)
+    .slice(0, 6);
+
+  contenedor.innerHTML = coincidencias
+    .map(
+      (p) => `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
+        ${p.nombre} — ${formatCOP(p.precio)} (stock: ${p.stock})
+      </div>`
+    )
+    .join("");
+
+  contenedor.querySelectorAll("div[data-id]").forEach((el) => {
+    el.addEventListener("click", () => {
+      agregarItemFactura(el.dataset.id);
+      document.getElementById("f-buscar-producto").value = "";
+      contenedor.innerHTML = "";
+    });
+  });
+});
+
+function agregarItemFactura(idProducto) {
+  const producto = productosCache.find((p) => p.id === idProducto);
+  if (!producto) return;
+  const existente = carritoFactura.find((i) => i.id === idProducto);
+  if (existente) {
+    if (existente.cantidad < producto.stock) existente.cantidad++;
+  } else {
+    carritoFactura.push({
+      id: idProducto,
+      nombre: producto.nombre,
+      precio: producto.precio,
+      cantidad: 1,
+      stockDisponible: producto.stock
+    });
+  }
+  renderTablaFactura();
+}
+
+function renderTablaFactura() {
+  const tbody = document.querySelector("#tabla-factura-items tbody");
+  tbody.innerHTML = carritoFactura
+    .map(
+      (item, idx) => `
+      <tr>
+        <td>${item.nombre}</td>
+        <td>
+          <input type="number" min="1" max="${item.stockDisponible}" value="${item.cantidad}" data-idx="${idx}" class="input-cantidad-factura" style="width:55px;" />
+        </td>
+        <td>${formatCOP(item.precio)}</td>
+        <td>${formatCOP(item.precio * item.cantidad)}</td>
+        <td><button data-idx="${idx}" class="btn-quitar-item" style="border:none;background:none;cursor:pointer;color:#D32F2F;">✕</button></td>
+      </tr>`
+    )
+    .join("");
+
+  tbody.querySelectorAll(".input-cantidad-factura").forEach((inp) => {
+    inp.addEventListener("change", () => {
+      const idx = Number(inp.dataset.idx);
+      let val = Number(inp.value);
+      if (val < 1) val = 1;
+      if (val > carritoFactura[idx].stockDisponible) val = carritoFactura[idx].stockDisponible;
+      carritoFactura[idx].cantidad = val;
+      renderTablaFactura();
+    });
+  });
+
+  tbody.querySelectorAll(".btn-quitar-item").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      carritoFactura.splice(Number(btn.dataset.idx), 1);
+      renderTablaFactura();
+    });
+  });
+
+  const total = carritoFactura.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+  document.getElementById("f-total").textContent = "Total: " + formatCOP(total);
+}
+
+/* ---------------------------------------------------------------
+   GENERAR FACTURA — Transacción Atómica (runTransaction)
+   1. Lee consecutivo desde config/consecutivos
+   2. Asigna número y suma +1 al contador
+   3. Descuenta stock en productos
+   4. Registra factura en "facturas"
+   5. Guarda/actualiza cliente en "clientes"
+   6. Crea documento en "correos_facturas" (para envío posterior)
+--------------------------------------------------------------- */
+document.getElementById("btn-generar-factura").addEventListener("click", async () => {
+  const cedula = document.getElementById("f-cedula").value.trim();
+  const nombre = document.getElementById("f-nombre").value.trim();
+  const correo = document.getElementById("f-correo").value.trim();
+  const metodoPago = document.getElementById("f-metodo-pago").value;
+
+  if (!cedula || !nombre || !correo) {
+    mostrarToast("⚠️ Cédula/NIT, nombre y correo son obligatorios (DIAN).");
+    return;
+  }
+  if (carritoFactura.length === 0) {
+    mostrarToast("⚠️ Agrega al menos un producto a la factura.");
+    return;
+  }
+
+  const total = carritoFactura.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+
+  try {
+    const resultado = await runTransaction(db, async (tx) => {
+      const refConsecutivos = doc(db, "config", "consecutivos");
+      const snapConsecutivo = await tx.get(refConsecutivos);
+
+      let siguienteNumero = 1;
+      if (snapConsecutivo.exists()) {
+        siguienteNumero = (snapConsecutivo.data().ultimoNumero || 0) + 1;
+      }
+
+      // Verificar stock de todos los productos ANTES de escribir nada
+      const refsProductos = [];
+      for (const item of carritoFactura) {
+        const refProd = doc(db, "productos", item.id);
+        const snapProd = await tx.get(refProd);
+        if (!snapProd.exists() || Number(snapProd.data().stock) < item.cantidad) {
+          throw new Error(`Stock insuficiente para "${item.nombre}".`);
+        }
+        refsProductos.push({ ref: refProd, item });
+      }
+
+      // 1. Actualizar consecutivo
+      tx.set(refConsecutivos, { ultimoNumero: siguienteNumero }, { merge: true });
+
+      // 2. Descontar stock
+      refsProductos.forEach(({ ref, item }) => {
+        tx.update(ref, { stock: increment(-item.cantidad) });
+      });
+
+      // 3. Registrar factura
+      const refFactura = doc(collection(db, "facturas"));
+      const facturaData = {
+        numero: siguienteNumero,
+        cliente: { cedula, nombre, correo },
+        items: carritoFactura.map((i) => ({
+          id: i.id,
+          nombre: i.nombre,
+          precio: i.precio,
+          cantidad: i.cantidad,
+          subtotal: i.precio * i.cantidad
+        })),
+        total,
+        metodoPago,
+        fecha: serverTimestamp()
+      };
+      tx.set(refFactura, facturaData);
+
+      // 4. Guardar/actualizar cliente
+      const refCliente = doc(db, "clientes", cedula);
+      tx.set(refCliente, { cedula, nombre, correo, actualizadoEn: serverTimestamp() }, { merge: true });
+
+      // 5. Cola de envío de correo
+      const refCorreo = doc(collection(db, "correos_facturas"));
+      tx.set(refCorreo, {
+        facturaId: refFactura.id,
+        numero: siguienteNumero,
+        correoDestino: correo,
+        enviado: false,
+        creadoEn: serverTimestamp()
+      });
+
+      return { numero: siguienteNumero, facturaId: refFactura.id, facturaData };
+    });
+
+    ultimaFacturaGenerada = { id: resultado.facturaId, ...resultado.facturaData };
+    mostrarToast(`✅ Factura #${resultado.numero} generada correctamente.`);
+    mostrarBotonesFacturaGenerada(ultimaFacturaGenerada);
+
+    // Limpiar formulario
+    carritoFactura = [];
+    renderTablaFactura();
+    document.getElementById("f-cedula").value = "";
+    document.getElementById("f-nombre").value = "";
+    document.getElementById("f-correo").value = "";
+  } catch (err) {
+    console.error("Error generando factura:", err);
+    mostrarToast("❌ " + err.message);
+  }
+});
+
+function mostrarBotonesFacturaGenerada(factura) {
+  const cont = document.getElementById("factura-generada-info");
+  cont.innerHTML = `
+    <p style="margin-bottom:8px;">Factura #${factura.numero} lista.</p>
+    <div class="btn-fila">
+      <button class="btn btn-secundario" id="btn-imprimir-tiquete">🖨 Imprimir Tiquete POS</button>
+      <button class="btn btn-rojo" id="btn-descargar-pdf-factura">📄 Descargar PDF</button>
+    </div>`;
+
+  document.getElementById("btn-imprimir-tiquete").addEventListener("click", () => imprimirTiquetePOS(factura));
+  document.getElementById("btn-descargar-pdf-factura").addEventListener("click", () => descargarFacturaPDF(factura));
+}
+
+/* ---------- IMPRESIÓN TIQUETE POS (térmica) ---------- */
+function imprimirTiquetePOS(factura) {
+  const cont = document.getElementById("tiquete-pos");
+  const fecha = factura.fecha?.toDate ? formatFecha(factura.fecha) : new Date().toLocaleString("es-CO");
+
+  cont.innerHTML = `
+    <div class="centrado">
+      <strong>PUNTO FRÍO BOCAGRANDE</strong><br/>
+      Cartagena, Colombia<br/>
+      Factura POS #${factura.numero}<br/>
+      ${fecha}
+    </div>
+    <hr/>
+    Cliente: ${factura.cliente.nombre}<br/>
+    Doc: ${factura.cliente.cedula}<br/>
+    <hr/>
+    <table>
+      ${factura.items
+        .map(
+          (i) => `<tr><td>${i.cantidad}x ${i.nombre}</td><td style="text-align:right;">${formatCOP(i.subtotal)}</td></tr>`
+        )
+        .join("")}
+    </table>
+    <hr/>
+    <div class="centrado"><strong>TOTAL: ${formatCOP(factura.total)}</strong></div>
+    <div class="centrado">Pago: ${factura.metodoPago}</div>
+    <hr/>
+    <div class="centrado">¡Gracias por su compra!</div>
+  `;
+  window.print();
+}
+
+/* ---------- DESCARGA DE FACTURA EN PDF (visual, para el cliente) ---------- */
+function descargarFacturaPDF(factura) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+
+  pdf.setFillColor(255, 193, 7);
+  pdf.rect(0, 0, 595, 80, "F");
+  pdf.setTextColor(20, 20, 20);
+  pdf.setFontSize(20);
+  pdf.text("PUNTO FRÍO BOCAGRANDE", 40, 45);
+  pdf.setFontSize(11);
+  pdf.text(`Factura de Venta #${factura.numero}`, 40, 65);
+
+  pdf.setTextColor(0, 0, 0);
+  pdf.setFontSize(11);
+  let y = 110;
+  pdf.text(`Cliente: ${factura.cliente.nombre}`, 40, y); y += 16;
+  pdf.text(`Cédula/NIT: ${factura.cliente.cedula}`, 40, y); y += 16;
+  pdf.text(`Correo: ${factura.cliente.correo}`, 40, y); y += 16;
+  pdf.text(`Método de pago: ${factura.metodoPago}`, 40, y); y += 26;
+
+  pdf.setFillColor(255, 243, 205);
+  pdf.rect(40, y - 14, 515, 20, "F");
+  pdf.setFontSize(10);
+  pdf.text("Producto", 46, y);
+  pdf.text("Cant.", 340, y);
+  pdf.text("Precio", 400, y);
+  pdf.text("Subtotal", 470, y);
+  y += 22;
+
+  factura.items.forEach((item) => {
+    pdf.text(String(item.nombre).slice(0, 40), 46, y);
+    pdf.text(String(item.cantidad), 345, y);
+    pdf.text(formatCOP(item.precio), 400, y);
+    pdf.text(formatCOP(item.subtotal), 470, y);
+    y += 18;
+  });
+
+  y += 14;
+  pdf.setFontSize(13);
+  pdf.setFont(undefined, "bold");
+  pdf.text(`TOTAL: ${formatCOP(factura.total)}`, 400, y);
+
+  y += 40;
+  pdf.setFontSize(9);
+  pdf.setFont(undefined, "normal");
+  pdf.setTextColor(120, 120, 120);
+  pdf.text("Documento generado electrónicamente — Punto Frío Bocagrande.", 40, y);
+
+  pdf.save(`factura_${factura.numero}.pdf`);
+}
+
+/* ---------- HISTORIAL DE FACTURAS ---------- */
+async function cargarHistorialFacturas(filtro = "") {
+  const tbody = document.querySelector("#tabla-historial tbody");
+  const snap = await getDocs(query(collection(db, "facturas"), orderBy("numero", "desc")));
+  let facturas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  if (filtro) {
+    const f = filtro.toLowerCase();
+    facturas = facturas.filter(
+      (fa) => String(fa.numero).includes(f) || fa.cliente?.nombre?.toLowerCase().includes(f)
+    );
+  }
+
+  tbody.innerHTML = facturas
+    .slice(0, 50)
+    .map(
+      (fa) => `
+      <tr>
+        <td>#${fa.numero}</td>
+        <td>${fa.cliente?.nombre || ""}</td>
+        <td>${formatCOP(fa.total)}</td>
+        <td>${fa.fecha ? formatFecha(fa.fecha) : ""}</td>
+        <td>
+          <button class="btn btn-secundario" data-id="${fa.id}" data-accion="imprimir">🖨</button>
+          <button class="btn btn-rojo" data-id="${fa.id}" data-accion="pdf">📄</button>
+        </td>
+      </tr>`
+    )
+    .join("");
+
+  tbody.querySelectorAll("button[data-accion]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const factura = facturas.find((f) => f.id === btn.dataset.id);
+      if (!factura) return;
+      if (btn.dataset.accion === "imprimir") imprimirTiquetePOS(factura);
+      if (btn.dataset.accion === "pdf") descargarFacturaPDF(factura);
+    });
+  });
+}
+
+document.getElementById("buscar-historial").addEventListener(
+  "input",
+  debounce((e) => cargarHistorialFacturas(e.target.value.trim()), 300)
+);
+
+document.querySelector('[data-tab="facturacion"]').addEventListener("click", () => cargarHistorialFacturas());
+
+/* =====================================================================
+   MÓDULO B — INVENTARIO Y REPORTES
+===================================================================== */
+
+document.getElementById("btn-subir-imagen").addEventListener("click", () => {
+  openCloudinaryWidget((url) => {
+    document.getElementById("p-imagen").value = url;
+    const preview = document.getElementById("preview-imagen");
+    preview.src = url;
+    preview.style.display = "block";
+  });
+});
+
+document.getElementById("btn-guardar-producto").addEventListener("click", async () => {
+  const id = document.getElementById("p-id").value;
+  const data = {
+    nombre: document.getElementById("p-nombre").value.trim(),
+    categoria: document.getElementById("p-categoria").value,
+    precio: Number(document.getElementById("p-precio").value) || 0,
+    stock: Number(document.getElementById("p-stock").value) || 0,
+    stockMinimo: Number(document.getElementById("p-stock-minimo").value) || 5,
+    imagen: document.getElementById("p-imagen").value || ""
+  };
+
+  if (!data.nombre) {
+    mostrarToast("⚠️ El nombre del producto es obligatorio.");
+    return;
+  }
+
+  try {
+    if (id) {
+      await updateDoc(doc(db, "productos", id), data);
+      mostrarToast("✅ Producto actualizado.");
+    } else {
+      await addDoc(collection(db, "productos"), data);
+      mostrarToast("✅ Producto agregado.");
+    }
+    limpiarFormularioProducto();
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error guardando el producto.");
+  }
+});
+
+function limpiarFormularioProducto() {
+  document.getElementById("p-id").value = "";
+  document.getElementById("p-nombre").value = "";
+  document.getElementById("p-precio").value = "";
+  document.getElementById("p-stock").value = "";
+  document.getElementById("p-stock-minimo").value = "5";
+  document.getElementById("p-imagen").value = "";
+  document.getElementById("preview-imagen").style.display = "none";
+  document.getElementById("titulo-form-producto").textContent = "Agregar Producto";
+  document.getElementById("btn-cancelar-edicion").classList.add("oculto");
+}
+
+document.getElementById("btn-cancelar-edicion").addEventListener("click", limpiarFormularioProducto);
+
+function renderTablaInventario() {
+  const tbody = document.querySelector("#tabla-inventario tbody");
+  tbody.innerHTML = productosCache
+    .map((p) => {
+      const stockMin = p.stockMinimo ?? 5;
+      let filaClase = "";
+      let badge = `<span class="badge-stock badge-ok">OK</span>`;
+      if (Number(p.stock) <= 0) {
+        filaClase = "stock-critico";
+        badge = `<span class="badge-stock badge-critico">AGOTADO</span>`;
+      } else if (Number(p.stock) <= stockMin) {
+        filaClase = "stock-bajo";
+        badge = `<span class="badge-stock badge-bajo">STOCK BAJO</span>`;
+      }
+      return `
+      <tr class="${filaClase}">
+        <td><img src="${p.imagen || "https://via.placeholder.com/40"}" /></td>
+        <td>${p.nombre}</td>
+        <td>${p.categoria || ""}</td>
+        <td>${formatCOP(p.precio)}</td>
+        <td>${p.stock}</td>
+        <td>${badge}</td>
+        <td>
+          <button class="btn btn-secundario" data-id="${p.id}" data-accion="editar">✎</button>
+          <button class="btn btn-rojo" data-id="${p.id}" data-accion="eliminar">🗑</button>
+        </td>
+      </tr>`;
+    })
+    .join("");
+
+  tbody.querySelectorAll('button[data-accion="editar"]').forEach((btn) => {
+    btn.addEventListener("click", () => cargarProductoParaEditar(btn.dataset.id));
+  });
+  tbody.querySelectorAll('button[data-accion="eliminar"]').forEach((btn) => {
+    btn.addEventListener("click", () => eliminarProducto(btn.dataset.id));
+  });
+}
+
+function cargarProductoParaEditar(id) {
+  const p = productosCache.find((x) => x.id === id);
+  if (!p) return;
+  document.getElementById("p-id").value = p.id;
+  document.getElementById("p-nombre").value = p.nombre;
+  document.getElementById("p-categoria").value = p.categoria;
+  document.getElementById("p-precio").value = p.precio;
+  document.getElementById("p-stock").value = p.stock;
+  document.getElementById("p-stock-minimo").value = p.stockMinimo ?? 5;
+  document.getElementById("p-imagen").value = p.imagen || "";
+  if (p.imagen) {
+    document.getElementById("preview-imagen").src = p.imagen;
+    document.getElementById("preview-imagen").style.display = "block";
+  }
+  document.getElementById("titulo-form-producto").textContent = "Editar Producto";
+  document.getElementById("btn-cancelar-edicion").classList.remove("oculto");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function eliminarProducto(id) {
+  if (!confirm("¿Eliminar este producto del inventario?")) return;
+  try {
+    await deleteDoc(doc(db, "productos", id));
+    mostrarToast("🗑 Producto eliminado.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error eliminando el producto.");
+  }
+}
+
+/* ---------- EXPORTACIÓN DE INVENTARIO: Excel / PDF / JSON ---------- */
+document.getElementById("btn-export-excel-inv").addEventListener("click", () => {
+  const hoja = productosCache.map((p) => ({
+    Nombre: p.nombre,
+    Categoria: p.categoria,
+    Precio: p.precio,
+    Stock: p.stock,
+    StockMinimo: p.stockMinimo ?? 5
+  }));
+  const ws = XLSX.utils.json_to_sheet(hoja);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+  XLSX.writeFile(wb, `inventario_puntofrio_${Date.now()}.xlsx`);
+});
+
+document.getElementById("btn-export-pdf-inv").addEventListener("click", () => {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  pdf.setFontSize(16);
+  pdf.text("Reporte de Inventario — Punto Frío Bocagrande", 40, 40);
+  pdf.setFontSize(9);
+  let y = 70;
+  pdf.text("Producto", 40, y);
+  pdf.text("Categoría", 220, y);
+  pdf.text("Precio", 340, y);
+  pdf.text("Stock", 420, y);
+  y += 14;
+  productosCache.forEach((p) => {
+    if (y > 780) { pdf.addPage(); y = 40; }
+    pdf.text(String(p.nombre).slice(0, 30), 40, y);
+    pdf.text(String(p.categoria || ""), 220, y);
+    pdf.text(formatCOP(p.precio), 340, y);
+    pdf.text(String(p.stock), 420, y);
+    y += 14;
+  });
+  pdf.save(`inventario_puntofrio_${Date.now()}.pdf`);
+});
+
+document.getElementById("btn-export-json-inv").addEventListener("click", () => {
+  descargarJSON(productosCache, `inventario_puntofrio_${Date.now()}.json`);
+});
+
+function descargarJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+/* ---------- EXPORTACIÓN DEL HISTORIAL DE VENTAS ---------- */
+async function obtenerTodasLasFacturas() {
+  const snap = await getDocs(query(collection(db, "facturas"), orderBy("numero", "desc")));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+document.getElementById("btn-export-excel-ventas").addEventListener("click", async () => {
+  const facturas = await obtenerTodasLasFacturas();
+  const hoja = facturas.map((f) => ({
+    Numero: f.numero,
+    Cliente: f.cliente?.nombre,
+    Cedula: f.cliente?.cedula,
+    Total: f.total,
+    MetodoPago: f.metodoPago,
+    Fecha: f.fecha ? formatFecha(f.fecha) : ""
+  }));
+  const ws = XLSX.utils.json_to_sheet(hoja);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Ventas");
+  XLSX.writeFile(wb, `ventas_puntofrio_${Date.now()}.xlsx`);
+});
+
+document.getElementById("btn-export-pdf-ventas").addEventListener("click", async () => {
+  const facturas = await obtenerTodasLasFacturas();
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  pdf.setFontSize(16);
+  pdf.text("Reporte de Ventas — Punto Frío Bocagrande", 40, 40);
+  pdf.setFontSize(9);
+  let y = 70;
+  facturas.forEach((f) => {
+    if (y > 780) { pdf.addPage(); y = 40; }
+    pdf.text(`#${f.numero} — ${f.cliente?.nombre || ""} — ${formatCOP(f.total)} — ${f.metodoPago}`, 40, y);
+    y += 14;
+  });
+  pdf.save(`ventas_puntofrio_${Date.now()}.pdf`);
+});
+
+document.getElementById("btn-export-json-ventas").addEventListener("click", async () => {
+  const facturas = await obtenerTodasLasFacturas();
+  descargarJSON(facturas, `ventas_puntofrio_${Date.now()}.json`);
+});
+
+/* =====================================================================
+   MÓDULO C — CIERRE DE CAJA DIARIO
+===================================================================== */
+document.getElementById("caja-fecha").valueAsDate = new Date();
+
+document.getElementById("btn-calcular-caja").addEventListener("click", async () => {
+  const fechaInput = document.getElementById("caja-fecha").value;
+  if (!fechaInput) return;
+
+  const inicio = new Date(fechaInput + "T00:00:00");
+  const fin = new Date(fechaInput + "T23:59:59");
+
+  const facturas = await obtenerTodasLasFacturas();
+  const delDia = facturas.filter((f) => {
+    if (!f.fecha?.toDate) return false;
+    const fechaFactura = f.fecha.toDate();
+    return fechaFactura >= inicio && fechaFactura <= fin;
+  });
+
+  const totales = { Efectivo: 0, Nequi: 0, Daviplata: 0, Tarjeta: 0 };
+  let totalGeneral = 0;
+  delDia.forEach((f) => {
+    totalGeneral += f.total || 0;
+    if (totales[f.metodoPago] !== undefined) totales[f.metodoPago] += f.total || 0;
+  });
+
+  document.getElementById("caja-total").textContent = formatCOP(totalGeneral);
+  document.getElementById("caja-efectivo").textContent = formatCOP(totales.Efectivo);
+  document.getElementById("caja-nequi").textContent = formatCOP(totales.Nequi);
+  document.getElementById("caja-daviplata").textContent = formatCOP(totales.Daviplata);
+  document.getElementById("caja-tarjeta").textContent = formatCOP(totales.Tarjeta);
+  document.getElementById("caja-num-facturas").textContent = delDia.length;
+});
+
+document.querySelector('[data-tab="caja"]').addEventListener("click", () => {
+  document.getElementById("btn-calcular-caja").click();
+});
+</script>
+</body>
+</html>
