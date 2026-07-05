@@ -55,7 +55,8 @@
         </div>
         <div class="form-field">
           <label>Nombre completo / Razón social</label>
-          <input type="text" id="f-nombre" placeholder="Nombre del cliente" />
+          <input type="text" id="f-nombre" placeholder="Nombre del cliente" autocomplete="off" />
+          <div id="resultados-cliente" style="margin-top:6px;"></div>
         </div>
         <div class="form-field">
           <label>Correo electrónico (obligatorio DIAN)</label>
@@ -253,6 +254,7 @@ import {
    ESTADO GLOBAL
 ===================================================================== */
 let productosCache = [];
+let clientesCache = [];        // [{id, cedula, nombre, correo}]
 let carritoFactura = [];       // [{id, nombre, precio, cantidad, stockDisponible}]
 let ultimaFacturaGenerada = null;
 
@@ -319,6 +321,10 @@ function iniciarSuscripcionesFirestore() {
     productosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderTablaInventario();
   });
+
+  onSnapshot(collection(db, "clientes"), (snap) => {
+    clientesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  });
 }
 
 /* =====================================================================
@@ -352,6 +358,47 @@ document.getElementById("btn-consumidor-final").addEventListener("click", () => 
   document.getElementById("f-cedula").value = "222222222222";
   document.getElementById("f-nombre").value = "Consumidor Final";
   document.getElementById("f-correo").value = CORREO_NEGOCIO;
+  document.getElementById("resultados-cliente").innerHTML = "";
+});
+
+// Búsqueda de cliente por NOMBRE mientras se escribe (autocompletar)
+document.getElementById("f-nombre").addEventListener("input", (e) => {
+  const texto = e.target.value.trim().toLowerCase();
+  const contenedor = document.getElementById("resultados-cliente");
+  if (texto.length < 2) { contenedor.innerHTML = ""; return; }
+
+  const coincidencias = clientesCache
+    .filter((c) => c.nombre && c.nombre.toLowerCase().includes(texto))
+    .slice(0, 6);
+
+  if (coincidencias.length === 0) { contenedor.innerHTML = ""; return; }
+
+  contenedor.innerHTML = coincidencias
+    .map(
+      (c) => `<div class="sugerencia-cliente" data-id="${c.id}" style="padding:8px;border:1px solid #eee;border-radius:8px;margin-top:4px;cursor:pointer;background:#fffdf5;">
+        <strong>${c.nombre}</strong><br/><small>Cédula/NIT: ${c.cedula} · ${c.correo || "sin correo"}</small>
+      </div>`
+    )
+    .join("");
+
+  contenedor.querySelectorAll(".sugerencia-cliente").forEach((el) => {
+    el.addEventListener("click", () => {
+      const cliente = clientesCache.find((c) => c.id === el.dataset.id);
+      if (!cliente) return;
+      document.getElementById("f-cedula").value = cliente.cedula || "";
+      document.getElementById("f-nombre").value = cliente.nombre || "";
+      document.getElementById("f-correo").value = cliente.correo || "";
+      contenedor.innerHTML = "";
+      mostrarToast("Cliente cargado ✅");
+    });
+  });
+});
+
+// Cierra las sugerencias si se hace click afuera
+document.addEventListener("click", (e) => {
+  if (!e.target.closest("#f-nombre") && !e.target.closest("#resultados-cliente")) {
+    document.getElementById("resultados-cliente").innerHTML = "";
+  }
 });
 
 // Búsqueda de productos para agregar a la factura
