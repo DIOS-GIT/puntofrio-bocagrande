@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Punto Frío Bocagrande — Licores, Cervezas y Snacks</title>
+<link rel="stylesheet" href="/css/styles.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<header class="header">
+  <h1>🧊 Punto Frío Bocagrande</h1>
+  <p>Licores · Cervezas · Snacks — Entrega en Bocagrande</p>
+</header>
+
+<nav class="filtros" id="filtros"></nav>
+
+<main class="grid-productos" id="grid-productos">
+  <!-- Las tarjetas de producto se renderizan aquí en tiempo real -->
+</main>
+
+<!-- Botón flotante del carrito -->
+<div class="carrito-flotante" id="btn-carrito">
+  🛒 Ver pedido
+  <span class="badge" id="badge-carrito">0</span>
+</div>
+
+<!-- Modal del carrito / checkout -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-carrito">
+    <button class="btn-cerrar-modal" id="btn-cerrar-modal">✕</button>
+    <h2>Tu pedido 🧊</h2>
+
+    <div id="lista-carrito"></div>
+    <div class="total-carrito" id="total-carrito">Total: $ 0</div>
+
+    <form class="form-cliente" id="form-cliente">
+      <input type="text" id="cliente-nombre" placeholder="Nombre completo" required />
+      <input type="text" id="cliente-direccion" placeholder="Dirección / Hotel en Bocagrande" required />
+      <input type="tel" id="cliente-telefono" placeholder="Teléfono (opcional)" />
+      <button type="submit" class="btn-whatsapp">📲 Enviar pedido por WhatsApp</button>
+    </form>
+  </div>
+</div>
+
+<script type="module">
+import {
+  db,
+  collection,
+  onSnapshot,
+  generarLinkWhatsApp
+} from "/js/theme.js";
+
+/* ⚠️ Reemplaza con el número de WhatsApp real del negocio (formato internacional sin +) */
+const NUMERO_WHATSAPP_NEGOCIO = "573000000000";
+
+const CATEGORIAS = ["Todos", "Licores", "Cervezas Nacionales", "Importadas", "Bebidas", "Snacks", "Hielo"];
+
+let productos = [];       // Cache local de productos desde Firestore
+let categoriaActiva = "Todos";
+let carrito = [];         // [{id, nombre, precio, cantidad, stock}]
+
+const gridEl = document.getElementById("grid-productos");
+const filtrosEl = document.getElementById("filtros");
+const badgeEl = document.getElementById("badge-carrito");
+const modalOverlay = document.getElementById("modal-overlay");
+const listaCarritoEl = document.getElementById("lista-carrito");
+const totalCarritoEl = document.getElementById("total-carrito");
+
+/* ---------- RENDER DE FILTROS ---------- */
+function renderFiltros() {
+  filtrosEl.innerHTML = CATEGORIAS.map(
+    (cat) => `<button class="filtro-btn ${cat === categoriaActiva ? "activo" : ""}" data-cat="${cat}">${cat}</button>`
+  ).join("");
+
+  filtrosEl.querySelectorAll(".filtro-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      categoriaActiva = btn.dataset.cat;
+      renderFiltros();
+      renderProductos();
+    });
+  });
+}
+
+/* ---------- RENDER DE PRODUCTOS (reactivo) ---------- */
+function renderProductos() {
+  const lista =
+    categoriaActiva === "Todos"
+      ? productos
+      : productos.filter((p) => p.categoria === categoriaActiva);
+
+  if (lista.length === 0) {
+    gridEl.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#999;padding:30px;">No hay productos en esta categoría.</p>`;
+    return;
+  }
+
+  gridEl.innerHTML = lista
+    .map((p) => {
+      const agotado = Number(p.stock) <= 0;
+      return `
+      <div class="card-producto">
+        <img src="${p.imagen || "https://via.placeholder.com/300x200?text=Sin+imagen"}" alt="${p.nombre}" loading="lazy" />
+        <div class="info">
+          <span class="categoria">${p.categoria || ""}</span>
+          <span class="nombre">${p.nombre}</span>
+          <span class="precio">${formatCOPLocal(p.precio)}</span>
+          <span class="stock-info">${agotado ? "Sin stock" : `Disponibles: ${p.stock}`}</span>
+          <button class="btn-agregar ${agotado ? "agotado" : ""}" data-id="${p.id}" ${agotado ? "disabled" : ""}>
+            ${agotado ? "Agotado" : "Agregar"}
+          </button>
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  gridEl.querySelectorAll(".btn-agregar:not(.agotado)").forEach((btn) => {
+    btn.addEventListener("click", () => agregarAlCarrito(btn.dataset.id));
+  });
+}
+
+function formatCOPLocal(v) {
+  return "$ " + (Number(v) || 0).toLocaleString("es-CO");
+}
+
+/* ---------- SUSCRIPCIÓN EN TIEMPO REAL A FIRESTORE ---------- */
+onSnapshot(collection(db, "productos"), (snapshot) => {
+  productos = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderProductos();
+  sincronizarCarritoConStock();
+});
+
+/* Si el stock cambia mientras el producto está en el carrito, ajustamos cantidades */
+function sincronizarCarritoConStock() {
+  let cambiado = false;
+  carrito = carrito
+    .map((item) => {
+      const actual = productos.find((p) => p.id === item.id);
+      if (!actual) return item;
+      if (Number(actual.stock) <= 0) {
+        cambiado = true;
+        return null;
+      }
+      if (item.cantidad > actual.stock) {
+        item.cantidad = actual.stock;
+        cambiado = true;
+      }
+      return item;
+    })
+    .filter(Boolean);
+  if (cambiado) {
+    actualizarBadge();
+    renderCarrito();
+  }
+}
+
+/* ---------- CARRITO ---------- */
+function agregarAlCarrito(id) {
+  const producto = productos.find((p) => p.id === id);
+  if (!producto || Number(producto.stock) <= 0) return;
+
+  const existente = carrito.find((i) => i.id === id);
+  if (existente) {
+    if (existente.cantidad < producto.stock) existente.cantidad++;
+  } else {
+    carrito.push({ id, nombre: producto.nombre, precio: producto.precio, cantidad: 1, stock: producto.stock });
+  }
+  actualizarBadge();
+}
+
+function actualizarBadge() {
+  const totalItems = carrito.reduce((acc, i) => acc + i.cantidad, 0);
+  badgeEl.textContent = totalItems;
+}
+
+function renderCarrito() {
+  if (carrito.length === 0) {
+    listaCarritoEl.innerHTML = `<div class="vacio-carrito">Tu carrito está vacío 🧊</div>`;
+    totalCarritoEl.textContent = "Total: $ 0";
+    return;
+  }
+
+  listaCarritoEl.innerHTML = carrito
+    .map(
+      (item) => `
+      <div class="item-carrito" data-id="${item.id}">
+        <div>
+          <strong>${item.nombre}</strong><br/>
+          <small>${formatCOPLocal(item.precio)} c/u</small>
+        </div>
+        <div class="cantidad-control">
+          <button class="restar">−</button>
+          <span>${item.cantidad}</span>
+          <button class="sumar">+</button>
+        </div>
+      </div>`
+    )
+    .join("");
+
+  listaCarritoEl.querySelectorAll(".item-carrito").forEach((el) => {
+    const id = el.dataset.id;
+    el.querySelector(".sumar").addEventListener("click", () => {
+      const item = carrito.find((i) => i.id === id);
+      const stockDisponible = productos.find((p) => p.id === id)?.stock ?? 0;
+      if (item && item.cantidad < stockDisponible) item.cantidad++;
+      actualizarBadge();
+      renderCarrito();
+    });
+    el.querySelector(".restar").addEventListener("click", () => {
+      const item = carrito.find((i) => i.id === id);
+      if (item) item.cantidad--;
+      carrito = carrito.filter((i) => i.cantidad > 0);
+      actualizarBadge();
+      renderCarrito();
+    });
+  });
+
+  const total = carrito.reduce((acc, i) => acc + i.cantidad * i.precio, 0);
+  totalCarritoEl.textContent = "Total: " + formatCOPLocal(total);
+}
+
+/* ---------- MODAL ---------- */
+document.getElementById("btn-carrito").addEventListener("click", () => {
+  renderCarrito();
+  modalOverlay.classList.add("abierto");
+});
+document.getElementById("btn-cerrar-modal").addEventListener("click", () => {
+  modalOverlay.classList.remove("abierto");
+});
+modalOverlay.addEventListener("click", (e) => {
+  if (e.target === modalOverlay) modalOverlay.classList.remove("abierto");
+});
+
+/* ---------- ENVÍO POR WHATSAPP ---------- */
+document.getElementById("form-cliente").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (carrito.length === 0) {
+    alert("Tu carrito está vacío.");
+    return;
+  }
+
+  const cliente = {
+    nombre: document.getElementById("cliente-nombre").value.trim(),
+    direccion: document.getElementById("cliente-direccion").value.trim(),
+    telefono: document.getElementById("cliente-telefono").value.trim()
+  };
+
+  const url = generarLinkWhatsApp(carrito, cliente, NUMERO_WHATSAPP_NEGOCIO);
+  window.open(url, "_blank");
+
+  // Limpiar carrito después de enviar
+  carrito = [];
+  actualizarBadge();
+  renderCarrito();
+  modalOverlay.classList.remove("abierto");
+});
+
+/* ---------- INICIO ---------- */
+renderFiltros();
+</script>
+</body>
+</html>
