@@ -1,1 +1,314 @@
+/* =============================================================
+   styles.css — Tienda pública Punto Frío Bocagrande
+   Paleta: Amarillo vibrante + oscuro/blanco para contraste
+   ============================================================= */
 
+:root {
+  --amarillo-principal: #FFC107;
+  --amarillo-fuerte: #FFA000;
+  --amarillo-suave: #FFF3CD;
+  --amarillo-hover: #FF8F00;
+  --negro-texto: #212121;
+  --gris-oscuro: #333333;
+  --blanco: #FFFFFF;
+  --gris-claro: #FAFAFA;
+  --rojo-agotado: #D32F2F;
+  --verde-ok: #2E7D32;
+  --sombra: 0 4px 14px rgba(0, 0, 0, 0.12);
+  --radio: 14px;
+  --fuente: "Poppins", "Segoe UI", sans-serif;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--fuente);
+  background: linear-gradient(180deg, var(--amarillo-suave) 0%, var(--blanco) 320px);
+  color: var(--negro-texto);
+  min-height: 100vh;
+  padding-bottom: 90px; /* espacio para el botón flotante del carrito */
+}
+
+/* ---------- HEADER ---------- */
+.header {
+  background: linear-gradient(135deg, var(--amarillo-principal), var(--amarillo-fuerte));
+  padding: 18px 16px 26px;
+  text-align: center;
+  color: var(--negro-texto);
+  box-shadow: var(--sombra);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  border-bottom: 4px solid var(--negro-texto);
+}
+
+.header h1 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+}
+
+.header p {
+  font-size: 0.85rem;
+  opacity: 0.85;
+  margin-top: 2px;
+}
+
+/* ---------- FILTROS DE CATEGORÍA ---------- */
+.filtros {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 14px 12px;
+  scrollbar-width: none;
+}
+.filtros::-webkit-scrollbar { display: none; }
+
+.filtro-btn {
+  flex: none;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 2px solid var(--amarillo-fuerte);
+  background: var(--blanco);
+  color: var(--gris-oscuro);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.filtro-btn.activo,
+.filtro-btn:hover {
+  background: var(--amarillo-fuerte);
+  color: var(--blanco);
+  border-color: var(--amarillo-fuerte);
+}
+
+/* ---------- GRID DE PRODUCTOS ---------- */
+.grid-productos {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  padding: 4px 14px 20px;
+}
+
+@media (min-width: 640px) {
+  .grid-productos { grid-template-columns: repeat(3, 1fr); }
+}
+@media (min-width: 960px) {
+  .grid-productos { grid-template-columns: repeat(4, 1fr); }
+}
+
+.card-producto {
+  background: var(--blanco);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease;
+}
+.card-producto:hover { transform: translateY(-3px); }
+
+.card-producto img {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  background: var(--amarillo-suave);
+}
+
+.card-producto .info {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.card-producto .nombre {
+  font-weight: 700;
+  font-size: 0.92rem;
+  line-height: 1.2;
+}
+
+.card-producto .categoria {
+  font-size: 0.7rem;
+  color: var(--amarillo-hover);
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.card-producto .precio {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--negro-texto);
+  margin-top: auto;
+}
+
+.card-producto .stock-info {
+  font-size: 0.7rem;
+  color: var(--gris-oscuro);
+  opacity: 0.7;
+}
+
+.btn-agregar {
+  margin-top: 6px;
+  border: none;
+  border-radius: 10px;
+  padding: 9px 0;
+  background: var(--amarillo-fuerte);
+  color: var(--blanco);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.btn-agregar:hover { background: var(--amarillo-hover); }
+
+.btn-agregar.agotado {
+  background: var(--rojo-agotado);
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+/* ---------- BOTÓN FLOTANTE CARRITO ---------- */
+.carrito-flotante {
+  position: fixed;
+  bottom: 18px;
+  right: 18px;
+  background: var(--negro-texto);
+  color: var(--amarillo-principal);
+  border-radius: 999px;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  z-index: 60;
+  border: 2px solid var(--amarillo-principal);
+}
+
+.carrito-flotante .badge {
+  background: var(--amarillo-principal);
+  color: var(--negro-texto);
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.8rem;
+}
+
+/* ---------- MODAL CARRITO / CHECKOUT ---------- */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: none;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 100;
+}
+.modal-overlay.abierto { display: flex; }
+
+.modal-carrito {
+  background: var(--blanco);
+  width: 100%;
+  max-width: 480px;
+  border-radius: 22px 22px 0 0;
+  padding: 20px;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: subir 0.25s ease;
+}
+
+@keyframes subir {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-carrito h2 {
+  color: var(--amarillo-hover);
+  margin-bottom: 12px;
+  font-size: 1.2rem;
+}
+
+.item-carrito {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.item-carrito .cantidad-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item-carrito button {
+  background: var(--amarillo-suave);
+  border: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.form-cliente input,
+.form-cliente textarea {
+  width: 100%;
+  padding: 10px 12px;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1.5px solid #ddd;
+  font-family: var(--fuente);
+  font-size: 0.9rem;
+}
+.form-cliente input:focus,
+.form-cliente textarea:focus {
+  outline: none;
+  border-color: var(--amarillo-fuerte);
+}
+
+.total-carrito {
+  font-size: 1.3rem;
+  font-weight: 800;
+  text-align: right;
+  margin: 14px 0;
+  color: var(--negro-texto);
+}
+
+.btn-whatsapp {
+  width: 100%;
+  background: #25D366;
+  color: var(--blanco);
+  border: none;
+  padding: 14px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-cerrar-modal {
+  background: none;
+  border: none;
+  font-size: 1.4rem;
+  float: right;
+  cursor: pointer;
+  color: var(--gris-oscuro);
+}
+
+.vacio-carrito {
+  text-align: center;
+  padding: 30px 10px;
+  color: #999;
+  font-size: 0.9rem;
+}
