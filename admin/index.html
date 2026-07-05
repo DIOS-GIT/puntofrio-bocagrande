@@ -50,7 +50,7 @@
       <div class="card">
         <h3 style="margin-bottom:10px;">Datos del Cliente</h3>
         <div class="form-field">
-          <label>Cédula / NIT</label>
+          <label>Cédula / NIT (opcional)</label>
           <input type="text" id="f-cedula" placeholder="Ej: 1234567890" />
         </div>
         <div class="form-field">
@@ -215,6 +215,14 @@
       </div>
     </div>
   </section>
+</div>
+
+<!-- Modal para ver la factura sin descargarla -->
+<div class="modal-overlay-factura" id="modal-factura-overlay">
+  <div class="modal-factura-caja">
+    <button class="btn-cerrar-modal-factura" id="btn-cerrar-modal-factura">✕</button>
+    <div id="contenido-vista-factura"></div>
+  </div>
 </div>
 
 <!-- Tiquete POS oculto, solo visible al imprimir -->
@@ -500,8 +508,8 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
   const correo = document.getElementById("f-correo").value.trim();
   const metodoPago = document.getElementById("f-metodo-pago").value;
 
-  if (!cedula || !nombre) {
-    mostrarToast("⚠️ Cédula/NIT y nombre son obligatorios.");
+  if (!nombre) {
+    mostrarToast("⚠️ El nombre del cliente es obligatorio.");
     return;
   }
   if (carritoFactura.length === 0) {
@@ -544,7 +552,7 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
       const refFactura = doc(collection(db, "facturas"));
       const facturaData = {
         numero: siguienteNumero,
-        cliente: { cedula, nombre, correo },
+        cliente: { cedula: cedula || "N/A", nombre, correo },
         items: carritoFactura.map((i) => ({
           id: i.id,
           nombre: i.nombre,
@@ -558,9 +566,11 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
       };
       tx.set(refFactura, facturaData);
 
-      // 4. Guardar/actualizar cliente
-      const refCliente = doc(db, "clientes", cedula);
-      tx.set(refCliente, { cedula, nombre, correo, actualizadoEn: serverTimestamp() }, { merge: true });
+      // 4. Guardar/actualizar cliente (solo si dio cédula/NIT, ya que es el ID del documento)
+      if (cedula) {
+        const refCliente = doc(db, "clientes", cedula);
+        tx.set(refCliente, { cedula, nombre, correo, actualizadoEn: serverTimestamp() }, { merge: true });
+      }
 
       // 5. Cola de envío de correo (solo si el cliente dio uno)
       if (correo) {
@@ -598,13 +608,62 @@ function mostrarBotonesFacturaGenerada(factura) {
   cont.innerHTML = `
     <p style="margin-bottom:8px;">Factura #${factura.numero} lista.</p>
     <div class="btn-fila">
+      <button class="btn btn-azul" id="btn-ver-factura">👁 Ver Factura</button>
       <button class="btn btn-secundario" id="btn-imprimir-tiquete">🖨 Imprimir Tiquete POS</button>
       <button class="btn btn-rojo" id="btn-descargar-pdf-factura">📄 Descargar PDF</button>
     </div>`;
 
+  document.getElementById("btn-ver-factura").addEventListener("click", () => verFacturaModal(factura));
   document.getElementById("btn-imprimir-tiquete").addEventListener("click", () => imprimirTiquetePOS(factura));
   document.getElementById("btn-descargar-pdf-factura").addEventListener("click", () => descargarFacturaPDF(factura));
 }
+
+/* ---------- VISTA EN PANTALLA DE LA FACTURA (sin descargar) ---------- */
+function verFacturaModal(factura) {
+  const fecha = factura.fecha?.toDate ? formatFecha(factura.fecha) : new Date().toLocaleString("es-CO");
+  const cont = document.getElementById("contenido-vista-factura");
+
+  cont.innerHTML = `
+    <div style="background:linear-gradient(135deg,#FFC107,#FFA000);padding:18px 20px;border-radius:10px 10px 0 0;margin:-20px -20px 16px -20px;">
+      <h2 style="margin:0;color:#212121;">PUNTO FRÍO BOCAGRANDE</h2>
+      <p style="margin:2px 0 0;color:#212121;font-weight:600;">Factura de Venta #${factura.numero}</p>
+    </div>
+    <p><strong>Cliente:</strong> ${factura.cliente?.nombre || ""}</p>
+    <p><strong>Cédula/NIT:</strong> ${factura.cliente?.cedula || "N/A"}</p>
+    ${factura.cliente?.correo ? `<p><strong>Correo:</strong> ${factura.cliente.correo}</p>` : ""}
+    <p><strong>Método de pago:</strong> ${factura.metodoPago}</p>
+    <p><strong>Fecha:</strong> ${fecha}</p>
+    <table class="tabla-factura" style="margin-top:12px;">
+      <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th></tr></thead>
+      <tbody>
+        ${factura.items
+          .map(
+            (i) => `<tr><td>${i.nombre}</td><td>${i.cantidad}</td><td>${formatCOP(i.precio)}</td><td>${formatCOP(i.subtotal)}</td></tr>`
+          )
+          .join("")}
+      </tbody>
+    </table>
+    <div class="total-carrito" style="margin-top:14px;">Total: ${formatCOP(factura.total)}</div>
+    <div class="btn-fila" style="margin-top:16px;">
+      <button class="btn btn-secundario" id="btn-ver-imprimir-tiquete">🖨 Imprimir Tiquete</button>
+      <button class="btn btn-rojo" id="btn-ver-descargar-pdf">📄 Descargar PDF</button>
+    </div>
+  `;
+
+  document.getElementById("btn-ver-imprimir-tiquete").addEventListener("click", () => imprimirTiquetePOS(factura));
+  document.getElementById("btn-ver-descargar-pdf").addEventListener("click", () => descargarFacturaPDF(factura));
+
+  document.getElementById("modal-factura-overlay").classList.add("abierto");
+}
+
+document.getElementById("btn-cerrar-modal-factura").addEventListener("click", () => {
+  document.getElementById("modal-factura-overlay").classList.remove("abierto");
+});
+document.getElementById("modal-factura-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "modal-factura-overlay") {
+    document.getElementById("modal-factura-overlay").classList.remove("abierto");
+  }
+});
 
 /* ---------- IMPRESIÓN TIQUETE POS (térmica) ---------- */
 function imprimirTiquetePOS(factura) {
@@ -713,6 +772,7 @@ async function cargarHistorialFacturas(filtro = "") {
         <td>${formatCOP(fa.total)}</td>
         <td>${fa.fecha ? formatFecha(fa.fecha) : ""}</td>
         <td>
+          <button class="btn btn-azul" data-id="${fa.id}" data-accion="ver">👁</button>
           <button class="btn btn-secundario" data-id="${fa.id}" data-accion="imprimir">🖨</button>
           <button class="btn btn-rojo" data-id="${fa.id}" data-accion="pdf">📄</button>
         </td>
@@ -724,6 +784,7 @@ async function cargarHistorialFacturas(filtro = "") {
     btn.addEventListener("click", () => {
       const factura = facturas.find((f) => f.id === btn.dataset.id);
       if (!factura) return;
+      if (btn.dataset.accion === "ver") verFacturaModal(factura);
       if (btn.dataset.accion === "imprimir") imprimirTiquetePOS(factura);
       if (btn.dataset.accion === "pdf") descargarFacturaPDF(factura);
     });
