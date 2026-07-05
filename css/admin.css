@@ -259,3 +259,42 @@ table.tabla-factura th { background: var(--amarillo-suave); }
 .toast.mostrar { opacity: 1; transform: translateY(0); }
 
 .oculto { display: none !important; }
+
+/* ---------- MODAL VISTA DE FACTURA ---------- */
+.modal-overlay-factura {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 16px;
+}
+.modal-overlay-factura.abierto { display: flex; }
+
+.modal-factura-caja {
+  background: var(--blanco);
+  width: 100%;
+  max-width: 560px;
+  border-radius: var(--radio);
+  padding: 20px;
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: var(--sombra);
+  position: relative;
+}
+
+.btn-cerrar-modal-factura {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: rgba(255,255,255,0.85);
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  cursor: pointer;
+  color: var(--negro);
+}
