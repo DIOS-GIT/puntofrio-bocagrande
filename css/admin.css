@@ -1,0 +1,261 @@
+/* =============================================================
+   admin.css — Panel de Administración Punto Frío Bocagrande
+   ============================================================= */
+
+:root {
+  --amarillo-principal: #FFC107;
+  --amarillo-fuerte: #FFA000;
+  --amarillo-suave: #FFF3CD;
+  --negro: #1A1A1A;
+  --gris-oscuro: #2E2E2E;
+  --gris-panel: #F7F7F7;
+  --blanco: #FFFFFF;
+  --rojo: #D32F2F;
+  --verde: #2E7D32;
+  --azul: #1565C0;
+  --sombra: 0 3px 12px rgba(0, 0, 0, 0.15);
+  --radio: 12px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Segoe UI", "Poppins", sans-serif;
+  background: var(--gris-panel);
+  color: var(--negro);
+}
+
+/* ---------- LOGIN MODAL ---------- */
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(135deg, var(--negro), #3a3a3a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.login-box {
+  background: var(--blanco);
+  padding: 34px 30px;
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  width: 320px;
+  text-align: center;
+  border-top: 6px solid var(--amarillo-principal);
+}
+
+.login-box h2 { margin-bottom: 6px; color: var(--negro); }
+.login-box p { font-size: 0.8rem; color: #888; margin-bottom: 18px; }
+
+.login-box input {
+  width: 100%;
+  padding: 11px 12px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+  border: 1.5px solid #ddd;
+  font-size: 0.9rem;
+}
+.login-box input:focus { outline: none; border-color: var(--amarillo-fuerte); }
+
+.login-box button {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: none;
+  background: var(--amarillo-fuerte);
+  color: var(--blanco);
+  font-weight: 700;
+  cursor: pointer;
+}
+.login-box button:hover { background: #ff8f00; }
+.login-error { color: var(--rojo); font-size: 0.8rem; margin-top: 8px; min-height: 16px; }
+
+/* ---------- LAYOUT PRINCIPAL ---------- */
+.admin-topbar {
+  background: var(--negro);
+  color: var(--amarillo-principal);
+  padding: 14px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+.admin-topbar h1 { font-size: 1.1rem; }
+.admin-topbar button {
+  background: var(--amarillo-principal);
+  color: var(--negro);
+  border: none;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.tabs {
+  display: flex;
+  background: var(--blanco);
+  border-bottom: 2px solid #eee;
+  overflow-x: auto;
+  position: sticky;
+  top: 52px;
+  z-index: 39;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 14px 8px;
+  border: none;
+  background: none;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: #999;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  white-space: nowrap;
+}
+.tab-btn.activo {
+  color: var(--amarillo-fuerte);
+  border-bottom-color: var(--amarillo-fuerte);
+}
+
+.admin-panel { display: none; padding: 18px; max-width: 1200px; margin: 0 auto; }
+.admin-panel.activo { display: block; }
+
+.panel-titulo {
+  font-size: 1.2rem;
+  margin-bottom: 16px;
+  color: var(--negro);
+  border-left: 5px solid var(--amarillo-principal);
+  padding-left: 10px;
+}
+
+/* ---------- CARDS / SECCIONES ---------- */
+.card {
+  background: var(--blanco);
+  border-radius: var(--radio);
+  box-shadow: var(--sombra);
+  padding: 18px;
+  margin-bottom: 18px;
+}
+
+.grid-2 { display: grid; gap: 16px; grid-template-columns: 1fr; }
+@media (min-width: 800px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+.form-field { margin-bottom: 12px; }
+.form-field label { display: block; font-size: 0.78rem; font-weight: 700; margin-bottom: 4px; color: #555; }
+.form-field input,
+.form-field select,
+.form-field textarea {
+  width: 100%;
+  padding: 9px 11px;
+  border-radius: 8px;
+  border: 1.5px solid #ddd;
+  font-size: 0.88rem;
+}
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus { outline: none; border-color: var(--amarillo-fuerte); }
+
+.btn {
+  padding: 10px 18px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.btn-primario { background: var(--amarillo-fuerte); color: var(--blanco); }
+.btn-primario:hover { background: #ff8f00; }
+.btn-secundario { background: #eee; color: var(--negro); }
+.btn-verde { background: var(--verde); color: var(--blanco); }
+.btn-azul { background: var(--azul); color: var(--blanco); }
+.btn-rojo { background: var(--rojo); color: var(--blanco); }
+.btn-fila { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+
+/* ---------- TABLA FACTURA ---------- */
+table.tabla-factura { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
+table.tabla-factura th, table.tabla-factura td { padding: 8px 6px; border-bottom: 1px solid #eee; text-align: left; }
+table.tabla-factura th { background: var(--amarillo-suave); }
+
+/* ---------- INVENTARIO ---------- */
+.tabla-inventario { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.tabla-inventario th {
+  background: var(--negro);
+  color: var(--amarillo-principal);
+  padding: 10px 8px;
+  text-align: left;
+  position: sticky;
+  top: 0;
+}
+.tabla-inventario td { padding: 9px 8px; border-bottom: 1px solid #eee; }
+.tabla-inventario tr.stock-bajo { background: #fff8e1; }
+.tabla-inventario tr.stock-critico { background: #ffebee; }
+.tabla-inventario img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
+
+.badge-stock {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.badge-ok { background: #e8f5e9; color: var(--verde); }
+.badge-bajo { background: #fff3e0; color: var(--amarillo-fuerte); }
+.badge-critico { background: #ffebee; color: var(--rojo); }
+
+/* ---------- CIERRE DE CAJA ---------- */
+.resumen-caja { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+@media (min-width: 700px) { .resumen-caja { grid-template-columns: repeat(4, 1fr); } }
+
+.caja-metric {
+  background: var(--amarillo-suave);
+  border-radius: var(--radio);
+  padding: 16px;
+  text-align: center;
+}
+.caja-metric .valor { font-size: 1.4rem; font-weight: 800; color: var(--negro); }
+.caja-metric .label { font-size: 0.75rem; color: #777; margin-top: 4px; }
+
+/* ---------- TIQUETE POS (impresión) ---------- */
+.tiquete-pos {
+  width: 280px;
+  font-family: "Courier New", monospace;
+  font-size: 11px;
+  color: #000;
+  padding: 10px;
+  display: none;
+}
+.tiquete-pos .centrado { text-align: center; }
+.tiquete-pos hr { border: none; border-top: 1px dashed #000; margin: 6px 0; }
+.tiquete-pos table { width: 100%; font-size: 10px; }
+.tiquete-pos td { padding: 1px 0; }
+
+@media print {
+  body * { visibility: hidden; }
+  .tiquete-pos, .tiquete-pos * { visibility: visible; }
+  .tiquete-pos { display: block; position: absolute; top: 0; left: 0; width: 280px; }
+}
+
+/* ---------- TOAST / NOTIFICACIONES ---------- */
+.toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: var(--negro);
+  color: var(--amarillo-principal);
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  box-shadow: var(--sombra);
+  z-index: 500;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.25s ease;
+}
+.toast.mostrar { opacity: 1; transform: translateY(0); }
+
+.oculto { display: none !important; }
