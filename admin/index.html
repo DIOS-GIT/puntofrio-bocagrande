@@ -12,6 +12,8 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <!-- SheetJS para exportación a Excel/CSV -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<!-- Chart.js para el panel de estadísticas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
 </head>
 <body>
 
@@ -39,6 +41,7 @@
     <button class="tab-btn activo" data-tab="facturacion">🧾 Facturación</button>
     <button class="tab-btn" data-tab="inventario">📦 Inventario y Reportes</button>
     <button class="tab-btn" data-tab="caja">💰 Cierre de Caja</button>
+    <button class="tab-btn" data-tab="estadisticas">📈 Estadísticas</button>
   </nav>
 
   <!-- ============ MÓDULO A: FACTURACIÓN ============ -->
@@ -160,12 +163,24 @@
           <input type="number" id="p-stock-minimo" min="0" value="5" />
         </div>
         <div class="form-field">
-          <label>Imagen</label>
+          <label>Imágenes (puedes subir varias, la primera será la principal)</label>
           <div class="btn-fila">
-            <button type="button" class="btn btn-secundario" id="btn-subir-imagen">📷 Subir imagen</button>
+            <button type="button" class="btn btn-secundario" id="btn-subir-imagen">📷 Subir imágenes</button>
           </div>
           <input type="hidden" id="p-imagen" />
-          <img id="preview-imagen" src="" style="width:60px;height:60px;object-fit:cover;border-radius:8px;margin-top:8px;display:none;" />
+          <div id="preview-imagenes" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
+        </div>
+        <div class="form-field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="p-visible-tienda" style="width:auto;" checked />
+            Mostrar este producto en la tienda pública
+          </label>
+        </div>
+        <div class="form-field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="p-mostrar-categoria" style="width:auto;" checked />
+            Mostrar la categoría en la tarjeta del producto
+          </label>
         </div>
       </div>
       <div class="btn-fila">
@@ -186,7 +201,7 @@
       <div style="overflow-x:auto;margin-top:12px;">
         <table class="tabla-inventario" id="tabla-inventario">
           <thead>
-            <tr><th>Img</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr>
+            <tr><th>Img</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Tienda</th><th>Acciones</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -222,6 +237,52 @@
         <div class="caja-metric"><div class="valor" id="caja-daviplata">$ 0</div><div class="label">Daviplata</div></div>
         <div class="caja-metric"><div class="valor" id="caja-tarjeta">$ 0</div><div class="label">Tarjeta</div></div>
         <div class="caja-metric"><div class="valor" id="caja-num-facturas">0</div><div class="label"># Facturas</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MÓDULO D: ESTADÍSTICAS DE VENTAS ============ -->
+  <section class="admin-panel" id="panel-estadisticas">
+    <h2 class="panel-titulo">Estadísticas de Ventas</h2>
+
+    <div class="card">
+      <div class="form-field" style="max-width:220px;">
+        <label>Rango</label>
+        <select id="stats-rango">
+          <option value="7">Últimos 7 días</option>
+          <option value="30" selected>Últimos 30 días</option>
+          <option value="90">Últimos 90 días</option>
+          <option value="0">Todo el historial</option>
+        </select>
+      </div>
+      <button class="btn btn-primario" id="btn-cargar-estadisticas">🔄 Actualizar</button>
+
+      <div class="resumen-caja" style="margin-top:18px;">
+        <div class="caja-metric"><div class="valor" id="stats-total-ventas">$ 0</div><div class="label">VENTAS TOTALES</div></div>
+        <div class="caja-metric"><div class="valor" id="stats-num-facturas">0</div><div class="label"># Facturas</div></div>
+        <div class="caja-metric"><div class="valor" id="stats-ticket-promedio">$ 0</div><div class="label">Ticket promedio</div></div>
+        <div class="caja-metric"><div class="valor" id="stats-unidades">0</div><div class="label">Unidades vendidas</div></div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3 style="margin-bottom:10px;">Ventas por día</h3>
+        <canvas id="grafico-ventas-dia" height="220"></canvas>
+      </div>
+      <div class="card">
+        <h3 style="margin-bottom:10px;">Productos más vendidos</h3>
+        <canvas id="grafico-top-productos" height="220"></canvas>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;">Detalle de productos más vendidos</h3>
+      <div style="overflow-x:auto;">
+        <table class="tabla-factura" id="tabla-top-productos">
+          <thead><tr><th>#</th><th>Producto</th><th>Unidades vendidas</th><th>Ingresos generados</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -841,14 +902,35 @@ document.querySelector('[data-tab="facturacion"]').addEventListener("click", () 
    MÓDULO B — INVENTARIO Y REPORTES
 ===================================================================== */
 
+let imagenesActuales = [];
+
 document.getElementById("btn-subir-imagen").addEventListener("click", () => {
   openCloudinaryWidget((url) => {
-    document.getElementById("p-imagen").value = url;
-    const preview = document.getElementById("preview-imagen");
-    preview.src = url;
-    preview.style.display = "block";
+    imagenesActuales.push(url);
+    document.getElementById("p-imagen").value = imagenesActuales[0] || "";
+    renderPreviewImagenes();
   });
 });
+
+function renderPreviewImagenes() {
+  const cont = document.getElementById("preview-imagenes");
+  cont.innerHTML = imagenesActuales
+    .map(
+      (url, idx) => `
+    <div style="position:relative;">
+      <img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:${idx === 0 ? "2px solid #FFA000" : "1px solid #ddd"};" />
+      <button type="button" data-idx="${idx}" class="btn-quitar-imagen" style="position:absolute;top:-6px;right:-6px;background:#D32F2F;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;">✕</button>
+    </div>`
+    )
+    .join("");
+  cont.querySelectorAll(".btn-quitar-imagen").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      imagenesActuales.splice(Number(btn.dataset.idx), 1);
+      document.getElementById("p-imagen").value = imagenesActuales[0] || "";
+      renderPreviewImagenes();
+    });
+  });
+}
 
 document.getElementById("p-maneja-envase").addEventListener("change", (e) => {
   document.getElementById("campo-precio-envase").classList.toggle("oculto", !e.target.checked);
@@ -865,7 +947,10 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
     precioConEnvase: manejaEnvase ? (Number(document.getElementById("p-precio-envase").value) || 0) : null,
     stock: Number(document.getElementById("p-stock").value) || 0,
     stockMinimo: Number(document.getElementById("p-stock-minimo").value) || 5,
-    imagen: document.getElementById("p-imagen").value || ""
+    imagen: imagenesActuales[0] || "",
+    imagenes: imagenesActuales,
+    visibleEnTienda: document.getElementById("p-visible-tienda").checked,
+    mostrarCategoria: document.getElementById("p-mostrar-categoria").checked
   };
 
   if (!data.nombre) {
@@ -898,7 +983,10 @@ function limpiarFormularioProducto() {
   document.getElementById("p-stock").value = "";
   document.getElementById("p-stock-minimo").value = "5";
   document.getElementById("p-imagen").value = "";
-  document.getElementById("preview-imagen").style.display = "none";
+  imagenesActuales = [];
+  renderPreviewImagenes();
+  document.getElementById("p-visible-tienda").checked = true;
+  document.getElementById("p-mostrar-categoria").checked = true;
   document.getElementById("titulo-form-producto").textContent = "Agregar Producto";
   document.getElementById("btn-cancelar-edicion").classList.add("oculto");
 }
@@ -927,6 +1015,7 @@ function renderTablaInventario() {
         <td>${formatCOP(p.precio)}${p.manejaEnvase ? `<br><small style="color:#1565C0;">Con envase: ${formatCOP(p.precioConEnvase)}</small>` : ""}</td>
         <td>${p.stock}</td>
         <td>${badge}</td>
+        <td>${p.visibleEnTienda !== false ? '<span class="badge-stock badge-ok">Visible</span>' : '<span class="badge-stock badge-critico">Oculto</span>'}</td>
         <td>
           <button class="btn btn-secundario" data-id="${p.id}" data-accion="editar">✎</button>
           <button class="btn btn-rojo" data-id="${p.id}" data-accion="eliminar">🗑</button>
@@ -956,6 +1045,10 @@ function cargarProductoParaEditar(id) {
   document.getElementById("p-stock").value = p.stock;
   document.getElementById("p-stock-minimo").value = p.stockMinimo ?? 5;
   document.getElementById("p-imagen").value = p.imagen || "";
+  imagenesActuales = Array.isArray(p.imagenes) && p.imagenes.length ? [...p.imagenes] : (p.imagen ? [p.imagen] : []);
+  renderPreviewImagenes();
+  document.getElementById("p-visible-tienda").checked = p.visibleEnTienda !== false;
+  document.getElementById("p-mostrar-categoria").checked = p.mostrarCategoria !== false;
   if (p.imagen) {
     document.getElementById("preview-imagen").src = p.imagen;
     document.getElementById("preview-imagen").style.display = "block";
@@ -1064,6 +1157,135 @@ document.getElementById("btn-export-pdf-ventas").addEventListener("click", async
     y += 14;
   });
   pdf.save(`ventas_puntofrio_${Date.now()}.pdf`);
+});
+
+/* ---------------------------------------------------------------
+   MÓDULO D: ESTADÍSTICAS DE VENTAS
+--------------------------------------------------------------- */
+let graficoVentasDia = null;
+let graficoTopProductos = null;
+
+async function cargarEstadisticas() {
+  const rangoDias = Number(document.getElementById("stats-rango").value);
+  let facturas = await obtenerTodasLasFacturas();
+
+  if (rangoDias > 0) {
+    const desde = new Date();
+    desde.setDate(desde.getDate() - rangoDias);
+    facturas = facturas.filter((f) => {
+      const fecha = f.fecha?.toDate ? f.fecha.toDate() : new Date(f.fecha || 0);
+      return fecha >= desde;
+    });
+  }
+
+  // Métricas generales
+  const totalVentas = facturas.reduce((acc, f) => acc + (f.total || 0), 0);
+  const numFacturas = facturas.length;
+  const ticketPromedio = numFacturas > 0 ? totalVentas / numFacturas : 0;
+  const unidadesVendidas = facturas.reduce(
+    (acc, f) => acc + (f.items || []).reduce((a, i) => a + (i.cantidad || 0), 0),
+    0
+  );
+
+  document.getElementById("stats-total-ventas").textContent = formatCOP(totalVentas);
+  document.getElementById("stats-num-facturas").textContent = numFacturas;
+  document.getElementById("stats-ticket-promedio").textContent = formatCOP(ticketPromedio);
+  document.getElementById("stats-unidades").textContent = unidadesVendidas;
+
+  // Ventas por día
+  const ventasPorDia = {};
+  facturas.forEach((f) => {
+    const fecha = f.fecha?.toDate ? f.fecha.toDate() : new Date(f.fecha || 0);
+    const clave = fecha.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit" });
+    ventasPorDia[clave] = (ventasPorDia[clave] || 0) + (f.total || 0);
+  });
+  const diasOrdenados = Object.keys(ventasPorDia).sort((a, b) => {
+    const [da, ma] = a.split("/").map(Number);
+    const [db_, mb] = b.split("/").map(Number);
+    return ma === mb ? da - db_ : ma - mb;
+  });
+
+  // Productos más vendidos
+  const productosAgregados = {};
+  facturas.forEach((f) => {
+    (f.items || []).forEach((i) => {
+      if (!productosAgregados[i.nombre]) {
+        productosAgregados[i.nombre] = { unidades: 0, ingresos: 0 };
+      }
+      productosAgregados[i.nombre].unidades += i.cantidad || 0;
+      productosAgregados[i.nombre].ingresos += i.subtotal || 0;
+    });
+  });
+  const topProductos = Object.entries(productosAgregados)
+    .sort((a, b) => b[1].unidades - a[1].unidades)
+    .slice(0, 8);
+
+  // Tabla de detalle
+  const tbody = document.querySelector("#tabla-top-productos tbody");
+  tbody.innerHTML = topProductos
+    .map(
+      ([nombre, datos], idx) =>
+        `<tr><td>${idx + 1}</td><td>${nombre}</td><td>${datos.unidades}</td><td>${formatCOP(datos.ingresos)}</td></tr>`
+    )
+    .join("") || `<tr><td colspan="4" style="text-align:center;color:#999;">Sin datos en este rango.</td></tr>`;
+
+  // Gráficos (requiere que Chart.js ya haya cargado)
+  if (typeof Chart === "undefined") {
+    mostrarToast("⚠️ Los gráficos aún están cargando, intenta 'Actualizar' de nuevo en un segundo.");
+    return;
+  }
+
+  const ctxDia = document.getElementById("grafico-ventas-dia");
+  if (graficoVentasDia) graficoVentasDia.destroy();
+  graficoVentasDia = new Chart(ctxDia, {
+    type: "line",
+    data: {
+      labels: diasOrdenados,
+      datasets: [
+        {
+          label: "Ventas ($)",
+          data: diasOrdenados.map((d) => ventasPorDia[d]),
+          borderColor: "#FFA000",
+          backgroundColor: "rgba(255,160,0,0.15)",
+          fill: true,
+          tension: 0.3
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } },
+      scales: { y: { ticks: { callback: (v) => formatCOP(v) } } }
+    }
+  });
+
+  const ctxTop = document.getElementById("grafico-top-productos");
+  if (graficoTopProductos) graficoTopProductos.destroy();
+  graficoTopProductos = new Chart(ctxTop, {
+    type: "bar",
+    data: {
+      labels: topProductos.map(([nombre]) => nombre),
+      datasets: [
+        {
+          label: "Unidades vendidas",
+          data: topProductos.map(([, datos]) => datos.unidades),
+          backgroundColor: "#1565C0"
+        }
+      ]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true,
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+document.getElementById("btn-cargar-estadisticas").addEventListener("click", cargarEstadisticas);
+
+// Cargar estadísticas automáticamente la primera vez que se abre esa pestaña
+document.querySelector('.tab-btn[data-tab="estadisticas"]').addEventListener("click", () => {
+  cargarEstadisticas();
 });
 
 document.getElementById("btn-export-json-ventas").addEventListener("click", async () => {
