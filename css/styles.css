@@ -152,6 +152,25 @@ body {
   opacity: 0.7;
 }
 
+.selector-envase {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0;
+  font-size: 0.72rem;
+  color: var(--gris-oscuro);
+}
+.selector-envase label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+.selector-envase input[type="radio"] {
+  width: auto;
+  accent-color: var(--amarillo-fuerte);
+}
+
 .btn-agregar {
   margin-top: 6px;
   border: none;
