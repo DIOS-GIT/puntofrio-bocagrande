@@ -17,6 +17,14 @@
 
 <nav class="filtros" id="filtros"></nav>
 
+<div class="toolbar-tienda">
+  <select id="selector-orden">
+    <option value="default">Ordenar por</option>
+    <option value="precio-asc">Precio: menor a mayor</option>
+    <option value="precio-desc">Precio: mayor a menor</option>
+  </select>
+</div>
+
 <main class="grid-productos" id="grid-productos">
   <!-- Las tarjetas de producto se renderizan aquí en tiempo real -->
 </main>
@@ -60,15 +68,29 @@ const CATEGORIAS = ["Todos", "Licores", "Cervezas Nacionales", "Importadas", "Be
 
 let productos = [];       // Cache local de productos desde Firestore
 let categoriaActiva = "Todos";
+let ordenActivo = "default";
 let carrito = [];         // [{key, id, nombre, precio, cantidad, conEnvase}]
 let envaseSeleccionado = {}; // { [productoId]: boolean } — elección del cliente antes de agregar
+let imagenActiva = {};       // { [productoId]: indice de la foto que se está mostrando }
 
 const gridEl = document.getElementById("grid-productos");
 const filtrosEl = document.getElementById("filtros");
+const selectorOrdenEl = document.getElementById("selector-orden");
 const badgeEl = document.getElementById("badge-carrito");
 const modalOverlay = document.getElementById("modal-overlay");
 const listaCarritoEl = document.getElementById("lista-carrito");
 const totalCarritoEl = document.getElementById("total-carrito");
+
+selectorOrdenEl.addEventListener("change", (e) => {
+  ordenActivo = e.target.value;
+  renderProductos();
+});
+
+function imagenesDe(p) {
+  if (Array.isArray(p.imagenes) && p.imagenes.length) return p.imagenes;
+  if (p.imagen) return [p.imagen];
+  return [];
+}
 
 /* ---------- RENDER DE FILTROS ---------- */
 function renderFiltros() {
@@ -87,10 +109,17 @@ function renderFiltros() {
 
 /* ---------- RENDER DE PRODUCTOS (reactivo) ---------- */
 function renderProductos() {
-  const lista =
-    categoriaActiva === "Todos"
-      ? productos
-      : productos.filter((p) => p.categoria === categoriaActiva);
+  let lista = productos.filter((p) => p.visibleEnTienda !== false);
+
+  if (categoriaActiva !== "Todos") {
+    lista = lista.filter((p) => p.categoria === categoriaActiva);
+  }
+
+  if (ordenActivo === "precio-asc") {
+    lista = [...lista].sort((a, b) => Number(a.precio) - Number(b.precio));
+  } else if (ordenActivo === "precio-desc") {
+    lista = [...lista].sort((a, b) => Number(b.precio) - Number(a.precio));
+  }
 
   if (lista.length === 0) {
     gridEl.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#999;padding:30px;">No hay productos en esta categoría.</p>`;
@@ -102,11 +131,25 @@ function renderProductos() {
       const agotado = Number(p.stock) <= 0;
       const conEnvase = !!envaseSeleccionado[p.id];
       const precioMostrado = p.manejaEnvase && conEnvase ? p.precioConEnvase : p.precio;
+      const imgs = imagenesDe(p);
+      const idxActivo = (imagenActiva[p.id] || 0) % Math.max(imgs.length, 1);
+      const imgSrc = imgs.length ? imgs[idxActivo] : "https://placehold.co/300x200/FFF3CD/999999?text=Sin+imagen";
+
       return `
       <div class="card-producto">
-        <img src="${p.imagen || "https://placehold.co/300x200/FFF3CD/999999?text=Sin+imagen"}" alt="${p.nombre}" loading="lazy" />
+        <div class="imagen-wrap" data-id="${p.id}">
+          <img src="${imgSrc}" alt="${p.nombre}" loading="lazy" />
+          ${agotado ? `<span class="badge-agotado">Agotado</span>` : ""}
+          ${
+            imgs.length > 1
+              ? `<div class="galeria-dots">${imgs
+                  .map((_, i) => `<span class="dot ${i === idxActivo ? "activo" : ""}" data-idx="${i}"></span>`)
+                  .join("")}</div>`
+              : ""
+          }
+        </div>
         <div class="info">
-          <span class="categoria">${p.categoria || ""}</span>
+          ${p.mostrarCategoria !== false ? `<span class="categoria">${p.categoria || ""}</span>` : ""}
           <span class="nombre">${p.nombre}</span>
           <span class="precio">${formatCOPLocal(precioMostrado)}</span>
           ${
@@ -125,6 +168,15 @@ function renderProductos() {
       </div>`;
     })
     .join("");
+
+  gridEl.querySelectorAll(".imagen-wrap .dot").forEach((dot) => {
+    dot.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = dot.closest(".imagen-wrap").dataset.id;
+      imagenActiva[id] = Number(dot.dataset.idx);
+      renderProductos();
+    });
+  });
 
   gridEl.querySelectorAll(".selector-envase").forEach((sel) => {
     sel.querySelectorAll("input[type=radio]").forEach((radio) => {
