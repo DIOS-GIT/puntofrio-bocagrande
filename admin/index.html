@@ -138,8 +138,18 @@
           </select>
         </div>
         <div class="form-field">
-          <label>Precio (COP)</label>
+          <label>Precio sin envase (COP)</label>
           <input type="number" id="p-precio" min="0" />
+        </div>
+        <div class="form-field">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="p-maneja-envase" style="width:auto;" />
+            Maneja envase retornable
+          </label>
+        </div>
+        <div class="form-field oculto" id="campo-precio-envase">
+          <label>Precio con envase (cliente trae/devuelve el envase vacío)</label>
+          <input type="number" id="p-precio-envase" min="0" />
         </div>
         <div class="form-field">
           <label>Stock actual</label>
@@ -422,7 +432,7 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
   contenedor.innerHTML = coincidencias
     .map(
       (p) => `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
-        ${p.nombre} — ${formatCOP(p.precio)} (stock: ${p.stock})
+        ${p.nombre} — ${formatCOP(p.precio)}${p.manejaEnvase ? ` <span style="color:#1565C0;">(con envase: ${formatCOP(p.precioConEnvase)})</span>` : ""} (stock: ${p.stock})
       </div>`
     )
     .join("");
@@ -446,7 +456,10 @@ function agregarItemFactura(idProducto) {
     carritoFactura.push({
       id: idProducto,
       nombre: producto.nombre,
-      precio: producto.precio,
+      precioSinEnvase: producto.precio,
+      manejaEnvase: !!producto.manejaEnvase,
+      precioConEnvase: producto.precioConEnvase ?? producto.precio,
+      conEnvase: false,
       cantidad: 1,
       stockDisponible: producto.stock
     });
@@ -454,22 +467,41 @@ function agregarItemFactura(idProducto) {
   renderTablaFactura();
 }
 
+function precioItemFactura(item) {
+  return item.manejaEnvase && item.conEnvase ? item.precioConEnvase : item.precioSinEnvase;
+}
+
 function renderTablaFactura() {
   const tbody = document.querySelector("#tabla-factura-items tbody");
   tbody.innerHTML = carritoFactura
-    .map(
-      (item, idx) => `
+    .map((item, idx) => {
+      const precioUnit = precioItemFactura(item);
+      return `
       <tr>
-        <td>${item.nombre}</td>
+        <td>${item.nombre}${
+          item.manejaEnvase
+            ? `<br><label style="font-size:0.72rem;font-weight:400;display:flex;align-items:center;gap:4px;">
+                 <input type="checkbox" class="chk-envase-factura" data-idx="${idx}" ${item.conEnvase ? "checked" : ""} style="width:auto;" />
+                 Trae envase (${formatCOP(item.precioConEnvase)})
+               </label>`
+            : ""
+        }</td>
         <td>
           <input type="number" min="1" max="${item.stockDisponible}" value="${item.cantidad}" data-idx="${idx}" class="input-cantidad-factura" style="width:55px;" />
         </td>
-        <td>${formatCOP(item.precio)}</td>
-        <td>${formatCOP(item.precio * item.cantidad)}</td>
+        <td>${formatCOP(precioUnit)}</td>
+        <td>${formatCOP(precioUnit * item.cantidad)}</td>
         <td><button data-idx="${idx}" class="btn-quitar-item" style="border:none;background:none;cursor:pointer;color:#D32F2F;">✕</button></td>
-      </tr>`
-    )
+      </tr>`;
+    })
     .join("");
+
+  tbody.querySelectorAll(".chk-envase-factura").forEach((chk) => {
+    chk.addEventListener("change", () => {
+      carritoFactura[Number(chk.dataset.idx)].conEnvase = chk.checked;
+      renderTablaFactura();
+    });
+  });
 
   tbody.querySelectorAll(".input-cantidad-factura").forEach((inp) => {
     inp.addEventListener("change", () => {
@@ -489,7 +521,7 @@ function renderTablaFactura() {
     });
   });
 
-  const total = carritoFactura.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+  const total = carritoFactura.reduce((acc, i) => acc + precioItemFactura(i) * i.cantidad, 0);
   document.getElementById("f-total").textContent = "Total: " + formatCOP(total);
 }
 
@@ -517,7 +549,7 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
     return;
   }
 
-  const total = carritoFactura.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+  const total = carritoFactura.reduce((acc, i) => acc + precioItemFactura(i) * i.cantidad, 0);
 
   try {
     const resultado = await runTransaction(db, async (tx) => {
@@ -556,9 +588,10 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
         items: carritoFactura.map((i) => ({
           id: i.id,
           nombre: i.nombre,
-          precio: i.precio,
+          precio: precioItemFactura(i),
+          conEnvase: i.manejaEnvase ? i.conEnvase : null,
           cantidad: i.cantidad,
-          subtotal: i.precio * i.cantidad
+          subtotal: precioItemFactura(i) * i.cantidad
         })),
         total,
         metodoPago,
@@ -618,6 +651,12 @@ function mostrarBotonesFacturaGenerada(factura) {
   document.getElementById("btn-descargar-pdf-factura").addEventListener("click", () => descargarFacturaPDF(factura));
 }
 
+function nombreConEnvase(item) {
+  if (item.conEnvase === true) return `${item.nombre} (trae envase)`;
+  if (item.conEnvase === false) return `${item.nombre} (sin envase)`;
+  return item.nombre;
+}
+
 /* ---------- VISTA EN PANTALLA DE LA FACTURA (sin descargar) ---------- */
 function verFacturaModal(factura) {
   const fecha = factura.fecha?.toDate ? formatFecha(factura.fecha) : new Date().toLocaleString("es-CO");
@@ -638,7 +677,7 @@ function verFacturaModal(factura) {
       <tbody>
         ${factura.items
           .map(
-            (i) => `<tr><td>${i.nombre}</td><td>${i.cantidad}</td><td>${formatCOP(i.precio)}</td><td>${formatCOP(i.subtotal)}</td></tr>`
+            (i) => `<tr><td>${nombreConEnvase(i)}</td><td>${i.cantidad}</td><td>${formatCOP(i.precio)}</td><td>${formatCOP(i.subtotal)}</td></tr>`
           )
           .join("")}
       </tbody>
@@ -684,7 +723,7 @@ function imprimirTiquetePOS(factura) {
     <table>
       ${factura.items
         .map(
-          (i) => `<tr><td>${i.cantidad}x ${i.nombre}</td><td style="text-align:right;">${formatCOP(i.subtotal)}</td></tr>`
+          (i) => `<tr><td>${i.cantidad}x ${nombreConEnvase(i)}</td><td style="text-align:right;">${formatCOP(i.subtotal)}</td></tr>`
         )
         .join("")}
     </table>
@@ -728,7 +767,7 @@ function descargarFacturaPDF(factura) {
   y += 22;
 
   factura.items.forEach((item) => {
-    pdf.text(String(item.nombre).slice(0, 40), 46, y);
+    pdf.text(String(nombreConEnvase(item)).slice(0, 40), 46, y);
     pdf.text(String(item.cantidad), 345, y);
     pdf.text(formatCOP(item.precio), 400, y);
     pdf.text(formatCOP(item.subtotal), 470, y);
@@ -811,12 +850,19 @@ document.getElementById("btn-subir-imagen").addEventListener("click", () => {
   });
 });
 
+document.getElementById("p-maneja-envase").addEventListener("change", (e) => {
+  document.getElementById("campo-precio-envase").classList.toggle("oculto", !e.target.checked);
+});
+
 document.getElementById("btn-guardar-producto").addEventListener("click", async () => {
   const id = document.getElementById("p-id").value;
+  const manejaEnvase = document.getElementById("p-maneja-envase").checked;
   const data = {
     nombre: document.getElementById("p-nombre").value.trim(),
     categoria: document.getElementById("p-categoria").value,
     precio: Number(document.getElementById("p-precio").value) || 0,
+    manejaEnvase,
+    precioConEnvase: manejaEnvase ? (Number(document.getElementById("p-precio-envase").value) || 0) : null,
     stock: Number(document.getElementById("p-stock").value) || 0,
     stockMinimo: Number(document.getElementById("p-stock-minimo").value) || 5,
     imagen: document.getElementById("p-imagen").value || ""
@@ -846,6 +892,9 @@ function limpiarFormularioProducto() {
   document.getElementById("p-id").value = "";
   document.getElementById("p-nombre").value = "";
   document.getElementById("p-precio").value = "";
+  document.getElementById("p-maneja-envase").checked = false;
+  document.getElementById("p-precio-envase").value = "";
+  document.getElementById("campo-precio-envase").classList.add("oculto");
   document.getElementById("p-stock").value = "";
   document.getElementById("p-stock-minimo").value = "5";
   document.getElementById("p-imagen").value = "";
@@ -875,7 +924,7 @@ function renderTablaInventario() {
         <td><img src="${p.imagen || "https://placehold.co/40x40?text=%20"}" /></td>
         <td>${p.nombre}</td>
         <td>${p.categoria || ""}</td>
-        <td>${formatCOP(p.precio)}</td>
+        <td>${formatCOP(p.precio)}${p.manejaEnvase ? `<br><small style="color:#1565C0;">Con envase: ${formatCOP(p.precioConEnvase)}</small>` : ""}</td>
         <td>${p.stock}</td>
         <td>${badge}</td>
         <td>
@@ -901,6 +950,9 @@ function cargarProductoParaEditar(id) {
   document.getElementById("p-nombre").value = p.nombre;
   document.getElementById("p-categoria").value = p.categoria;
   document.getElementById("p-precio").value = p.precio;
+  document.getElementById("p-maneja-envase").checked = !!p.manejaEnvase;
+  document.getElementById("p-precio-envase").value = p.precioConEnvase ?? "";
+  document.getElementById("campo-precio-envase").classList.toggle("oculto", !p.manejaEnvase);
   document.getElementById("p-stock").value = p.stock;
   document.getElementById("p-stock-minimo").value = p.stockMinimo ?? 5;
   document.getElementById("p-imagen").value = p.imagen || "";
