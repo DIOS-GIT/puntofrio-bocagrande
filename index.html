@@ -71,6 +71,7 @@ let categoriaActiva = "Todos";
 let ordenActivo = "default";
 let carrito = [];         // [{key, id, nombre, precio, cantidad, conEnvase}]
 let envaseSeleccionado = {}; // { [productoId]: boolean } — elección del cliente antes de agregar
+let modoVentaSeleccionado = {}; // { [productoId]: "caja" | "suelta" } — solo aplica si permiteVentaSuelta y mostrarSueltaEnTienda
 let imagenActiva = {};       // { [productoId]: indice de la foto que se está mostrando }
 
 const gridEl = document.getElementById("grid-productos");
@@ -128,9 +129,36 @@ function renderProductos() {
 
   gridEl.innerHTML = lista
     .map((p) => {
-      const agotado = Number(p.stock) <= 0;
+      const stockUnidades = Number(p.stock) || 0;
+      const agotadoTotal = stockUnidades <= 0;
       const conEnvase = !!envaseSeleccionado[p.id];
-      const precioMostrado = p.manejaEnvase && conEnvase ? p.precioConEnvase : p.precio;
+
+      const esCajaProducto = !!p.manejaCaja;
+      const unidadesPorCaja = Number(p.unidadesPorCaja) || 1;
+      const permiteSueltaTienda = esCajaProducto && !!p.permiteVentaSuelta && !!p.mostrarSueltaEnTienda;
+      const modoActual = permiteSueltaTienda ? (modoVentaSeleccionado[p.id] || "caja") : "caja";
+      const esCajaSeleccionada = !esCajaProducto || modoActual === "caja";
+
+      let precioMostrado;
+      if (esCajaProducto && !esCajaSeleccionada) {
+        precioMostrado = p.precioUnidadSuelta;
+      } else {
+        precioMostrado = p.manejaEnvase && conEnvase ? p.precioConEnvase : p.precio;
+      }
+
+      const cajasDisponibles = esCajaProducto ? Math.floor(stockUnidades / unidadesPorCaja) : null;
+      const disponibleModoActual = esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles : stockUnidades) : stockUnidades;
+      const sinStockModoActual = disponibleModoActual <= 0;
+
+      let stockTexto;
+      if (esCajaProducto) {
+        stockTexto = esCajaSeleccionada
+          ? (cajasDisponibles > 0 ? `Disponibles: ${cajasDisponibles} caja(s)` : "Sin cajas completas")
+          : (stockUnidades > 0 ? `Disponibles: ${stockUnidades} unidad(es)` : "Sin stock");
+      } else {
+        stockTexto = agotadoTotal ? "Sin stock" : `Disponibles: ${p.stock}`;
+      }
+
       const imgs = imagenesDe(p);
       const idxActivo = (imagenActiva[p.id] || 0) % Math.max(imgs.length, 1);
       const imgSrc = imgs.length ? imgs[idxActivo] : "https://placehold.co/300x200/FFF3CD/999999?text=Sin+imagen";
@@ -139,7 +167,7 @@ function renderProductos() {
       <div class="card-producto">
         <div class="imagen-wrap" data-id="${p.id}">
           <img src="${imgSrc}" alt="${p.nombre}" loading="lazy" />
-          ${agotado ? `<span class="badge-agotado">Agotado</span>` : ""}
+          ${agotadoTotal ? `<span class="badge-agotado">Agotado</span>` : ""}
           ${
             imgs.length > 1
               ? `<div class="galeria-dots">${imgs
@@ -153,6 +181,14 @@ function renderProductos() {
           <span class="nombre">${p.nombre}</span>
           <span class="precio">${formatCOPLocal(precioMostrado)}</span>
           ${
+            permiteSueltaTienda
+              ? `<div class="selector-modo-venta" data-id="${p.id}">
+                   <label><input type="radio" name="modo-${p.id}" value="caja" ${modoActual === "caja" ? "checked" : ""} /> Caja completa (${unidadesPorCaja} uds) — ${formatCOPLocal(p.precio)}</label>
+                   <label><input type="radio" name="modo-${p.id}" value="suelta" ${modoActual === "suelta" ? "checked" : ""} /> Unidad suelta — ${formatCOPLocal(p.precioUnidadSuelta)}</label>
+                 </div>`
+              : (esCajaProducto ? `<span class="categoria" style="color:#1565C0;">Caja x${unidadesPorCaja}</span>` : "")
+          }
+          ${
             p.manejaEnvase
               ? `<div class="selector-envase" data-id="${p.id}">
                    <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase</label>
@@ -160,9 +196,9 @@ function renderProductos() {
                  </div>`
               : ""
           }
-          <span class="stock-info">${agotado ? "Sin stock" : `Disponibles: ${p.stock}`}</span>
-          <button class="btn-agregar ${agotado ? "agotado" : ""}" data-id="${p.id}" ${agotado ? "disabled" : ""}>
-            ${agotado ? "Agotado" : "Agregar"}
+          <span class="stock-info">${stockTexto}</span>
+          <button class="btn-agregar ${sinStockModoActual ? "agotado" : ""}" data-id="${p.id}" ${sinStockModoActual ? "disabled" : ""}>
+            ${sinStockModoActual ? "Agotado" : "Agregar"}
           </button>
         </div>
       </div>`;
@@ -182,6 +218,15 @@ function renderProductos() {
     sel.querySelectorAll("input[type=radio]").forEach((radio) => {
       radio.addEventListener("change", (e) => {
         envaseSeleccionado[sel.dataset.id] = e.target.value === "con";
+        renderProductos();
+      });
+    });
+  });
+
+  gridEl.querySelectorAll(".selector-modo-venta").forEach((sel) => {
+    sel.querySelectorAll("input[type=radio]").forEach((radio) => {
+      radio.addEventListener("change", (e) => {
+        modoVentaSeleccionado[sel.dataset.id] = e.target.value;
         renderProductos();
       });
     });
@@ -207,24 +252,28 @@ onSnapshot(collection(db, "productos"), (snapshot) => {
 function sincronizarCarritoConStock() {
   let cambiado = false;
 
-  // Para cada producto, la suma de cantidades entre sus variantes (con/sin envase) no puede superar el stock
-  const stockUsadoPorProducto = {};
+  // El stock siempre se mide en UNIDADES. Cada item consume item.cantidad * factorConsumo unidades reales
+  // (factorConsumo = unidadesPorCaja si es caja completa, 1 si es unidad suelta o producto normal).
+  const unidadesUsadasPorProducto = {};
 
   carrito = carrito
     .map((item) => {
       const actual = productos.find((p) => p.id === item.id);
       if (!actual) return item;
-      if (Number(actual.stock) <= 0) {
+      const stockUnidades = Number(actual.stock) || 0;
+      if (stockUnidades <= 0) {
         cambiado = true;
         return null;
       }
-      const usadoPrevio = stockUsadoPorProducto[item.id] || 0;
-      const disponibleParaEsteItem = Number(actual.stock) - usadoPrevio;
-      if (item.cantidad > disponibleParaEsteItem) {
-        item.cantidad = Math.max(0, disponibleParaEsteItem);
+      const factor = item.factorConsumo || 1;
+      const usadoPrevio = unidadesUsadasPorProducto[item.id] || 0;
+      const disponibleUnidades = stockUnidades - usadoPrevio;
+      const maxCantidad = Math.floor(disponibleUnidades / factor);
+      if (item.cantidad > maxCantidad) {
+        item.cantidad = Math.max(0, maxCantidad);
         cambiado = true;
       }
-      stockUsadoPorProducto[item.id] = usadoPrevio + item.cantidad;
+      unidadesUsadasPorProducto[item.id] = usadoPrevio + item.cantidad * factor;
       return item.cantidad > 0 ? item : null;
     })
     .filter(Boolean);
@@ -238,16 +287,30 @@ function sincronizarCarritoConStock() {
 /* ---------- CARRITO ---------- */
 function agregarAlCarrito(id) {
   const producto = productos.find((p) => p.id === id);
-  if (!producto || Number(producto.stock) <= 0) return;
+  const stockUnidades = Number(producto?.stock) || 0;
+  if (!producto || stockUnidades <= 0) return;
+
+  const esCajaProducto = !!producto.manejaCaja;
+  const unidadesPorCaja = Number(producto.unidadesPorCaja) || 1;
+  const permiteSueltaTienda = esCajaProducto && !!producto.permiteVentaSuelta && !!producto.mostrarSueltaEnTienda;
+  const modoActual = permiteSueltaTienda ? (modoVentaSeleccionado[id] || "caja") : "caja";
+  const esCaja = !esCajaProducto || modoActual === "caja";
+  const factorConsumo = esCajaProducto ? (esCaja ? unidadesPorCaja : 1) : 1;
 
   const conEnvase = producto.manejaEnvase ? !!envaseSeleccionado[id] : false;
-  const precioUnit = conEnvase ? (producto.precioConEnvase ?? producto.precio) : producto.precio;
-  const key = id + (conEnvase ? "_con" : "_sin");
+  let precioUnit;
+  if (esCajaProducto && !esCaja) {
+    precioUnit = producto.precioUnidadSuelta ?? producto.precio;
+  } else {
+    precioUnit = conEnvase ? (producto.precioConEnvase ?? producto.precio) : producto.precio;
+  }
 
-  const cantidadActualProducto = carrito
+  const key = id + (esCajaProducto ? (esCaja ? "_caja" : "_suelta") : "") + (conEnvase ? "_con" : "_sin");
+
+  const unidadesUsadas = carrito
     .filter((i) => i.id === id)
-    .reduce((acc, i) => acc + i.cantidad, 0);
-  if (cantidadActualProducto >= producto.stock) return; // sin más stock disponible
+    .reduce((acc, i) => acc + i.cantidad * (i.factorConsumo || 1), 0);
+  if (unidadesUsadas + factorConsumo > stockUnidades) return; // sin stock suficiente
 
   const existente = carrito.find((i) => i.key === key);
   if (existente) {
@@ -259,7 +322,10 @@ function agregarAlCarrito(id) {
       nombre: producto.nombre,
       precio: precioUnit,
       cantidad: 1,
-      conEnvase: producto.manejaEnvase ? conEnvase : null
+      conEnvase: producto.manejaEnvase ? conEnvase : null,
+      esCaja: esCajaProducto ? esCaja : null,
+      unidadesPorCaja: esCajaProducto ? unidadesPorCaja : null,
+      factorConsumo
     });
   }
   actualizarBadge();
@@ -282,7 +348,10 @@ function renderCarrito() {
       (item) => `
       <div class="item-carrito" data-key="${item.key}">
         <div>
-          <strong>${item.nombre}</strong>${item.conEnvase === true ? ' <small style="color:#2E7D32;">(trae envase)</small>' : item.conEnvase === false ? ' <small style="color:#999;">(sin envase)</small>' : ""}<br/>
+          <strong>${item.nombre}</strong>${
+            item.esCaja === true ? ` <small style="color:#1565C0;">(caja x${item.unidadesPorCaja})</small>` :
+            item.esCaja === false ? ` <small style="color:#1565C0;">(unidad suelta)</small>` : ""
+          }${item.conEnvase === true ? ' <small style="color:#2E7D32;">(trae envase)</small>' : item.conEnvase === false ? ' <small style="color:#999;">(sin envase)</small>' : ""}<br/>
           <small>${formatCOPLocal(item.precio)} c/u</small>
         </div>
         <div class="cantidad-control">
@@ -299,9 +368,10 @@ function renderCarrito() {
     el.querySelector(".sumar").addEventListener("click", () => {
       const item = carrito.find((i) => i.key === key);
       const producto = productos.find((p) => p.id === item.id);
-      const stockDisponible = producto?.stock ?? 0;
-      const cantidadTotalProducto = carrito.filter((i) => i.id === item.id).reduce((acc, i) => acc + i.cantidad, 0);
-      if (item && cantidadTotalProducto < stockDisponible) item.cantidad++;
+      const stockDisponible = Number(producto?.stock) || 0;
+      const factor = item.factorConsumo || 1;
+      const unidadesUsadas = carrito.filter((i) => i.id === item.id).reduce((acc, i) => acc + i.cantidad * (i.factorConsumo || 1), 0);
+      if (item && unidadesUsadas + factor <= stockDisponible) item.cantidad++;
       actualizarBadge();
       renderCarrito();
     });
