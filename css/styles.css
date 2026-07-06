@@ -158,9 +158,10 @@ body {
 .card-producto .precio { font-size: 1.05rem; font-weight: 800; color: var(--negro-texto); margin-top: auto; }
 .card-producto .stock-info { font-size: 0.7rem; color: var(--gris-oscuro); opacity: 0.7; }
 
-.selector-envase { display: flex; flex-direction: column; gap: 2px; margin: 2px 0; font-size: 0.72rem; color: var(--gris-oscuro); }
-.selector-envase label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.selector-envase input[type="radio"] { width: auto; accent-color: var(--amarillo-fuerte); }
+.selector-envase, .selector-modo-venta { display: flex; flex-direction: column; gap: 2px; margin: 2px 0; font-size: 0.72rem; color: var(--gris-oscuro); }
+.selector-envase label, .selector-modo-venta label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.selector-envase input[type="radio"], .selector-modo-venta input[type="radio"] { width: auto; accent-color: var(--amarillo-fuerte); }
+.selector-modo-venta { background: #F0F6FC; border-radius: 8px; padding: 5px 7px; }
 
 .btn-agregar {
   margin-top: 6px;
