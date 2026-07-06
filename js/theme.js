@@ -44,8 +44,6 @@ import {
 
 /* -------------------------------------------------------------
  * 1. CONFIGURACIÓN DE FIREBASE
- *    ⚠️ Reemplaza estos valores con los de tu proyecto en
- *    https://console.firebase.google.com/  → Configuración del proyecto
  * ----------------------------------------------------------- */
 const firebaseConfig = {
   apiKey: "AIzaSyAlx37xpQo9mV4-oY_SQ6HYaKOw8o3l0_A",
@@ -60,21 +58,15 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Persistencia local del login (sobrevive recargas de página)
 setPersistence(auth, browserLocalPersistence).catch((err) => {
   console.error("[theme.js] Error configurando persistencia de Auth:", err);
 });
 
-// Persistencia offline obligatoria de Firestore (IndexedDB)
 enableIndexedDbPersistence(db).catch((err) => {
   if (err.code === "failed-precondition") {
-    console.warn(
-      "[theme.js] Persistencia offline no habilitada: hay múltiples pestañas abiertas."
-    );
+    console.warn("[theme.js] Persistencia offline no habilitada: hay múltiples pestañas abiertas.");
   } else if (err.code === "unimplemented") {
-    console.warn(
-      "[theme.js] Este navegador no soporta persistencia offline de Firestore."
-    );
+    console.warn("[theme.js] Este navegador no soporta persistencia offline de Firestore.");
   } else {
     console.error("[theme.js] Error habilitando persistencia offline:", err);
   }
@@ -82,8 +74,6 @@ enableIndexedDbPersistence(db).catch((err) => {
 
 /* -------------------------------------------------------------
  * 2. CONFIGURACIÓN DE CLOUDINARY (Unsigned Upload Preset)
- *    ⚠️ Reemplaza con tu cloud_name y upload_preset creados en
- *    https://console.cloudinary.com/  → Settings → Upload
  * ----------------------------------------------------------- */
 const CLOUDINARY_CONFIG = {
   cloudName: "edemphje",
@@ -91,11 +81,6 @@ const CLOUDINARY_CONFIG = {
   folder: "puntofrio_productos"
 };
 
-/**
- * Abre el widget de subida de Cloudinary y ejecuta un callback
- * con la URL segura de la imagen subida.
- * @param {(secureUrl: string, publicId: string) => void} onSuccess
- */
 function openCloudinaryWidget(onSuccess) {
   if (typeof window.cloudinary === "undefined") {
     alert(
@@ -157,17 +142,11 @@ function openCloudinaryWidget(onSuccess) {
 /* -------------------------------------------------------------
  * 3. UTILIDADES GLOBALES
  * ----------------------------------------------------------- */
-
-/** Formatea un número como pesos colombianos: 1234567 -> "$ 1.234.567" */
 function formatCOP(value) {
   const num = Number(value) || 0;
-  return (
-    "$ " +
-    num.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 })
-  );
+  return "$ " + num.toLocaleString("es-CO", { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-/** Formatea una fecha (Date o Timestamp de Firestore) a "dd/mm/aaaa hh:mm" */
 function formatFecha(fechaInput) {
   const fecha = fechaInput?.toDate ? fechaInput.toDate() : new Date(fechaInput);
   return fecha.toLocaleString("es-CO", {
@@ -179,12 +158,6 @@ function formatFecha(fechaInput) {
   });
 }
 
-/**
- * Genera el link de WhatsApp con el pedido formateado para la tienda pública.
- * @param {Array<{nombre:string, cantidad:number, precio:number}>} carrito
- * @param {{nombre:string, direccion:string, telefono?:string}} cliente
- * @param {string} numeroWhatsapp Número del negocio en formato internacional, ej: "573001234567"
- */
 function generarLinkWhatsApp(carrito, cliente, numeroWhatsapp) {
   let mensaje = `🧊 *NUEVO PEDIDO - PUNTO FRÍO BOCAGRANDE* 🧊\n\n`;
   mensaje += `👤 *Cliente:* ${cliente.nombre}\n`;
@@ -197,9 +170,7 @@ function generarLinkWhatsApp(carrito, cliente, numeroWhatsapp) {
     const subtotal = item.cantidad * item.precio;
     total += subtotal;
     const notaEnvase = item.conEnvase === true ? " (trae envase)" : item.conEnvase === false ? " (sin envase)" : "";
-    mensaje += `• ${item.cantidad}x ${item.nombre}${notaEnvase} — ${formatCOP(item.precio)} c/u = ${formatCOP(
-      subtotal
-    )}\n`;
+    mensaje += `• ${item.cantidad}x ${item.nombre}${notaEnvase} — ${formatCOP(item.precio)} c/u = ${formatCOP(subtotal)}\n`;
   });
 
   mensaje += `\n💰 *TOTAL: ${formatCOP(total)}*\n`;
@@ -209,7 +180,6 @@ function generarLinkWhatsApp(carrito, cliente, numeroWhatsapp) {
   return url;
 }
 
-/** Debounce simple para inputs (ej. búsqueda por cédula en 'blur'/'input') */
 function debounce(fn, delayMs = 400) {
   let timer = null;
   return (...args) => {
@@ -225,7 +195,6 @@ export {
   app,
   db,
   auth,
-  // Firestore helpers re-exportados para no repetir imports en cada página
   collection,
   doc,
   getDoc,
@@ -240,14 +209,11 @@ export {
   orderBy,
   serverTimestamp,
   increment,
-  // Auth helpers
   signInWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  // Cloudinary
   openCloudinaryWidget,
   CLOUDINARY_CONFIG,
-  // Utilidades
   formatCOP,
   formatFecha,
   generarLinkWhatsApp,
