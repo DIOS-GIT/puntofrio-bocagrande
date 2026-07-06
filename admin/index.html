@@ -155,7 +155,35 @@
           <input type="number" id="p-precio-envase" min="0" />
         </div>
         <div class="form-field">
-          <label>Stock actual</label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="p-maneja-caja" style="width:auto;" />
+            Se vende por caja/paquete
+          </label>
+        </div>
+        <div class="form-field oculto" id="campo-unidades-caja">
+          <label>Unidades por caja/paquete (ej: 30, 36)</label>
+          <input type="number" id="p-unidades-caja" min="1" />
+          <small style="color:#888;">El precio de arriba ("Precio sin envase") se usa como precio de la caja completa.</small>
+        </div>
+        <div class="form-field oculto" id="campo-permite-suelta">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="p-permite-suelta" style="width:auto;" />
+            Permitir venta de unidad suelta (desarmar la caja)
+          </label>
+        </div>
+        <div class="form-field oculto" id="campo-precio-suelta">
+          <label>Precio por unidad suelta</label>
+          <input type="number" id="p-precio-suelta" min="0" />
+        </div>
+        <div class="form-field oculto" id="campo-mostrar-suelta-tienda">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="p-mostrar-suelta-tienda" style="width:auto;" />
+            Mostrar la opción de unidad suelta en la tienda pública
+          </label>
+          <small style="color:#888;">Si lo dejas desmarcado, en la tienda solo se vende la caja completa. Tú siempre podrás vender sueltas desde Facturación.</small>
+        </div>
+        <div class="form-field">
+          <label>Stock actual (en unidades — si maneja caja, ingresa el total de UNIDADES, no de cajas)</label>
           <input type="number" id="p-stock" min="0" />
         </div>
         <div class="form-field">
@@ -197,6 +225,13 @@
           <button class="btn btn-rojo" id="btn-export-pdf-inv">📄 PDF</button>
           <button class="btn btn-azul" id="btn-export-json-inv">🗂 JSON</button>
         </div>
+      </div>
+      <div class="form-field" style="max-width:320px;margin-top:10px;">
+        <input
+          type="text"
+          id="buscar-inventario"
+          placeholder="Buscar por nombre o precio..."
+        />
       </div>
       <div style="overflow-x:auto;margin-top:12px;">
         <table class="tabla-inventario" id="tabla-inventario">
@@ -463,7 +498,7 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 function iniciarSuscripcionesFirestore() {
   onSnapshot(collection(db, "productos"), (snap) => {
     productosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderTablaInventario();
+    renderTablaInventario(document.getElementById("buscar-inventario")?.value || "");
   });
 
   onSnapshot(collection(db, "clientes"), (snap) => {
@@ -557,11 +592,14 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
     .slice(0, 6);
 
   contenedor.innerHTML = coincidencias
-    .map(
-      (p) => `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
-        ${p.nombre} — ${formatCOP(p.precio)}${p.manejaEnvase ? ` <span style="color:#1565C0;">(con envase: ${formatCOP(p.precioConEnvase)})</span>` : ""} (stock: ${p.stock})
-      </div>`
-    )
+    .map((p) => {
+      const infoCaja = p.manejaCaja
+        ? ` <span style="color:#1565C0;">(caja x${p.unidadesPorCaja}${p.permiteVentaSuelta ? `, suelta: ${formatCOP(p.precioUnidadSuelta)}` : ""})</span>`
+        : "";
+      return `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
+        ${p.nombre} — ${formatCOP(p.precio)}${p.manejaEnvase ? ` <span style="color:#1565C0;">(con envase: ${formatCOP(p.precioConEnvase)})</span>` : ""}${infoCaja} (stock: ${p.stock} uds)
+      </div>`;
+    })
     .join("");
 
   contenedor.querySelectorAll("div[data-id]").forEach((el) => {
@@ -573,28 +611,53 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
   });
 });
 
+// Cuántas unidades reales de inventario consume un item (una caja consume "unidadesPorCaja", una suelta o un producto normal consume 1 por unidad)
+function unidadesConsumidasItem(item) {
+  const factor = item.manejaCaja ? (item.esCaja ? Number(item.unidadesPorCaja) || 1 : 1) : 1;
+  return item.cantidad * factor;
+}
+
+// Cuántas unidades de "cantidad" caben según el stock disponible y el modo (caja/suelta) actual del item
+function maxCantidadItem(item) {
+  const factor = item.manejaCaja ? (item.esCaja ? Number(item.unidadesPorCaja) || 1 : 1) : 1;
+  return Math.max(0, Math.floor(item.stockDisponible / factor));
+}
+
 function agregarItemFactura(idProducto) {
   const producto = productosCache.find((p) => p.id === idProducto);
   if (!producto) return;
-  const existente = carritoFactura.find((i) => i.id === idProducto);
+  const existente = carritoFactura.find((i) => i.id === idProducto && i.esCaja !== false);
+  const manejaCaja = !!producto.manejaCaja;
+
   if (existente) {
-    if (existente.cantidad < producto.stock) existente.cantidad++;
+    if (existente.cantidad < maxCantidadItem(existente)) existente.cantidad++;
   } else {
-    carritoFactura.push({
+    const item = {
       id: idProducto,
       nombre: producto.nombre,
       precioSinEnvase: producto.precio,
       manejaEnvase: !!producto.manejaEnvase,
       precioConEnvase: producto.precioConEnvase ?? producto.precio,
       conEnvase: false,
+      manejaCaja,
+      unidadesPorCaja: manejaCaja ? (Number(producto.unidadesPorCaja) || 1) : null,
+      permiteVentaSuelta: manejaCaja && !!producto.permiteVentaSuelta,
+      precioUnidadSuelta: manejaCaja ? (producto.precioUnidadSuelta ?? producto.precio) : null,
+      esCaja: manejaCaja ? true : null,
       cantidad: 1,
       stockDisponible: producto.stock
-    });
+    };
+    if (maxCantidadItem(item) < 1) {
+      mostrarToast("⚠️ No hay stock suficiente para este producto.");
+      return;
+    }
+    carritoFactura.push(item);
   }
   renderTablaFactura();
 }
 
 function precioItemFactura(item) {
+  if (item.manejaCaja && item.esCaja === false) return item.precioUnidadSuelta;
   return item.manejaEnvase && item.conEnvase ? item.precioConEnvase : item.precioSinEnvase;
 }
 
@@ -603,9 +666,19 @@ function renderTablaFactura() {
   tbody.innerHTML = carritoFactura
     .map((item, idx) => {
       const precioUnit = precioItemFactura(item);
+      const maxCantidad = maxCantidadItem(item);
+      const modoSelector =
+        item.manejaCaja && item.permiteVentaSuelta
+          ? `<div style="font-size:0.72rem;font-weight:400;margin-top:4px;">
+               <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="modo-factura-${idx}" class="radio-modo-factura" data-idx="${idx}" value="caja" ${item.esCaja ? "checked" : ""} style="width:auto;" /> Caja (x${item.unidadesPorCaja}) — ${formatCOP(item.precioSinEnvase)}</label>
+               <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="modo-factura-${idx}" class="radio-modo-factura" data-idx="${idx}" value="suelta" ${!item.esCaja ? "checked" : ""} style="width:auto;" /> Suelta — ${formatCOP(item.precioUnidadSuelta)}</label>
+             </div>`
+          : item.manejaCaja
+          ? `<br><small style="color:#1565C0;">Caja x${item.unidadesPorCaja}</small>`
+          : "";
       return `
       <tr>
-        <td>${item.nombre}${
+        <td>${item.nombre}${modoSelector}${
           item.manejaEnvase
             ? `<br><label style="font-size:0.72rem;font-weight:400;display:flex;align-items:center;gap:4px;">
                  <input type="checkbox" class="chk-envase-factura" data-idx="${idx}" ${item.conEnvase ? "checked" : ""} style="width:auto;" />
@@ -614,7 +687,7 @@ function renderTablaFactura() {
             : ""
         }</td>
         <td>
-          <input type="number" min="1" max="${item.stockDisponible}" value="${item.cantidad}" data-idx="${idx}" class="input-cantidad-factura" style="width:55px;" />
+          <input type="number" min="1" max="${maxCantidad}" value="${item.cantidad}" data-idx="${idx}" class="input-cantidad-factura" style="width:55px;" />
         </td>
         <td>${formatCOP(precioUnit)}</td>
         <td>${formatCOP(precioUnit * item.cantidad)}</td>
@@ -630,12 +703,31 @@ function renderTablaFactura() {
     });
   });
 
+  tbody.querySelectorAll(".radio-modo-factura").forEach((radio) => {
+    radio.addEventListener("change", (e) => {
+      const idx = Number(radio.dataset.idx);
+      const item = carritoFactura[idx];
+      const nuevoEsCaja = e.target.value === "caja";
+      const factorNuevo = nuevoEsCaja ? Number(item.unidadesPorCaja) || 1 : 1;
+      const maxConNuevoModo = Math.floor(item.stockDisponible / factorNuevo);
+      if (maxConNuevoModo < 1) {
+        mostrarToast("⚠️ No hay stock suficiente para ese modo de venta.");
+        renderTablaFactura();
+        return;
+      }
+      item.esCaja = nuevoEsCaja;
+      if (item.cantidad > maxConNuevoModo) item.cantidad = maxConNuevoModo;
+      renderTablaFactura();
+    });
+  });
+
   tbody.querySelectorAll(".input-cantidad-factura").forEach((inp) => {
     inp.addEventListener("change", () => {
       const idx = Number(inp.dataset.idx);
       let val = Number(inp.value);
+      const max = maxCantidadItem(carritoFactura[idx]);
       if (val < 1) val = 1;
-      if (val > carritoFactura[idx].stockDisponible) val = carritoFactura[idx].stockDisponible;
+      if (val > max) val = max;
       carritoFactura[idx].cantidad = val;
       renderTablaFactura();
     });
@@ -688,23 +780,24 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
         siguienteNumero = (snapConsecutivo.data().ultimoNumero || 0) + 1;
       }
 
-      // Verificar stock de todos los productos ANTES de escribir nada
+      // Verificar stock de todos los productos ANTES de escribir nada (en UNIDADES reales)
       const refsProductos = [];
       for (const item of carritoFactura) {
         const refProd = doc(db, "productos", item.id);
         const snapProd = await tx.get(refProd);
-        if (!snapProd.exists() || Number(snapProd.data().stock) < item.cantidad) {
+        const unidadesNecesarias = unidadesConsumidasItem(item);
+        if (!snapProd.exists() || Number(snapProd.data().stock) < unidadesNecesarias) {
           throw new Error(`Stock insuficiente para "${item.nombre}".`);
         }
-        refsProductos.push({ ref: refProd, item });
+        refsProductos.push({ ref: refProd, item, unidadesNecesarias });
       }
 
       // 1. Actualizar consecutivo
       tx.set(refConsecutivos, { ultimoNumero: siguienteNumero }, { merge: true });
 
-      // 2. Descontar stock
-      refsProductos.forEach(({ ref, item }) => {
-        tx.update(ref, { stock: increment(-item.cantidad) });
+      // 2. Descontar stock (en unidades)
+      refsProductos.forEach(({ ref, unidadesNecesarias }) => {
+        tx.update(ref, { stock: increment(-unidadesNecesarias) });
       });
 
       // 3. Registrar factura
@@ -717,7 +810,10 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
           nombre: i.nombre,
           precio: precioItemFactura(i),
           conEnvase: i.manejaEnvase ? i.conEnvase : null,
+          esCaja: i.manejaCaja ? i.esCaja : null,
+          unidadesPorCaja: i.manejaCaja ? i.unidadesPorCaja : null,
           cantidad: i.cantidad,
+          unidadesConsumidas: unidadesConsumidasItem(i),
           subtotal: precioItemFactura(i) * i.cantidad
         })),
         total,
@@ -779,9 +875,12 @@ function mostrarBotonesFacturaGenerada(factura) {
 }
 
 function nombreConEnvase(item) {
-  if (item.conEnvase === true) return `${item.nombre} (trae envase)`;
-  if (item.conEnvase === false) return `${item.nombre} (sin envase)`;
-  return item.nombre;
+  let nombre = item.nombre;
+  if (item.esCaja === true) nombre += ` (caja x${item.unidadesPorCaja})`;
+  else if (item.esCaja === false) nombre += ` (unidad suelta)`;
+  if (item.conEnvase === true) nombre += ` (trae envase)`;
+  else if (item.conEnvase === false) nombre += ` (sin envase)`;
+  return nombre;
 }
 
 /* ---------- VISTA EN PANTALLA DE LA FACTURA (sin descargar) ---------- */
@@ -897,7 +996,7 @@ function abrirEdicionFactura(factura) {
     contenedor.innerHTML = coincidencias
       .map(
         (p) => `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
-          ${p.nombre} — ${formatCOP(p.precio)}
+          ${p.nombre} — ${formatCOP(p.precio)}${p.manejaCaja ? ` <span style="color:#1565C0;">(caja x${p.unidadesPorCaja})</span>` : ""}
         </div>`
       )
       .join("");
@@ -906,12 +1005,17 @@ function abrirEdicionFactura(factura) {
       el.addEventListener("click", () => {
         const producto = productosCache.find((p) => p.id === el.dataset.id);
         if (!producto) return;
+        const manejaCaja = !!producto.manejaCaja;
+        const unidadesPorCaja = manejaCaja ? (Number(producto.unidadesPorCaja) || 1) : null;
         itemsEdicion.push({
           id: producto.id,
           nombre: producto.nombre,
           precio: producto.precio,
           conEnvase: producto.manejaEnvase ? false : null,
-          cantidad: 1
+          esCaja: manejaCaja ? true : null,
+          unidadesPorCaja,
+          cantidad: 1,
+          unidadesConsumidas: manejaCaja ? unidadesPorCaja : 1
         });
         renderTablaEdicionFactura();
         document.getElementById("buscar-producto-edicion").value = "";
@@ -946,6 +1050,8 @@ function renderTablaEdicionFactura() {
       let val = Number(inp.value);
       if (val < 0) val = 0;
       itemsEdicion[idx].cantidad = val;
+      const factor = itemsEdicion[idx].esCaja ? (Number(itemsEdicion[idx].unidadesPorCaja) || 1) : 1;
+      itemsEdicion[idx].unidadesConsumidas = val * factor;
       renderTablaEdicionFactura();
     });
   });
@@ -980,14 +1086,17 @@ async function guardarEdicionFactura() {
     return;
   }
 
-  // Cantidad ORIGINAL por producto (antes de editar) vs NUEVA (después de editar)
+  // Unidades reales de inventario ORIGINALES (antes de editar) vs NUEVAS (después de editar) por producto
+  // (usamos unidadesConsumidas si existe; facturas antiguas sin ese campo caen al valor 1:1 de "cantidad")
   const cantidadOriginalPorProducto = {};
   (facturaEnEdicion.items || []).forEach((i) => {
-    cantidadOriginalPorProducto[i.id] = (cantidadOriginalPorProducto[i.id] || 0) + i.cantidad;
+    const unidades = i.unidadesConsumidas ?? i.cantidad;
+    cantidadOriginalPorProducto[i.id] = (cantidadOriginalPorProducto[i.id] || 0) + unidades;
   });
   const cantidadNuevaPorProducto = {};
   itemsFinales.forEach((i) => {
-    cantidadNuevaPorProducto[i.id] = (cantidadNuevaPorProducto[i.id] || 0) + i.cantidad;
+    const unidades = i.unidadesConsumidas ?? i.cantidad;
+    cantidadNuevaPorProducto[i.id] = (cantidadNuevaPorProducto[i.id] || 0) + unidades;
   });
 
   const idsAfectados = new Set([...Object.keys(cantidadOriginalPorProducto), ...Object.keys(cantidadNuevaPorProducto)]);
@@ -1029,7 +1138,10 @@ async function guardarEdicionFactura() {
           nombre: i.nombre,
           precio: i.precio,
           conEnvase: i.conEnvase,
+          esCaja: i.esCaja ?? null,
+          unidadesPorCaja: i.unidadesPorCaja ?? null,
           cantidad: i.cantidad,
+          unidadesConsumidas: i.unidadesConsumidas ?? i.cantidad,
           subtotal: i.precio * i.cantidad
         })),
         total: nuevoTotal,
@@ -1084,12 +1196,14 @@ async function eliminarFactura(factura) {
       for (const item of factura.items || []) {
         const refProd = doc(db, "productos", item.id);
         const snapProd = await tx.get(refProd);
-        if (snapProd.exists()) refsProductos.push({ ref: refProd, cantidad: item.cantidad });
+        // Fallback a "cantidad" para facturas antiguas creadas antes de manejar cajas/unidades
+        const unidades = item.unidadesConsumidas ?? item.cantidad;
+        if (snapProd.exists()) refsProductos.push({ ref: refProd, unidades });
         // Si el producto ya no existe en inventario, simplemente no hay stock que restaurar.
       }
 
-      refsProductos.forEach(({ ref, cantidad }) => {
-        tx.update(ref, { stock: increment(cantidad) });
+      refsProductos.forEach(({ ref, unidades }) => {
+        tx.update(ref, { stock: increment(unidades) });
       });
 
       tx.delete(refFactura);
@@ -1278,15 +1392,41 @@ document.getElementById("p-maneja-envase").addEventListener("change", (e) => {
   document.getElementById("campo-precio-envase").classList.toggle("oculto", !e.target.checked);
 });
 
+document.getElementById("p-maneja-caja").addEventListener("change", (e) => {
+  const activo = e.target.checked;
+  document.getElementById("campo-unidades-caja").classList.toggle("oculto", !activo);
+  document.getElementById("campo-permite-suelta").classList.toggle("oculto", !activo);
+  if (!activo) {
+    document.getElementById("p-permite-suelta").checked = false;
+    document.getElementById("campo-precio-suelta").classList.add("oculto");
+    document.getElementById("campo-mostrar-suelta-tienda").classList.add("oculto");
+  }
+});
+
+document.getElementById("p-permite-suelta").addEventListener("change", (e) => {
+  document.getElementById("campo-precio-suelta").classList.toggle("oculto", !e.target.checked);
+  document.getElementById("campo-mostrar-suelta-tienda").classList.toggle("oculto", !e.target.checked);
+  if (!e.target.checked) {
+    document.getElementById("p-mostrar-suelta-tienda").checked = false;
+  }
+});
+
 document.getElementById("btn-guardar-producto").addEventListener("click", async () => {
   const id = document.getElementById("p-id").value;
   const manejaEnvase = document.getElementById("p-maneja-envase").checked;
+  const manejaCaja = document.getElementById("p-maneja-caja").checked;
+  const permiteVentaSuelta = manejaCaja && document.getElementById("p-permite-suelta").checked;
   const data = {
     nombre: document.getElementById("p-nombre").value.trim(),
     categoria: document.getElementById("p-categoria").value,
     precio: Number(document.getElementById("p-precio").value) || 0,
     manejaEnvase,
     precioConEnvase: manejaEnvase ? (Number(document.getElementById("p-precio-envase").value) || 0) : null,
+    manejaCaja,
+    unidadesPorCaja: manejaCaja ? (Number(document.getElementById("p-unidades-caja").value) || 1) : null,
+    permiteVentaSuelta,
+    precioUnidadSuelta: permiteVentaSuelta ? (Number(document.getElementById("p-precio-suelta").value) || 0) : null,
+    mostrarSueltaEnTienda: permiteVentaSuelta ? document.getElementById("p-mostrar-suelta-tienda").checked : false,
     stock: Number(document.getElementById("p-stock").value) || 0,
     stockMinimo: Number(document.getElementById("p-stock-minimo").value) || 5,
     imagen: imagenesActuales[0] || "",
@@ -1297,6 +1437,10 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
 
   if (!data.nombre) {
     mostrarToast("⚠️ El nombre del producto es obligatorio.");
+    return;
+  }
+  if (manejaCaja && !data.unidadesPorCaja) {
+    mostrarToast("⚠️ Indica cuántas unidades trae la caja.");
     return;
   }
 
@@ -1322,6 +1466,15 @@ function limpiarFormularioProducto() {
   document.getElementById("p-maneja-envase").checked = false;
   document.getElementById("p-precio-envase").value = "";
   document.getElementById("campo-precio-envase").classList.add("oculto");
+  document.getElementById("p-maneja-caja").checked = false;
+  document.getElementById("p-unidades-caja").value = "";
+  document.getElementById("campo-unidades-caja").classList.add("oculto");
+  document.getElementById("p-permite-suelta").checked = false;
+  document.getElementById("campo-permite-suelta").classList.add("oculto");
+  document.getElementById("p-precio-suelta").value = "";
+  document.getElementById("campo-precio-suelta").classList.add("oculto");
+  document.getElementById("p-mostrar-suelta-tienda").checked = false;
+  document.getElementById("campo-mostrar-suelta-tienda").classList.add("oculto");
   document.getElementById("p-stock").value = "";
   document.getElementById("p-stock-minimo").value = "5";
   document.getElementById("p-imagen").value = "";
@@ -1335,9 +1488,19 @@ function limpiarFormularioProducto() {
 
 document.getElementById("btn-cancelar-edicion").addEventListener("click", limpiarFormularioProducto);
 
-function renderTablaInventario() {
+function renderTablaInventario(filtro = "") {
   const tbody = document.querySelector("#tabla-inventario tbody");
-  tbody.innerHTML = productosCache
+  const texto = filtro.trim().toLowerCase();
+
+  const lista = productosCache.filter((p) => {
+    if (!texto) return true;
+    const coincideNombre = (p.nombre || "").toLowerCase().includes(texto);
+    const coincidePrecio =
+      String(p.precio ?? "").includes(texto) || String(p.precioUnidadSuelta ?? "").includes(texto);
+    return coincideNombre || coincidePrecio;
+  });
+
+  tbody.innerHTML = lista
     .map((p) => {
       const stockMin = p.stockMinimo ?? 5;
       let filaClase = "";
@@ -1349,13 +1512,25 @@ function renderTablaInventario() {
         filaClase = "stock-bajo";
         badge = `<span class="badge-stock badge-bajo">STOCK BAJO</span>`;
       }
+
+      const cajasDisponibles = p.manejaCaja ? Math.floor((Number(p.stock) || 0) / (Number(p.unidadesPorCaja) || 1)) : null;
+      const infoCaja = p.manejaCaja
+        ? `<br><small style="color:#1565C0;">Caja x${p.unidadesPorCaja} (${cajasDisponibles} cajas disp.)</small>${
+            p.permiteVentaSuelta
+              ? `<br><small style="color:#1565C0;">Suelta: ${formatCOP(p.precioUnidadSuelta)}${
+                  p.mostrarSueltaEnTienda ? " · visible en tienda" : " · solo en facturación"
+                }</small>`
+              : ""
+          }`
+        : "";
+
       return `
       <tr class="${filaClase}">
         <td><img src="${p.imagen || "https://placehold.co/40x40?text=%20"}" /></td>
         <td>${p.nombre}</td>
         <td>${p.categoria || ""}</td>
-        <td>${formatCOP(p.precio)}${p.manejaEnvase ? `<br><small style="color:#1565C0;">Con envase: ${formatCOP(p.precioConEnvase)}</small>` : ""}</td>
-        <td>${p.stock}</td>
+        <td>${formatCOP(p.precio)}${p.manejaEnvase ? `<br><small style="color:#1565C0;">Con envase: ${formatCOP(p.precioConEnvase)}</small>` : ""}${infoCaja}</td>
+        <td>${p.stock}${p.manejaCaja ? `<br><small style="color:#888;">(unidades)</small>` : ""}</td>
         <td>${badge}</td>
         <td>${p.visibleEnTienda !== false ? '<span class="badge-stock badge-ok">Visible</span>' : '<span class="badge-stock badge-critico">Oculto</span>'}</td>
         <td>
@@ -1374,6 +1549,11 @@ function renderTablaInventario() {
   });
 }
 
+document.getElementById("buscar-inventario").addEventListener(
+  "input",
+  debounce((e) => renderTablaInventario(e.target.value), 250)
+);
+
 function cargarProductoParaEditar(id) {
   const p = productosCache.find((x) => x.id === id);
   if (!p) return;
@@ -1384,6 +1564,17 @@ function cargarProductoParaEditar(id) {
   document.getElementById("p-maneja-envase").checked = !!p.manejaEnvase;
   document.getElementById("p-precio-envase").value = p.precioConEnvase ?? "";
   document.getElementById("campo-precio-envase").classList.toggle("oculto", !p.manejaEnvase);
+
+  document.getElementById("p-maneja-caja").checked = !!p.manejaCaja;
+  document.getElementById("p-unidades-caja").value = p.unidadesPorCaja ?? "";
+  document.getElementById("campo-unidades-caja").classList.toggle("oculto", !p.manejaCaja);
+  document.getElementById("p-permite-suelta").checked = !!p.permiteVentaSuelta;
+  document.getElementById("campo-permite-suelta").classList.toggle("oculto", !p.manejaCaja);
+  document.getElementById("p-precio-suelta").value = p.precioUnidadSuelta ?? "";
+  document.getElementById("campo-precio-suelta").classList.toggle("oculto", !p.permiteVentaSuelta);
+  document.getElementById("p-mostrar-suelta-tienda").checked = !!p.mostrarSueltaEnTienda;
+  document.getElementById("campo-mostrar-suelta-tienda").classList.toggle("oculto", !p.permiteVentaSuelta);
+
   document.getElementById("p-stock").value = p.stock;
   document.getElementById("p-stock-minimo").value = p.stockMinimo ?? 5;
   document.getElementById("p-imagen").value = p.imagen || "";
@@ -1417,7 +1608,10 @@ document.getElementById("btn-export-excel-inv").addEventListener("click", () => 
     Nombre: p.nombre,
     Categoria: p.categoria,
     Precio: p.precio,
-    Stock: p.stock,
+    ManejaCaja: p.manejaCaja ? "Sí" : "No",
+    UnidadesPorCaja: p.manejaCaja ? p.unidadesPorCaja : "",
+    PrecioUnidadSuelta: p.permiteVentaSuelta ? p.precioUnidadSuelta : "",
+    StockUnidades: p.stock,
     StockMinimo: p.stockMinimo ?? 5
   }));
   const ws = XLSX.utils.json_to_sheet(hoja);
