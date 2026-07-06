@@ -169,8 +169,14 @@ function generarLinkWhatsApp(carrito, cliente, numeroWhatsapp) {
   carrito.forEach((item) => {
     const subtotal = item.cantidad * item.precio;
     total += subtotal;
+    const notaCaja =
+      item.esCaja === true
+        ? ` (caja x${item.unidadesPorCaja})`
+        : item.esCaja === false
+        ? " (unidad suelta)"
+        : "";
     const notaEnvase = item.conEnvase === true ? " (trae envase)" : item.conEnvase === false ? " (sin envase)" : "";
-    mensaje += `• ${item.cantidad}x ${item.nombre}${notaEnvase} — ${formatCOP(item.precio)} c/u = ${formatCOP(subtotal)}\n`;
+    mensaje += `• ${item.cantidad}x ${item.nombre}${notaCaja}${notaEnvase} — ${formatCOP(item.precio)} c/u = ${formatCOP(subtotal)}\n`;
   });
 
   mensaje += `\n💰 *TOTAL: ${formatCOP(total)}*\n`;
