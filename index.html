@@ -60,7 +60,8 @@ const CATEGORIAS = ["Todos", "Licores", "Cervezas Nacionales", "Importadas", "Be
 
 let productos = [];       // Cache local de productos desde Firestore
 let categoriaActiva = "Todos";
-let carrito = [];         // [{id, nombre, precio, cantidad, stock}]
+let carrito = [];         // [{key, id, nombre, precio, cantidad, conEnvase}]
+let envaseSeleccionado = {}; // { [productoId]: boolean } — elección del cliente antes de agregar
 
 const gridEl = document.getElementById("grid-productos");
 const filtrosEl = document.getElementById("filtros");
@@ -99,13 +100,23 @@ function renderProductos() {
   gridEl.innerHTML = lista
     .map((p) => {
       const agotado = Number(p.stock) <= 0;
+      const conEnvase = !!envaseSeleccionado[p.id];
+      const precioMostrado = p.manejaEnvase && conEnvase ? p.precioConEnvase : p.precio;
       return `
       <div class="card-producto">
         <img src="${p.imagen || "https://placehold.co/300x200/FFF3CD/999999?text=Sin+imagen"}" alt="${p.nombre}" loading="lazy" />
         <div class="info">
           <span class="categoria">${p.categoria || ""}</span>
           <span class="nombre">${p.nombre}</span>
-          <span class="precio">${formatCOPLocal(p.precio)}</span>
+          <span class="precio">${formatCOPLocal(precioMostrado)}</span>
+          ${
+            p.manejaEnvase
+              ? `<div class="selector-envase" data-id="${p.id}">
+                   <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase</label>
+                   <label><input type="radio" name="envase-${p.id}" value="con" ${conEnvase ? "checked" : ""} /> Traigo envase (${formatCOPLocal(p.precioConEnvase)})</label>
+                 </div>`
+              : ""
+          }
           <span class="stock-info">${agotado ? "Sin stock" : `Disponibles: ${p.stock}`}</span>
           <button class="btn-agregar ${agotado ? "agotado" : ""}" data-id="${p.id}" ${agotado ? "disabled" : ""}>
             ${agotado ? "Agotado" : "Agregar"}
@@ -114,6 +125,15 @@ function renderProductos() {
       </div>`;
     })
     .join("");
+
+  gridEl.querySelectorAll(".selector-envase").forEach((sel) => {
+    sel.querySelectorAll("input[type=radio]").forEach((radio) => {
+      radio.addEventListener("change", (e) => {
+        envaseSeleccionado[sel.dataset.id] = e.target.value === "con";
+        renderProductos();
+      });
+    });
+  });
 
   gridEl.querySelectorAll(".btn-agregar:not(.agotado)").forEach((btn) => {
     btn.addEventListener("click", () => agregarAlCarrito(btn.dataset.id));
@@ -134,6 +154,10 @@ onSnapshot(collection(db, "productos"), (snapshot) => {
 /* Si el stock cambia mientras el producto está en el carrito, ajustamos cantidades */
 function sincronizarCarritoConStock() {
   let cambiado = false;
+
+  // Para cada producto, la suma de cantidades entre sus variantes (con/sin envase) no puede superar el stock
+  const stockUsadoPorProducto = {};
+
   carrito = carrito
     .map((item) => {
       const actual = productos.find((p) => p.id === item.id);
@@ -142,13 +166,17 @@ function sincronizarCarritoConStock() {
         cambiado = true;
         return null;
       }
-      if (item.cantidad > actual.stock) {
-        item.cantidad = actual.stock;
+      const usadoPrevio = stockUsadoPorProducto[item.id] || 0;
+      const disponibleParaEsteItem = Number(actual.stock) - usadoPrevio;
+      if (item.cantidad > disponibleParaEsteItem) {
+        item.cantidad = Math.max(0, disponibleParaEsteItem);
         cambiado = true;
       }
-      return item;
+      stockUsadoPorProducto[item.id] = usadoPrevio + item.cantidad;
+      return item.cantidad > 0 ? item : null;
     })
     .filter(Boolean);
+
   if (cambiado) {
     actualizarBadge();
     renderCarrito();
@@ -160,11 +188,27 @@ function agregarAlCarrito(id) {
   const producto = productos.find((p) => p.id === id);
   if (!producto || Number(producto.stock) <= 0) return;
 
-  const existente = carrito.find((i) => i.id === id);
+  const conEnvase = producto.manejaEnvase ? !!envaseSeleccionado[id] : false;
+  const precioUnit = conEnvase ? (producto.precioConEnvase ?? producto.precio) : producto.precio;
+  const key = id + (conEnvase ? "_con" : "_sin");
+
+  const cantidadActualProducto = carrito
+    .filter((i) => i.id === id)
+    .reduce((acc, i) => acc + i.cantidad, 0);
+  if (cantidadActualProducto >= producto.stock) return; // sin más stock disponible
+
+  const existente = carrito.find((i) => i.key === key);
   if (existente) {
-    if (existente.cantidad < producto.stock) existente.cantidad++;
+    existente.cantidad++;
   } else {
-    carrito.push({ id, nombre: producto.nombre, precio: producto.precio, cantidad: 1, stock: producto.stock });
+    carrito.push({
+      key,
+      id,
+      nombre: producto.nombre,
+      precio: precioUnit,
+      cantidad: 1,
+      conEnvase: producto.manejaEnvase ? conEnvase : null
+    });
   }
   actualizarBadge();
 }
@@ -184,9 +228,9 @@ function renderCarrito() {
   listaCarritoEl.innerHTML = carrito
     .map(
       (item) => `
-      <div class="item-carrito" data-id="${item.id}">
+      <div class="item-carrito" data-key="${item.key}">
         <div>
-          <strong>${item.nombre}</strong><br/>
+          <strong>${item.nombre}</strong>${item.conEnvase === true ? ' <small style="color:#2E7D32;">(trae envase)</small>' : item.conEnvase === false ? ' <small style="color:#999;">(sin envase)</small>' : ""}<br/>
           <small>${formatCOPLocal(item.precio)} c/u</small>
         </div>
         <div class="cantidad-control">
@@ -199,16 +243,18 @@ function renderCarrito() {
     .join("");
 
   listaCarritoEl.querySelectorAll(".item-carrito").forEach((el) => {
-    const id = el.dataset.id;
+    const key = el.dataset.key;
     el.querySelector(".sumar").addEventListener("click", () => {
-      const item = carrito.find((i) => i.id === id);
-      const stockDisponible = productos.find((p) => p.id === id)?.stock ?? 0;
-      if (item && item.cantidad < stockDisponible) item.cantidad++;
+      const item = carrito.find((i) => i.key === key);
+      const producto = productos.find((p) => p.id === item.id);
+      const stockDisponible = producto?.stock ?? 0;
+      const cantidadTotalProducto = carrito.filter((i) => i.id === item.id).reduce((acc, i) => acc + i.cantidad, 0);
+      if (item && cantidadTotalProducto < stockDisponible) item.cantidad++;
       actualizarBadge();
       renderCarrito();
     });
     el.querySelector(".restar").addEventListener("click", () => {
-      const item = carrito.find((i) => i.id === id);
+      const item = carrito.find((i) => i.key === key);
       if (item) item.cantidad--;
       carrito = carrito.filter((i) => i.cantidad > 0);
       actualizarBadge();
