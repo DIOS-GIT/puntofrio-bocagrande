@@ -229,7 +229,7 @@
       <input type="hidden" id="c-id" />
       <div class="grid-2">
         <div class="form-field">
-          <label>Cédula / NIT</label>
+          <label>Cédula / NIT (opcional, se puede completar después)</label>
           <input type="text" id="c-cedula" placeholder="Ej: 1234567890" />
         </div>
         <div class="form-field">
@@ -1641,20 +1641,29 @@ document.getElementById("btn-guardar-cliente").addEventListener("click", async (
   const telefono = document.getElementById("c-telefono").value.trim();
   const direccion = document.getElementById("c-direccion").value.trim();
 
-  if (!cedula || !nombre) {
-    mostrarToast("⚠️ Cédula/NIT y nombre son obligatorios.");
+  if (!nombre) {
+    mostrarToast("⚠️ El nombre es obligatorio.");
     return;
   }
 
-  const data = { cedula, nombre, correo, telefono, direccion, actualizadoEn: serverTimestamp() };
+  const data = { cedula: cedula || "", nombre, correo, telefono, direccion, actualizadoEn: serverTimestamp() };
 
   try {
-    if (idOriginal && idOriginal !== cedula) {
-      // Si cambió la cédula (es el ID del documento), migramos: creamos el nuevo y borramos el viejo
-      await setDoc(doc(db, "clientes", cedula), data);
-      await deleteDoc(doc(db, "clientes", idOriginal));
-    } else {
+    if (idOriginal) {
+      // Editando un cliente que ya existía
+      if (cedula && cedula !== idOriginal) {
+        // Le agregaron o cambiaron la cédula: migramos el documento para que quede indexado por cédula
+        await setDoc(doc(db, "clientes", cedula), data);
+        await deleteDoc(doc(db, "clientes", idOriginal));
+      } else {
+        await updateDoc(doc(db, "clientes", idOriginal), data);
+      }
+    } else if (cedula) {
+      // Cliente nuevo CON cédula: la cédula se usa como ID del documento
       await setDoc(doc(db, "clientes", cedula), data, { merge: true });
+    } else {
+      // Cliente nuevo SIN cédula: Firestore asigna un ID automático
+      await addDoc(collection(db, "clientes"), data);
     }
     mostrarToast("✅ Cliente guardado.");
     limpiarFormularioCliente();
