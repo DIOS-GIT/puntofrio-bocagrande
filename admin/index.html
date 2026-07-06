@@ -40,6 +40,7 @@
   <nav class="tabs">
     <button class="tab-btn activo" data-tab="facturacion">🧾 Facturación</button>
     <button class="tab-btn" data-tab="inventario">📦 Inventario y Reportes</button>
+    <button class="tab-btn" data-tab="clientes">👤 Clientes</button>
     <button class="tab-btn" data-tab="caja">💰 Cierre de Caja</button>
     <button class="tab-btn" data-tab="estadisticas">📈 Estadísticas</button>
   </nav>
@@ -220,6 +221,62 @@
     </div>
   </section>
 
+  <!-- ============ MÓDULO B2: CLIENTES ============ -->
+  <section class="admin-panel" id="panel-clientes">
+    <h2 class="panel-titulo">Clientes</h2>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;" id="titulo-form-cliente">Agregar Cliente</h3>
+      <input type="hidden" id="c-id" />
+      <div class="grid-2">
+        <div class="form-field">
+          <label>Cédula / NIT</label>
+          <input type="text" id="c-cedula" placeholder="Ej: 1234567890" />
+        </div>
+        <div class="form-field">
+          <label>Nombre completo / Razón social</label>
+          <input type="text" id="c-nombre" />
+        </div>
+        <div class="form-field">
+          <label>Correo electrónico</label>
+          <input type="email" id="c-correo" placeholder="correo@ejemplo.com" />
+        </div>
+        <div class="form-field">
+          <label>Teléfono</label>
+          <input type="tel" id="c-telefono" />
+        </div>
+        <div class="form-field">
+          <label>Dirección</label>
+          <input type="text" id="c-direccion" />
+        </div>
+      </div>
+      <div class="btn-fila">
+        <button class="btn btn-primario" id="btn-guardar-cliente">💾 Guardar Cliente</button>
+        <button class="btn btn-secundario oculto" id="btn-cancelar-edicion-cliente">Cancelar edición</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+        <h3>Clientes registrados</h3>
+        <input
+          type="text"
+          id="buscar-cliente-tabla"
+          placeholder="Buscar por nombre o cédula..."
+          style="max-width:260px;padding:9px 11px;border-radius:8px;border:1.5px solid #ddd;font-size:0.88rem;"
+        />
+      </div>
+      <div style="overflow-x:auto;margin-top:12px;">
+        <table class="tabla-inventario" id="tabla-clientes">
+          <thead>
+            <tr><th>Cédula/NIT</th><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Dirección</th><th>Acciones</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
   <!-- ============ MÓDULO C: CIERRE DE CAJA ============ -->
   <section class="admin-panel" id="panel-caja">
     <h2 class="panel-titulo">Cierre de Caja Diario</h2>
@@ -309,6 +366,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  setDoc,
   updateDoc,
   addDoc,
   runTransaction,
@@ -403,6 +461,7 @@ function iniciarSuscripcionesFirestore() {
 
   onSnapshot(collection(db, "clientes"), (snap) => {
     clientesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderTablaClientes(document.getElementById("buscar-cliente-tabla")?.value || "");
   });
 }
 
@@ -1286,6 +1345,118 @@ document.getElementById("btn-cargar-estadisticas").addEventListener("click", car
 // Cargar estadísticas automáticamente la primera vez que se abre esa pestaña
 document.querySelector('.tab-btn[data-tab="estadisticas"]').addEventListener("click", () => {
   cargarEstadisticas();
+});
+
+/* ---------------------------------------------------------------
+   MÓDULO B2: CLIENTES (agregar, editar, eliminar, buscar)
+--------------------------------------------------------------- */
+document.getElementById("btn-guardar-cliente").addEventListener("click", async () => {
+  const idOriginal = document.getElementById("c-id").value;
+  const cedula = document.getElementById("c-cedula").value.trim();
+  const nombre = document.getElementById("c-nombre").value.trim();
+  const correo = document.getElementById("c-correo").value.trim();
+  const telefono = document.getElementById("c-telefono").value.trim();
+  const direccion = document.getElementById("c-direccion").value.trim();
+
+  if (!cedula || !nombre) {
+    mostrarToast("⚠️ Cédula/NIT y nombre son obligatorios.");
+    return;
+  }
+
+  const data = { cedula, nombre, correo, telefono, direccion, actualizadoEn: serverTimestamp() };
+
+  try {
+    if (idOriginal && idOriginal !== cedula) {
+      // Si cambió la cédula (es el ID del documento), migramos: creamos el nuevo y borramos el viejo
+      await setDoc(doc(db, "clientes", cedula), data);
+      await deleteDoc(doc(db, "clientes", idOriginal));
+    } else {
+      await setDoc(doc(db, "clientes", cedula), data, { merge: true });
+    }
+    mostrarToast("✅ Cliente guardado.");
+    limpiarFormularioCliente();
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error guardando el cliente.");
+  }
+});
+
+function limpiarFormularioCliente() {
+  document.getElementById("c-id").value = "";
+  document.getElementById("c-cedula").value = "";
+  document.getElementById("c-nombre").value = "";
+  document.getElementById("c-correo").value = "";
+  document.getElementById("c-telefono").value = "";
+  document.getElementById("c-direccion").value = "";
+  document.getElementById("titulo-form-cliente").textContent = "Agregar Cliente";
+  document.getElementById("btn-cancelar-edicion-cliente").classList.add("oculto");
+}
+document.getElementById("btn-cancelar-edicion-cliente").addEventListener("click", limpiarFormularioCliente);
+
+function renderTablaClientes(filtro = "") {
+  const tbody = document.querySelector("#tabla-clientes tbody");
+  if (!tbody) return;
+  const texto = filtro.trim().toLowerCase();
+  const lista = clientesCache.filter(
+    (c) =>
+      !texto ||
+      (c.nombre || "").toLowerCase().includes(texto) ||
+      (c.cedula || "").toLowerCase().includes(texto)
+  );
+
+  tbody.innerHTML =
+    lista
+      .map(
+        (c) => `
+      <tr>
+        <td>${c.cedula || ""}</td>
+        <td>${c.nombre || ""}</td>
+        <td>${c.correo || ""}</td>
+        <td>${c.telefono || ""}</td>
+        <td>${c.direccion || ""}</td>
+        <td>
+          <button class="btn btn-secundario" data-id="${c.id}" data-accion="editar-cliente">✎</button>
+          <button class="btn btn-rojo" data-id="${c.id}" data-accion="eliminar-cliente">🗑</button>
+        </td>
+      </tr>`
+      )
+      .join("") || `<tr><td colspan="6" style="text-align:center;color:#999;padding:16px;">Sin clientes registrados.</td></tr>`;
+
+  tbody.querySelectorAll('button[data-accion="editar-cliente"]').forEach((btn) => {
+    btn.addEventListener("click", () => cargarClienteParaEditar(btn.dataset.id));
+  });
+  tbody.querySelectorAll('button[data-accion="eliminar-cliente"]').forEach((btn) => {
+    btn.addEventListener("click", () => eliminarCliente(btn.dataset.id));
+  });
+}
+
+function cargarClienteParaEditar(id) {
+  const c = clientesCache.find((x) => x.id === id);
+  if (!c) return;
+  document.getElementById("c-id").value = c.id;
+  document.getElementById("c-cedula").value = c.cedula || "";
+  document.getElementById("c-nombre").value = c.nombre || "";
+  document.getElementById("c-correo").value = c.correo || "";
+  document.getElementById("c-telefono").value = c.telefono || "";
+  document.getElementById("c-direccion").value = c.direccion || "";
+  document.getElementById("titulo-form-cliente").textContent = "Editar Cliente";
+  document.getElementById("btn-cancelar-edicion-cliente").classList.remove("oculto");
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function eliminarCliente(id) {
+  if (!confirm("¿Eliminar este cliente? Esto no borra sus facturas ya generadas.")) return;
+  try {
+    await deleteDoc(doc(db, "clientes", id));
+    mostrarToast("✅ Cliente eliminado.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error eliminando el cliente.");
+  }
+}
+
+document.getElementById("buscar-cliente-tabla").addEventListener("input", (e) => {
+  renderTablaClientes(e.target.value);
 });
 
 document.getElementById("btn-export-json-ventas").addEventListener("click", async () => {
