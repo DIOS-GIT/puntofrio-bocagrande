@@ -353,6 +353,14 @@
   </div>
 </div>
 
+<!-- Modal para editar una factura ya generada -->
+<div class="modal-overlay-factura" id="modal-editar-factura-overlay">
+  <div class="modal-factura-caja">
+    <button class="btn-cerrar-modal-factura" id="btn-cerrar-modal-editar-factura">✕</button>
+    <div id="contenido-editar-factura"></div>
+  </div>
+</div>
+
 <!-- Tiquete POS oculto, solo visible al imprimir -->
 <div class="tiquete-pos" id="tiquete-pos"></div>
 
@@ -824,6 +832,278 @@ document.getElementById("modal-factura-overlay").addEventListener("click", (e) =
   }
 });
 
+/* =====================================================================
+   EDITAR FACTURA — corrige cliente, método de pago e items,
+   ajustando el stock por la diferencia (no borra, no vuelve a numerar).
+===================================================================== */
+let facturaEnEdicion = null;
+let itemsEdicion = []; // copia editable: [{id, nombre, precio, conEnvase, cantidad}]
+
+function abrirEdicionFactura(factura) {
+  facturaEnEdicion = factura;
+  itemsEdicion = (factura.items || []).map((i) => ({ ...i }));
+
+  const cont = document.getElementById("contenido-editar-factura");
+  cont.innerHTML = `
+    <div style="background:linear-gradient(135deg,#FFC107,#FFA000);padding:18px 20px;border-radius:10px 10px 0 0;margin:-20px -20px 16px -20px;">
+      <h2 style="margin:0;color:#212121;">Editar Factura #${factura.numero}</h2>
+      <p style="margin:4px 0 0;color:#212121;font-size:0.8rem;">⚠️ Los cambios ajustan el stock automáticamente.</p>
+    </div>
+
+    <div class="grid-2">
+      <div class="form-field">
+        <label>Cédula / NIT</label>
+        <input type="text" id="edit-cedula" value="${factura.cliente?.cedula || ""}" />
+      </div>
+      <div class="form-field">
+        <label>Nombre del cliente</label>
+        <input type="text" id="edit-nombre" value="${factura.cliente?.nombre || ""}" />
+      </div>
+      <div class="form-field">
+        <label>Correo</label>
+        <input type="email" id="edit-correo" value="${factura.cliente?.correo || ""}" />
+      </div>
+      <div class="form-field">
+        <label>Método de pago</label>
+        <select id="edit-metodo-pago">
+          ${["Efectivo", "Nequi", "Daviplata", "Tarjeta"]
+            .map((m) => `<option value="${m}" ${m === factura.metodoPago ? "selected" : ""}>${m}</option>`)
+            .join("")}
+        </select>
+      </div>
+    </div>
+
+    <h3 style="margin:14px 0 8px;">Productos</h3>
+    <div class="form-field">
+      <input type="text" id="buscar-producto-edicion" placeholder="Agregar otro producto..." />
+      <div id="resultados-producto-edicion" style="margin-top:6px;"></div>
+    </div>
+    <table class="tabla-factura" id="tabla-edicion-items">
+      <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div class="total-carrito" id="edit-total" style="margin-top:10px;">Total: $ 0</div>
+
+    <div class="btn-fila" style="margin-top:16px;">
+      <button class="btn btn-primario" id="btn-guardar-edicion-factura">💾 Guardar Cambios</button>
+    </div>
+  `;
+
+  document.getElementById("buscar-producto-edicion").addEventListener("input", (e) => {
+    const texto = e.target.value.trim().toLowerCase();
+    const contenedor = document.getElementById("resultados-producto-edicion");
+    if (!texto) { contenedor.innerHTML = ""; return; }
+
+    const coincidencias = productosCache.filter((p) => p.nombre.toLowerCase().includes(texto)).slice(0, 6);
+    contenedor.innerHTML = coincidencias
+      .map(
+        (p) => `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
+          ${p.nombre} — ${formatCOP(p.precio)}
+        </div>`
+      )
+      .join("");
+
+    contenedor.querySelectorAll("div[data-id]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const producto = productosCache.find((p) => p.id === el.dataset.id);
+        if (!producto) return;
+        itemsEdicion.push({
+          id: producto.id,
+          nombre: producto.nombre,
+          precio: producto.precio,
+          conEnvase: producto.manejaEnvase ? false : null,
+          cantidad: 1
+        });
+        renderTablaEdicionFactura();
+        document.getElementById("buscar-producto-edicion").value = "";
+        contenedor.innerHTML = "";
+      });
+    });
+  });
+
+  renderTablaEdicionFactura();
+  document.getElementById("btn-guardar-edicion-factura").addEventListener("click", guardarEdicionFactura);
+  document.getElementById("modal-editar-factura-overlay").classList.add("abierto");
+}
+
+function renderTablaEdicionFactura() {
+  const tbody = document.querySelector("#tabla-edicion-items tbody");
+  tbody.innerHTML = itemsEdicion
+    .map(
+      (item, idx) => `
+      <tr>
+        <td>${nombreConEnvase(item)}</td>
+        <td><input type="number" min="0" value="${item.cantidad}" data-idx="${idx}" class="input-cantidad-edicion" style="width:55px;" /></td>
+        <td>${formatCOP(item.precio)}</td>
+        <td>${formatCOP(item.precio * item.cantidad)}</td>
+        <td><button data-idx="${idx}" class="btn-quitar-item-edicion" style="border:none;background:none;cursor:pointer;color:#D32F2F;">✕</button></td>
+      </tr>`
+    )
+    .join("");
+
+  tbody.querySelectorAll(".input-cantidad-edicion").forEach((inp) => {
+    inp.addEventListener("change", () => {
+      const idx = Number(inp.dataset.idx);
+      let val = Number(inp.value);
+      if (val < 0) val = 0;
+      itemsEdicion[idx].cantidad = val;
+      renderTablaEdicionFactura();
+    });
+  });
+
+  tbody.querySelectorAll(".btn-quitar-item-edicion").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      itemsEdicion.splice(Number(btn.dataset.idx), 1);
+      renderTablaEdicionFactura();
+    });
+  });
+
+  const total = itemsEdicion.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+  document.getElementById("edit-total").textContent = "Total: " + formatCOP(total);
+}
+
+async function guardarEdicionFactura() {
+  if (!facturaEnEdicion) return;
+  const itemsFinales = itemsEdicion.filter((i) => i.cantidad > 0);
+
+  if (itemsFinales.length === 0) {
+    mostrarToast("⚠️ La factura debe tener al menos un producto. Usa 'Eliminar' si quieres anularla completa.");
+    return;
+  }
+
+  const cedula = document.getElementById("edit-cedula").value.trim();
+  const nombre = document.getElementById("edit-nombre").value.trim();
+  const correo = document.getElementById("edit-correo").value.trim();
+  const metodoPago = document.getElementById("edit-metodo-pago").value;
+
+  if (!nombre) {
+    mostrarToast("⚠️ El nombre del cliente es obligatorio.");
+    return;
+  }
+
+  // Cantidad ORIGINAL por producto (antes de editar) vs NUEVA (después de editar)
+  const cantidadOriginalPorProducto = {};
+  (facturaEnEdicion.items || []).forEach((i) => {
+    cantidadOriginalPorProducto[i.id] = (cantidadOriginalPorProducto[i.id] || 0) + i.cantidad;
+  });
+  const cantidadNuevaPorProducto = {};
+  itemsFinales.forEach((i) => {
+    cantidadNuevaPorProducto[i.id] = (cantidadNuevaPorProducto[i.id] || 0) + i.cantidad;
+  });
+
+  const idsAfectados = new Set([...Object.keys(cantidadOriginalPorProducto), ...Object.keys(cantidadNuevaPorProducto)]);
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const refFactura = doc(db, "facturas", facturaEnEdicion.id);
+      const snapFactura = await tx.get(refFactura);
+      if (!snapFactura.exists()) throw new Error("La factura ya no existe.");
+
+      // Leer stock actual de cada producto afectado y validar antes de escribir
+      const ajustes = [];
+      for (const idProd of idsAfectados) {
+        const original = cantidadOriginalPorProducto[idProd] || 0;
+        const nueva = cantidadNuevaPorProducto[idProd] || 0;
+        const delta = nueva - original; // positivo = se necesita MÁS stock; negativo = se libera stock
+        if (delta === 0) continue;
+
+        const refProd = doc(db, "productos", idProd);
+        const snapProd = await tx.get(refProd);
+        if (!snapProd.exists()) {
+          throw new Error("Uno de los productos de esta factura ya no existe en el inventario.");
+        }
+        if (delta > 0 && Number(snapProd.data().stock) < delta) {
+          throw new Error(`Stock insuficiente para aplicar el cambio en "${snapProd.data().nombre}".`);
+        }
+        ajustes.push({ refProd, delta });
+      }
+
+      ajustes.forEach(({ refProd, delta }) => {
+        tx.update(refProd, { stock: increment(-delta) });
+      });
+
+      const nuevoTotal = itemsFinales.reduce((acc, i) => acc + i.precio * i.cantidad, 0);
+      tx.update(refFactura, {
+        cliente: { cedula: cedula || "N/A", nombre, correo },
+        items: itemsFinales.map((i) => ({
+          id: i.id,
+          nombre: i.nombre,
+          precio: i.precio,
+          conEnvase: i.conEnvase,
+          cantidad: i.cantidad,
+          subtotal: i.precio * i.cantidad
+        })),
+        total: nuevoTotal,
+        metodoPago,
+        editado: true,
+        editadoEn: serverTimestamp()
+      });
+
+      if (cedula) {
+        const refCliente = doc(db, "clientes", cedula);
+        tx.set(refCliente, { cedula, nombre, correo, actualizadoEn: serverTimestamp() }, { merge: true });
+      }
+    });
+
+    mostrarToast(`✅ Factura #${facturaEnEdicion.numero} actualizada.`);
+    document.getElementById("modal-editar-factura-overlay").classList.remove("abierto");
+    facturaEnEdicion = null;
+    cargarHistorialFacturas(document.getElementById("buscar-historial").value.trim());
+  } catch (err) {
+    console.error("Error editando factura:", err);
+    mostrarToast("❌ " + err.message);
+  }
+}
+
+document.getElementById("btn-cerrar-modal-editar-factura").addEventListener("click", () => {
+  document.getElementById("modal-editar-factura-overlay").classList.remove("abierto");
+});
+document.getElementById("modal-editar-factura-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "modal-editar-factura-overlay") {
+    document.getElementById("modal-editar-factura-overlay").classList.remove("abierto");
+  }
+});
+
+/* =====================================================================
+   ELIMINAR FACTURA — restaura el stock de cada producto y borra el
+   documento. El número de factura queda con un "hueco" (normal en DIAN).
+===================================================================== */
+async function eliminarFactura(factura) {
+  const confirmacion = confirm(
+    `¿Eliminar la factura #${factura.numero} de "${factura.cliente?.nombre || ""}"?\n\n` +
+      `Esto restaurará el stock de los productos vendidos en esta factura. Esta acción no se puede deshacer.`
+  );
+  if (!confirmacion) return;
+
+  try {
+    await runTransaction(db, async (tx) => {
+      const refFactura = doc(db, "facturas", factura.id);
+      const snapFactura = await tx.get(refFactura);
+      if (!snapFactura.exists()) throw new Error("La factura ya no existe.");
+
+      const refsProductos = [];
+      for (const item of factura.items || []) {
+        const refProd = doc(db, "productos", item.id);
+        const snapProd = await tx.get(refProd);
+        if (snapProd.exists()) refsProductos.push({ ref: refProd, cantidad: item.cantidad });
+        // Si el producto ya no existe en inventario, simplemente no hay stock que restaurar.
+      }
+
+      refsProductos.forEach(({ ref, cantidad }) => {
+        tx.update(ref, { stock: increment(cantidad) });
+      });
+
+      tx.delete(refFactura);
+    });
+
+    mostrarToast(`🗑 Factura #${factura.numero} eliminada y stock restaurado.`);
+    cargarHistorialFacturas(document.getElementById("buscar-historial").value.trim());
+  } catch (err) {
+    console.error("Error eliminando factura:", err);
+    mostrarToast("❌ " + err.message);
+  }
+}
+
 /* ---------- IMPRESIÓN TIQUETE POS (térmica) ---------- */
 function imprimirTiquetePOS(factura) {
   const cont = document.getElementById("tiquete-pos");
@@ -934,6 +1214,8 @@ async function cargarHistorialFacturas(filtro = "") {
           <button class="btn btn-azul" data-id="${fa.id}" data-accion="ver">👁</button>
           <button class="btn btn-secundario" data-id="${fa.id}" data-accion="imprimir">🖨</button>
           <button class="btn btn-rojo" data-id="${fa.id}" data-accion="pdf">📄</button>
+          <button class="btn btn-secundario" data-id="${fa.id}" data-accion="editar">✎</button>
+          <button class="btn btn-rojo" data-id="${fa.id}" data-accion="eliminar">🗑</button>
         </td>
       </tr>`
     )
@@ -946,6 +1228,8 @@ async function cargarHistorialFacturas(filtro = "") {
       if (btn.dataset.accion === "ver") verFacturaModal(factura);
       if (btn.dataset.accion === "imprimir") imprimirTiquetePOS(factura);
       if (btn.dataset.accion === "pdf") descargarFacturaPDF(factura);
+      if (btn.dataset.accion === "editar") abrirEdicionFactura(factura);
+      if (btn.dataset.accion === "eliminar") eliminarFactura(factura);
     });
   });
 }
