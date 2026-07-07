@@ -184,7 +184,7 @@ function renderProductos() {
             permiteSueltaTienda
               ? `<div class="selector-modo-venta" data-id="${p.id}">
                    <label><input type="radio" name="modo-${p.id}" value="caja" ${modoActual === "caja" ? "checked" : ""} /> Caja completa (${unidadesPorCaja} uds) — ${formatCOPLocal(p.precio)}</label>
-                   <label><input type="radio" name="modo-${p.id}" value="suelta" ${modoActual === "suelta" ? "checked" : ""} /> Unidad suelta — ${formatCOPLocal(p.precioUnidadSuelta)}</label>
+                   <label><input type="radio" name="modo-${p.id}" value="suelta" ${modoActual === "suelta" ? "checked" : ""} /> Unidad de ${p.nombre} — ${formatCOPLocal(p.precioUnidadSuelta)}</label>
                  </div>`
               : (esCajaProducto ? `<span class="categoria" style="color:#1565C0;">Caja x${unidadesPorCaja}</span>` : "")
           }
@@ -350,7 +350,7 @@ function renderCarrito() {
         <div>
           <strong>${item.nombre}</strong>${
             item.esCaja === true ? ` <small style="color:#1565C0;">(caja x${item.unidadesPorCaja})</small>` :
-            item.esCaja === false ? ` <small style="color:#1565C0;">(unidad suelta)</small>` : ""
+            item.esCaja === false ? ` <small style="color:#1565C0;">(unidad de ${item.nombre})</small>` : ""
           }${item.conEnvase === true ? ' <small style="color:#2E7D32;">(trae envase)</small>' : item.conEnvase === false ? ' <small style="color:#999;">(sin envase)</small>' : ""}<br/>
           <small>${formatCOPLocal(item.precio)} c/u</small>
         </div>
