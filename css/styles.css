@@ -348,6 +348,94 @@ body {
   font-weight: 700;
 }
 
+/* ---------- MODAL DE DETALLE DE PRODUCTO ---------- */
+.modal-overlay-detalle {
+  position: fixed;
+  inset: 0;
+  background: rgba(27,24,21,0.6);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 210;
+  padding: 20px 16px;
+}
+.modal-overlay-detalle.abierto { display: flex; }
+
+.modal-detalle-caja {
+  background: var(--paper);
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: var(--radio-lg);
+  position: relative;
+  box-shadow: 0 30px 60px -15px rgba(0,0,0,0.5);
+  display: flex;
+  flex-direction: column;
+}
+@media (min-width: 620px) {
+  .modal-detalle-caja { flex-direction: row; }
+}
+
+.btn-cerrar-modal-detalle {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  color: var(--ink);
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.detalle-imagen-wrap {
+  position: relative;
+  background: var(--frost);
+  flex: 0 0 auto;
+  aspect-ratio: 4 / 3;
+  cursor: zoom-in;
+}
+@media (min-width: 620px) {
+  .detalle-imagen-wrap { flex: 0 0 46%; aspect-ratio: auto; border-radius: var(--radio-lg) 0 0 var(--radio-lg); }
+}
+.detalle-imagen-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.detalle-info {
+  padding: 22px 22px 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.detalle-nombre {
+  font-family: var(--fuente-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 2px;
+}
+
+.tabla-precios-detalle {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 6px 0 4px;
+  font-size: 0.85rem;
+}
+.tabla-precios-detalle td {
+  padding: 6px 0;
+  border-bottom: 1px solid var(--paper-alt);
+}
+.tabla-precios-detalle td:last-child {
+  text-align: right;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
 .btn-agregar {
   margin-top: 6px;
   border: none;
