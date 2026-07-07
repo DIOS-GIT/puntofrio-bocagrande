@@ -268,8 +268,8 @@ function renderProductos() {
           ${
             (!esCajaProducto && p.manejaEnvase)
               ? `<div class="selector-envase" data-id="${p.id}">
-                   <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase</label>
-                   <label><input type="radio" name="envase-${p.id}" value="con" ${conEnvase ? "checked" : ""} /> Traigo envase (${formatCOPLocal(p.precioConEnvase)})</label>
+                   <label><input type="radio" name="envase-${p.id}" value="con" ${conEnvase ? "checked" : ""} /> Traigo envase — ${formatCOPLocal(p.precioConEnvase)}</label>
+                   <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase — ${formatCOPLocal(p.precio)} <span class="nota-envase">(+${formatCOPLocal(Math.max(0, p.precio - p.precioConEnvase))})</span></label>
                  </div>`
               : ""
           }
