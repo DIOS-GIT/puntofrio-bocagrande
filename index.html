@@ -63,6 +63,14 @@
   <div class="lightbox-dots" id="lightbox-dots"></div>
 </div>
 
+<!-- Modal de detalle de producto: fotos + todos los precios/diferencias -->
+<div class="modal-overlay-detalle" id="modal-detalle-overlay">
+  <div class="modal-detalle-caja">
+    <button class="btn-cerrar-modal-detalle" id="btn-cerrar-detalle">✕</button>
+    <div id="detalle-producto-contenido"></div>
+  </div>
+</div>
+
 <script type="module">
 import {
   db,
@@ -101,6 +109,34 @@ function imagenesDe(p) {
   if (Array.isArray(p.imagenes) && p.imagenes.length) return p.imagenes;
   if (p.imagen) return [p.imagen];
   return [];
+}
+
+/**
+ * Calcula toda la info de precio para un producto según el modo (caja/suelta).
+ * El envase ahora aplica tanto si se compra por caja completa como por unidad suelta.
+ */
+function calcularPrecioInfo(p, modo) {
+  const esCajaProducto = !!p.manejaCaja;
+  const esCaja = !esCajaProducto || modo !== "suelta";
+  const unidadesPorCaja = Number(p.unidadesPorCaja) || 1;
+  const envaseAplica = !!p.manejaEnvase;
+
+  let precioSin, precioCon;
+  if (esCaja) {
+    precioSin = Number(p.precio) || 0;
+    precioCon = envaseAplica ? Number(p.precioConEnvase ?? p.precio) || 0 : precioSin;
+  } else {
+    precioSin = Number(p.precioUnidadSuelta ?? p.precio) || 0;
+    if (envaseAplica) {
+      // Traslada la diferencia con/sin envase de la caja completa a la unidad suelta, proporcionalmente
+      const diffPorUnidad = ((Number(p.precio) || 0) - (Number(p.precioConEnvase ?? p.precio) || 0)) / unidadesPorCaja;
+      precioCon = Math.max(0, Math.round((precioSin - diffPorUnidad) / 50) * 50);
+    } else {
+      precioCon = precioSin;
+    }
+  }
+
+  return { esCaja, envaseAplica, precioSin, precioCon };
 }
 
 /* ---------- LIGHTBOX (visor de fotos en grande) ---------- */
@@ -158,16 +194,12 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") document.getElementById("lightbox-next").click();
 });
 
-// Delegado: clic en cualquier imagen de producto (no en los puntos) abre el visor
+// Delegado: clic en la imagen de un producto abre el detalle completo (fotos + precios)
 gridEl.addEventListener("click", (e) => {
   if (e.target.classList.contains("dot")) return; // los puntos ya cambian de foto por su cuenta
   const wrap = e.target.closest(".imagen-wrap");
   if (!wrap) return;
-  const producto = productos.find((p) => p.id === wrap.dataset.id);
-  if (!producto) return;
-  const imgs = imagenesDe(producto);
-  if (!imgs.length) return;
-  abrirLightbox(imgs, imagenActiva[wrap.dataset.id] || 0);
+  abrirDetalleProducto(wrap.dataset.id);
 });
 
 /* ---------- RENDER DE FILTROS ---------- */
@@ -216,12 +248,8 @@ function renderProductos() {
       const modoActual = permiteSueltaTienda ? (modoVentaSeleccionado[p.id] || "caja") : "caja";
       const esCajaSeleccionada = !esCajaProducto || modoActual === "caja";
 
-      let precioMostrado;
-      if (esCajaProducto && !esCajaSeleccionada) {
-        precioMostrado = p.precioUnidadSuelta;
-      } else {
-        precioMostrado = p.manejaEnvase && conEnvase ? p.precioConEnvase : p.precio;
-      }
+      const infoPrecio = calcularPrecioInfo(p, modoActual);
+      const precioMostrado = conEnvase ? infoPrecio.precioCon : infoPrecio.precioSin;
 
       const cajasDisponibles = esCajaProducto ? Math.floor(stockUnidades / unidadesPorCaja) : null;
       const disponibleModoActual = esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles : stockUnidades) : stockUnidades;
@@ -266,10 +294,10 @@ function renderProductos() {
               : (esCajaProducto ? `<span class="categoria" style="color:#1565C0;">Caja x${unidadesPorCaja}</span>` : "")
           }
           ${
-            (!esCajaProducto && p.manejaEnvase)
+            infoPrecio.envaseAplica
               ? `<div class="selector-envase" data-id="${p.id}">
-                   <label><input type="radio" name="envase-${p.id}" value="con" ${conEnvase ? "checked" : ""} /> Traigo envase — ${formatCOPLocal(p.precioConEnvase)}</label>
-                   <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase — ${formatCOPLocal(p.precio)} <span class="nota-envase">(+${formatCOPLocal(Math.max(0, p.precio - p.precioConEnvase))})</span></label>
+                   <label><input type="radio" name="envase-${p.id}" value="con" ${conEnvase ? "checked" : ""} /> Traigo envase — ${formatCOPLocal(infoPrecio.precioCon)}</label>
+                   <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase — ${formatCOPLocal(infoPrecio.precioSin)} <span class="nota-envase">(+${formatCOPLocal(Math.max(0, infoPrecio.precioSin - infoPrecio.precioCon))})</span></label>
                  </div>`
               : ""
           }
@@ -317,6 +345,149 @@ function renderProductos() {
 function formatCOPLocal(v) {
   return "$ " + (Number(v) || 0).toLocaleString("es-CO");
 }
+
+/* ---------- MODAL DE DETALLE DE PRODUCTO ---------- */
+const modalDetalleOverlay = document.getElementById("modal-detalle-overlay");
+const detalleContenidoEl = document.getElementById("detalle-producto-contenido");
+
+function abrirDetalleProducto(id) {
+  renderDetalleProducto(id);
+  modalDetalleOverlay.classList.add("abierto");
+}
+
+function renderDetalleProducto(id) {
+  const p = productos.find((x) => x.id === id);
+  if (!p) {
+    modalDetalleOverlay.classList.remove("abierto");
+    return;
+  }
+
+  const stockUnidades = Number(p.stock) || 0;
+  const agotadoTotal = stockUnidades <= 0;
+  const conEnvase = !!envaseSeleccionado[id];
+
+  const esCajaProducto = !!p.manejaCaja;
+  const unidadesPorCaja = Number(p.unidadesPorCaja) || 1;
+  const permiteSueltaTienda = esCajaProducto && !!p.permiteVentaSuelta && !!p.mostrarSueltaEnTienda;
+  const modoActual = permiteSueltaTienda ? (modoVentaSeleccionado[id] || "caja") : "caja";
+  const esCajaSeleccionada = !esCajaProducto || modoActual === "caja";
+
+  const infoPrecio = calcularPrecioInfo(p, modoActual);
+  const precioMostrado = conEnvase ? infoPrecio.precioCon : infoPrecio.precioSin;
+
+  const cajasDisponibles = esCajaProducto ? Math.floor(stockUnidades / unidadesPorCaja) : null;
+  const disponibleModoActual = esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles : stockUnidades) : stockUnidades;
+  const sinStockModoActual = disponibleModoActual <= 0;
+
+  // Tabla resumen con TODAS las combinaciones de precio disponibles para este producto
+  const filasPrecio = [];
+  if (esCajaProducto) {
+    const infoCaja = calcularPrecioInfo(p, "caja");
+    filasPrecio.push([`Caja completa (${unidadesPorCaja} uds)${infoCaja.envaseAplica ? " — sin envase" : ""}`, infoCaja.precioSin]);
+    if (infoCaja.envaseAplica) filasPrecio.push(["Caja completa — trayendo envases", infoCaja.precioCon]);
+    if (permiteSueltaTienda) {
+      const infoSuelta = calcularPrecioInfo(p, "suelta");
+      filasPrecio.push([`Unidad suelta${infoSuelta.envaseAplica ? " — sin envase" : ""}`, infoSuelta.precioSin]);
+      if (infoSuelta.envaseAplica) filasPrecio.push(["Unidad suelta — trayendo envase", infoSuelta.precioCon]);
+    }
+  } else {
+    filasPrecio.push([infoPrecio.envaseAplica ? "Sin envase" : "Precio", infoPrecio.precioSin]);
+    if (infoPrecio.envaseAplica) filasPrecio.push(["Trayendo envase", infoPrecio.precioCon]);
+  }
+
+  const imgs = imagenesDe(p);
+  const idxActivo = (imagenActiva[id] || 0) % Math.max(imgs.length, 1);
+  const imgSrc = imgs.length ? imgs[idxActivo] : "https://placehold.co/500x350/FFF3CD/999999?text=Sin+imagen";
+
+  detalleContenidoEl.innerHTML = `
+    <div class="detalle-imagen-wrap" data-id="${id}">
+      <img src="${imgSrc}" alt="${p.nombre}" />
+      ${agotadoTotal ? `<span class="badge-agotado">Agotado</span>` : ""}
+      ${
+        imgs.length > 1
+          ? `<div class="galeria-dots">${imgs
+              .map((_, i) => `<span class="dot ${i === idxActivo ? "activo" : ""}" data-idx="${i}"></span>`)
+              .join("")}</div>`
+          : ""
+      }
+    </div>
+    <div class="detalle-info">
+      ${p.mostrarCategoria !== false ? `<span class="categoria">${p.categoria || ""}</span>` : ""}
+      <h2 class="detalle-nombre">${p.nombre}</h2>
+      <span class="precio">${formatCOPLocal(precioMostrado)}</span>
+
+      <table class="tabla-precios-detalle">
+        ${filasPrecio.map(([etiqueta, valor]) => `<tr><td>${etiqueta}</td><td>${formatCOPLocal(valor)}</td></tr>`).join("")}
+      </table>
+
+      ${
+        permiteSueltaTienda
+          ? `<div class="selector-modo-venta" data-id="${id}">
+               <label><input type="radio" name="modo-detalle-${id}" value="caja" ${modoActual === "caja" ? "checked" : ""} /> Caja completa (${unidadesPorCaja} uds)</label>
+               <label><input type="radio" name="modo-detalle-${id}" value="suelta" ${modoActual === "suelta" ? "checked" : ""} /> Unidad suelta</label>
+             </div>`
+          : ""
+      }
+      ${
+        infoPrecio.envaseAplica
+          ? `<div class="selector-envase" data-id="${id}">
+               <label><input type="radio" name="envase-detalle-${id}" value="con" ${conEnvase ? "checked" : ""} /> Traigo envase — ${formatCOPLocal(infoPrecio.precioCon)}</label>
+               <label><input type="radio" name="envase-detalle-${id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase — ${formatCOPLocal(infoPrecio.precioSin)} <span class="nota-envase">(+${formatCOPLocal(Math.max(0, infoPrecio.precioSin - infoPrecio.precioCon))})</span></label>
+             </div>`
+          : ""
+      }
+      <span class="stock-info">${sinStockModoActual ? "Sin stock en este modo" : `Disponibles: ${esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles + " caja(s)" : stockUnidades + " unidad(es)") : p.stock}`}</span>
+      <button class="btn-agregar ${sinStockModoActual ? "agotado" : ""}" id="btn-agregar-detalle" data-id="${id}" ${sinStockModoActual ? "disabled" : ""}>
+        ${sinStockModoActual ? "Agotado" : "Agregar al pedido"}
+      </button>
+    </div>
+  `;
+
+  // Fotos: puntos y clic para ampliar (lightbox)
+  detalleContenidoEl.querySelectorAll(".galeria-dots .dot").forEach((dot) => {
+    dot.addEventListener("click", (e) => {
+      e.stopPropagation();
+      imagenActiva[id] = Number(dot.dataset.idx);
+      renderDetalleProducto(id);
+      renderProductos();
+    });
+  });
+  const imgDetalle = detalleContenidoEl.querySelector(".detalle-imagen-wrap img");
+  if (imgDetalle && imgs.length) {
+    imgDetalle.addEventListener("click", () => abrirLightbox(imgs, idxActivo));
+  }
+
+  detalleContenidoEl.querySelectorAll(".selector-modo-venta input[type=radio]").forEach((radio) => {
+    radio.addEventListener("change", (e) => {
+      modoVentaSeleccionado[id] = e.target.value;
+      renderDetalleProducto(id);
+      renderProductos();
+    });
+  });
+
+  detalleContenidoEl.querySelectorAll(".selector-envase input[type=radio]").forEach((radio) => {
+    radio.addEventListener("change", (e) => {
+      envaseSeleccionado[id] = e.target.value === "con";
+      renderDetalleProducto(id);
+      renderProductos();
+    });
+  });
+
+  const btnAgregarDetalle = document.getElementById("btn-agregar-detalle");
+  if (btnAgregarDetalle && !btnAgregarDetalle.disabled) {
+    btnAgregarDetalle.addEventListener("click", () => {
+      agregarAlCarrito(id);
+      modalDetalleOverlay.classList.remove("abierto");
+    });
+  }
+}
+
+document.getElementById("btn-cerrar-detalle").addEventListener("click", () => {
+  modalDetalleOverlay.classList.remove("abierto");
+});
+modalDetalleOverlay.addEventListener("click", (e) => {
+  if (e.target === modalDetalleOverlay) modalDetalleOverlay.classList.remove("abierto");
+});
 
 /* ---------- SUSCRIPCIÓN EN TIEMPO REAL A FIRESTORE ---------- */
 onSnapshot(collection(db, "productos"), (snapshot) => {
@@ -371,18 +542,13 @@ function agregarAlCarrito(id) {
   const unidadesPorCaja = Number(producto.unidadesPorCaja) || 1;
   const permiteSueltaTienda = esCajaProducto && !!producto.permiteVentaSuelta && !!producto.mostrarSueltaEnTienda;
   const modoActual = permiteSueltaTienda ? (modoVentaSeleccionado[id] || "caja") : "caja";
-  const esCaja = !esCajaProducto || modoActual === "caja";
-  const factorConsumo = esCajaProducto ? (esCaja ? unidadesPorCaja : 1) : 1;
+  const factorConsumo = esCajaProducto ? (modoActual === "caja" ? unidadesPorCaja : 1) : 1;
 
-  const conEnvase = producto.manejaEnvase ? !!envaseSeleccionado[id] : false;
-  let precioUnit;
-  if (esCajaProducto && !esCaja) {
-    precioUnit = producto.precioUnidadSuelta ?? producto.precio;
-  } else {
-    precioUnit = conEnvase ? (producto.precioConEnvase ?? producto.precio) : producto.precio;
-  }
+  const infoPrecio = calcularPrecioInfo(producto, modoActual);
+  const conEnvase = infoPrecio.envaseAplica ? !!envaseSeleccionado[id] : false;
+  const precioUnit = conEnvase ? infoPrecio.precioCon : infoPrecio.precioSin;
 
-  const key = id + (esCajaProducto ? (esCaja ? "_caja" : "_suelta") : "") + (conEnvase ? "_con" : "_sin");
+  const key = id + (esCajaProducto ? (infoPrecio.esCaja ? "_caja" : "_suelta") : "") + (conEnvase ? "_con" : "_sin");
 
   const unidadesUsadas = carrito
     .filter((i) => i.id === id)
@@ -399,8 +565,8 @@ function agregarAlCarrito(id) {
       nombre: producto.nombre,
       precio: precioUnit,
       cantidad: 1,
-      conEnvase: producto.manejaEnvase ? conEnvase : null,
-      esCaja: esCajaProducto ? esCaja : null,
+      conEnvase: infoPrecio.envaseAplica ? conEnvase : null,
+      esCaja: esCajaProducto ? infoPrecio.esCaja : null,
       unidadesPorCaja: esCajaProducto ? unidadesPorCaja : null,
       factorConsumo
     });
@@ -428,8 +594,16 @@ function renderCarrito() {
           <strong>${item.nombre}</strong>${
             item.esCaja === true ? ` <small style="color:#1565C0;">(caja x${item.unidadesPorCaja})</small>` :
             item.esCaja === false ? ` <small style="color:#1565C0;">(unidad suelta)</small>` : ""
-          }${item.conEnvase === true ? ' <small style="color:#2E7D32;">(trae envase)</small>' : item.conEnvase === false ? ' <small style="color:#999;">(sin envase)</small>' : ""}<br/>
+          }<br/>
           <small>${formatCOPLocal(item.precio)} c/u</small>
+          ${
+            item.conEnvase !== null
+              ? `<label style="display:flex;align-items:center;gap:5px;font-size:0.75rem;margin-top:4px;cursor:pointer;">
+                   <input type="checkbox" class="chk-envase-carrito" data-key="${item.key}" ${item.conEnvase ? "checked" : ""} />
+                   Traigo envase
+                 </label>`
+              : ""
+          }
         </div>
         <div class="cantidad-control">
           <button class="restar">−</button>
@@ -439,6 +613,34 @@ function renderCarrito() {
       </div>`
     )
     .join("");
+
+  listaCarritoEl.querySelectorAll(".chk-envase-carrito").forEach((chk) => {
+    chk.addEventListener("change", () => {
+      const item = carrito.find((i) => i.key === chk.dataset.key);
+      if (!item) return;
+      const producto = productos.find((p) => p.id === item.id);
+      if (!producto) return;
+
+      const modo = item.esCaja === false ? "suelta" : "caja";
+      const infoPrecio = calcularPrecioInfo(producto, modo);
+      const nuevoConEnvase = chk.checked;
+      const nuevoPrecio = nuevoConEnvase ? infoPrecio.precioCon : infoPrecio.precioSin;
+      const nuevaKey = item.id + (item.esCaja === true ? "_caja" : item.esCaja === false ? "_suelta" : "") + (nuevoConEnvase ? "_con" : "_sin");
+
+      const hermana = carrito.find((i) => i.key === nuevaKey && i !== item);
+      if (hermana) {
+        // Ya existe una línea de este producto+modo con ese envase: se fusionan las cantidades
+        hermana.cantidad += item.cantidad;
+        carrito = carrito.filter((i) => i !== item);
+      } else {
+        item.conEnvase = nuevoConEnvase;
+        item.precio = nuevoPrecio;
+        item.key = nuevaKey;
+      }
+      actualizarBadge();
+      renderCarrito();
+    });
+  });
 
   listaCarritoEl.querySelectorAll(".item-carrito").forEach((el) => {
     const key = el.dataset.key;
