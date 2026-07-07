@@ -597,11 +597,21 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
 
   contenedor.innerHTML = coincidencias
     .map((p) => {
-      const infoCaja = p.manejaCaja
-        ? ` <span style="color:#1565C0;">(caja x${p.unidadesPorCaja}${p.permiteVentaSuelta ? `, unidad: ${formatCOP(p.precioUnidadSuelta)}` : ""})</span>`
-        : "";
+      const infoEnvase = p.manejaEnvase ? ` <span style="color:#1565C0;">(con envase: ${formatCOP(p.precioConEnvase)} · sin envase: ${formatCOP(p.precio)})</span>` : "";
+
+      if (p.manejaCaja && p.permiteVentaSuelta) {
+        return `<div style="padding:8px;border-bottom:1px solid #eee;">
+          <div style="margin-bottom:4px;">${p.nombre}${infoEnvase} (stock: ${p.stock} uds)</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-secundario btn-agregar-modo" data-id="${p.id}" data-modo="caja" style="font-size:0.78rem;padding:6px 10px;">+ Caja (x${p.unidadesPorCaja}) — ${formatCOP(p.precio)}</button>
+            <button type="button" class="btn btn-secundario btn-agregar-modo" data-id="${p.id}" data-modo="suelta" style="font-size:0.78rem;padding:6px 10px;">+ Unidad — ${formatCOP(p.precioUnidadSuelta)}</button>
+          </div>
+        </div>`;
+      }
+
+      const infoCaja = p.manejaCaja ? ` <span style="color:#1565C0;">(caja x${p.unidadesPorCaja})</span>` : "";
       return `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
-        ${p.nombre} — ${formatCOP(p.precio)}${p.manejaEnvase ? ` <span style="color:#1565C0;">(con envase: ${formatCOP(p.precioConEnvase)})</span>` : ""}${infoCaja} (stock: ${p.stock} uds)
+        ${p.nombre} — ${formatCOP(p.precio)}${infoEnvase}${infoCaja} (stock: ${p.stock} uds)
       </div>`;
     })
     .join("");
@@ -609,6 +619,14 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
   contenedor.querySelectorAll("div[data-id]").forEach((el) => {
     el.addEventListener("click", () => {
       agregarItemFactura(el.dataset.id);
+      document.getElementById("f-buscar-producto").value = "";
+      contenedor.innerHTML = "";
+    });
+  });
+
+  contenedor.querySelectorAll(".btn-agregar-modo").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      agregarItemFactura(btn.dataset.id, btn.dataset.modo === "caja");
       document.getElementById("f-buscar-producto").value = "";
       contenedor.innerHTML = "";
     });
@@ -627,14 +645,17 @@ function maxCantidadItem(item) {
   return Math.max(0, Math.floor(item.stockDisponible / factor));
 }
 
-function agregarItemFactura(idProducto) {
+function agregarItemFactura(idProducto, modoForzado) {
   const producto = productosCache.find((p) => p.id === idProducto);
   if (!producto) return;
-  const existente = carritoFactura.find((i) => i.id === idProducto && i.esCaja !== false);
   const manejaCaja = !!producto.manejaCaja;
+  // Determina el modo (caja/unidad suelta) de la línea que se va a agregar o incrementar
+  const esCajaObjetivo = manejaCaja ? (modoForzado !== undefined ? modoForzado : true) : null;
+  const existente = carritoFactura.find((i) => i.id === idProducto && i.esCaja === esCajaObjetivo);
 
   if (existente) {
     if (existente.cantidad < maxCantidadItem(existente)) existente.cantidad++;
+    else mostrarToast("⚠️ No hay más stock disponible para esta línea.");
   } else {
     const item = {
       id: idProducto,
@@ -647,7 +668,7 @@ function agregarItemFactura(idProducto) {
       unidadesPorCaja: manejaCaja ? (Number(producto.unidadesPorCaja) || 1) : null,
       permiteVentaSuelta: manejaCaja && !!producto.permiteVentaSuelta,
       precioUnidadSuelta: manejaCaja ? (producto.precioUnidadSuelta ?? producto.precio) : null,
-      esCaja: manejaCaja ? true : null,
+      esCaja: esCajaObjetivo,
       cantidad: 1,
       stockDisponible: producto.stock
     };
@@ -719,6 +740,16 @@ function renderTablaFactura() {
         renderTablaFactura();
         return;
       }
+
+      // Si ya hay otra línea del mismo producto en el modo destino, se fusionan en vez de chocar
+      const otraLinea = carritoFactura.find((i, i2) => i2 !== idx && i.id === item.id && i.esCaja === nuevoEsCaja);
+      if (otraLinea) {
+        otraLinea.cantidad = Math.min(otraLinea.cantidad + item.cantidad, maxCantidadItem(otraLinea));
+        carritoFactura.splice(idx, 1);
+        renderTablaFactura();
+        return;
+      }
+
       item.esCaja = nuevoEsCaja;
       if (item.cantidad > maxConNuevoModo) item.cantidad = maxConNuevoModo;
       renderTablaFactura();
