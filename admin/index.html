@@ -1394,6 +1394,16 @@ function renderPreviewImagenes() {
 
 document.getElementById("p-maneja-envase").addEventListener("change", (e) => {
   document.getElementById("campo-precio-envase").classList.toggle("oculto", !e.target.checked);
+
+  // Envase retornable y venta por caja son excluyentes: no tiene sentido combinarlos
+  if (e.target.checked) {
+    const chkCaja = document.getElementById("p-maneja-caja");
+    if (chkCaja.checked) {
+      chkCaja.checked = false;
+      chkCaja.dispatchEvent(new Event("change"));
+      mostrarToast("ℹ️ Se desactivó \"Se vende por caja\": un producto no puede usar envase retornable y caja al mismo tiempo.");
+    }
+  }
 });
 
 document.getElementById("p-maneja-caja").addEventListener("change", (e) => {
@@ -1409,6 +1419,14 @@ document.getElementById("p-maneja-caja").addEventListener("change", (e) => {
     document.getElementById("p-cajas-stock").value = "";
   } else {
     sugerirPrecioSuelta();
+
+    // Envase retornable y venta por caja son excluyentes: no tiene sentido combinarlos
+    const chkEnvase = document.getElementById("p-maneja-envase");
+    if (chkEnvase.checked) {
+      chkEnvase.checked = false;
+      document.getElementById("campo-precio-envase").classList.add("oculto");
+      mostrarToast("ℹ️ Se desactivó \"Maneja envase retornable\": un producto no puede usar caja y envase al mismo tiempo.");
+    }
   }
 });
 
