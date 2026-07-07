@@ -1,54 +1,101 @@
 /* =============================================================
    styles.css — Tienda pública Punto Frío Bocagrande
-   Paleta: Amarillo vibrante + oscuro/blanco para contraste
+   Concepto: "Frost & Citrus" — cálido y tropical, ejecutado con
+   disciplina: acento ámbar sobre base crema, toques de "frío"
+   (líneas y fondos helados) para anclar la identidad del negocio.
    ============================================================= */
 
 :root {
-  --amarillo-principal: #FFC107;
-  --amarillo-fuerte: #FFA000;
-  --amarillo-suave: #FFF3CD;
-  --amarillo-hover: #FF8F00;
-  --negro-texto: #212121;
-  --gris-oscuro: #333333;
-  --blanco: #FFFFFF;
-  --gris-claro: #FAFAFA;
-  --rojo-agotado: #D32F2F;
-  --verde-ok: #2E7D32;
-  --sombra: 0 4px 14px rgba(0, 0, 0, 0.12);
-  --radio: 14px;
-  --fuente: "Poppins", "Segoe UI", sans-serif;
+  /* Paleta */
+  --ink: #1B1815;
+  --ink-soft: #4A443E;
+  --slate: #7A736A;
+  --paper: #FFFDF9;
+  --paper-alt: #FBF6EC;
+  --amber: #E2A63B;
+  --amber-deep: #B8791E;
+  --amber-pale: #FBEBD0;
+  --frost: #EAF5F5;
+  --frost-line: #CFE6E6;
+  --danger: #C0392B;
+  --whatsapp: #25D366;
+
+  /* Espaciado y forma */
+  --radio-sm: 8px;
+  --radio-md: 12px;
+  --radio-lg: 18px;
+  --sombra-card: 0 1px 2px rgba(27,24,21,0.04), 0 8px 20px -6px rgba(27,24,21,0.10);
+  --sombra-flotante: 0 10px 30px -6px rgba(27,24,21,0.35);
+
+  --fuente-display: "Fraunces", "Georgia", serif;
+  --fuente: "Inter", "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-body {
-  font-family: var(--fuente);
-  background: linear-gradient(180deg, var(--amarillo-suave) 0%, var(--blanco) 320px);
-  color: var(--negro-texto);
-  min-height: 100vh;
-  padding-bottom: 90px;
+*:focus-visible {
+  outline: 2px solid var(--amber-deep);
+  outline-offset: 2px;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
+body {
+  font-family: var(--fuente);
+  background: var(--paper);
+  color: var(--ink);
+  min-height: 100vh;
+  padding-bottom: 96px; /* espacio para el botón flotante del carrito */
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- HEADER ---------- */
 .header {
-  background: linear-gradient(135deg, var(--amarillo-principal), var(--amarillo-fuerte));
-  padding: 18px 16px 26px;
+  position: relative;
+  background: var(--amber);
+  padding: 22px 20px 28px;
   text-align: center;
-  color: var(--negro-texto);
-  box-shadow: var(--sombra);
+  color: var(--ink);
+  box-shadow: var(--sombra-card);
   position: sticky;
   top: 0;
   z-index: 50;
-  border-bottom: 4px solid var(--negro-texto);
+  overflow: hidden;
 }
 
-.header h1 { font-size: 1.6rem; font-weight: 800; letter-spacing: 0.5px; }
-.header p { font-size: 0.85rem; opacity: 0.85; margin-top: 2px; }
+/* Franja "helada" — el detalle de marca que ancla el nombre "Punto Frío" */
+.header::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--frost-line), #fff, var(--frost-line));
+}
 
+.header h1 {
+  font-family: var(--fuente-display);
+  font-size: 1.9rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  position: relative;
+}
+
+.header p {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-top: 4px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+/* ---------- FILTROS DE CATEGORÍA ---------- */
 .filtros {
   display: flex;
   gap: 8px;
   overflow-x: auto;
-  padding: 14px 12px;
+  padding: 16px 16px 10px;
   scrollbar-width: none;
 }
 .filtros::-webkit-scrollbar { display: none; }
@@ -57,66 +104,73 @@ body {
   flex: none;
   padding: 8px 16px;
   border-radius: 999px;
-  border: 2px solid var(--amarillo-fuerte);
-  background: var(--blanco);
-  color: var(--gris-oscuro);
+  border: 1.5px solid var(--amber-deep);
+  background: var(--paper);
+  color: var(--ink-soft);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
   white-space: nowrap;
 }
 
-.filtro-btn.activo, .filtro-btn:hover {
-  background: var(--amarillo-fuerte);
-  color: var(--blanco);
-  border-color: var(--amarillo-fuerte);
+.filtro-btn.activo,
+.filtro-btn:hover {
+  background: var(--ink);
+  color: var(--amber);
+  border-color: var(--ink);
 }
 
-.toolbar-tienda { display: flex; justify-content: flex-end; padding: 0 14px 8px; }
+/* ---------- BARRA DE ORDEN ---------- */
+.toolbar-tienda { display: flex; justify-content: flex-end; padding: 0 16px 10px; }
 
 .toolbar-tienda select {
   padding: 8px 14px;
-  border-radius: 10px;
-  border: 1.5px solid #e5d9b6;
-  background: var(--blanco);
-  color: var(--gris-oscuro);
+  border-radius: var(--radio-sm);
+  border: 1.5px solid var(--paper-alt);
+  background: var(--paper);
+  color: var(--ink-soft);
   font-weight: 600;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   font-family: var(--fuente);
   cursor: pointer;
+  box-shadow: var(--sombra-card);
 }
-.toolbar-tienda select:focus { outline: none; border-color: var(--amarillo-fuerte); }
+.toolbar-tienda select:focus { outline: none; border-color: var(--amber-deep); }
 
+/* ---------- GRID DE PRODUCTOS ---------- */
 .grid-productos {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 16px;
-  padding: 4px 14px 20px;
+  gap: 14px;
+  padding: 6px 16px 24px;
 }
 
-@media (min-width: 640px) { .grid-productos { grid-template-columns: repeat(3, 1fr); } }
-@media (min-width: 960px) { .grid-productos { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 560px) { .grid-productos { grid-template-columns: repeat(3, 1fr); gap: 18px; padding: 8px 20px 28px; } }
+@media (min-width: 900px) { .grid-productos { grid-template-columns: repeat(4, 1fr); } }
+@media (min-width: 1200px) { .grid-productos { grid-template-columns: repeat(5, 1fr); max-width: 1400px; margin: 0 auto; } }
 
 .card-producto {
-  background: var(--blanco);
-  border-radius: 18px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  background: var(--paper);
+  border-radius: var(--radio-lg);
+  box-shadow: var(--sombra-card);
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  border: 1px solid rgba(0,0,0,0.04);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  border: 1px solid rgba(27,24,21,0.05);
 }
-.card-producto:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,0.12); }
+.card-producto:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 1px 2px rgba(27,24,21,0.05), 0 16px 30px -8px rgba(184,121,30,0.28);
+}
 
-.imagen-wrap { position: relative; background: var(--amarillo-suave); }
+.imagen-wrap { position: relative; background: var(--frost); aspect-ratio: 4 / 3; }
 
 .card-producto img {
   width: 100%;
-  height: 140px;
+  height: 100%;
   object-fit: cover;
-  background: var(--amarillo-suave);
   display: block;
 }
 
@@ -124,18 +178,19 @@ body {
   position: absolute;
   top: 8px;
   right: 8px;
-  background: var(--rojo-agotado);
-  color: var(--blanco);
-  font-size: 0.65rem;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.62rem;
   font-weight: 700;
-  padding: 3px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   text-transform: uppercase;
+  letter-spacing: 0.03em;
 }
 
 .galeria-dots {
   position: absolute;
-  bottom: 6px;
+  bottom: 7px;
   left: 0;
   right: 0;
   display: flex;
@@ -146,68 +201,130 @@ body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: rgba(255,255,255,0.7);
-  border: 1px solid rgba(0,0,0,0.15);
+  background: rgba(255,255,255,0.8);
+  border: 1px solid rgba(27,24,21,0.15);
   cursor: pointer;
 }
-.galeria-dots .dot.activo { background: var(--amarillo-fuerte); border-color: var(--amarillo-fuerte); }
+.galeria-dots .dot.activo { background: var(--amber-deep); border-color: var(--amber-deep); }
 
-.card-producto .info { padding: 12px 13px 14px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.card-producto .nombre { font-weight: 700; font-size: 0.92rem; line-height: 1.2; }
-.card-producto .categoria { font-size: 0.7rem; color: var(--amarillo-hover); font-weight: 600; text-transform: uppercase; }
-.card-producto .precio { font-size: 1.05rem; font-weight: 800; color: var(--negro-texto); margin-top: auto; }
-.card-producto .stock-info { font-size: 0.7rem; color: var(--gris-oscuro); opacity: 0.7; }
+.card-producto .info {
+  padding: 12px 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
 
-.selector-envase, .selector-modo-venta { display: flex; flex-direction: column; gap: 2px; margin: 2px 0; font-size: 0.72rem; color: var(--gris-oscuro); }
-.selector-envase label, .selector-modo-venta label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
-.selector-envase input[type="radio"], .selector-modo-venta input[type="radio"] { width: auto; accent-color: var(--amarillo-fuerte); }
-.selector-modo-venta { background: #F0F6FC; border-radius: 8px; padding: 5px 7px; }
+.card-producto .nombre {
+  font-weight: 700;
+  font-size: 0.92rem;
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.card-producto .categoria {
+  font-size: 0.66rem;
+  color: var(--amber-deep);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.card-producto .precio {
+  font-family: var(--fuente-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin-top: auto;
+  padding-top: 2px;
+  border-top: 2px solid var(--amber-pale);
+  display: inline-block;
+}
+
+.card-producto .stock-info {
+  font-size: 0.68rem;
+  color: var(--slate);
+}
+
+.selector-envase, .selector-modo-venta {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 2px 0;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  background: var(--frost);
+  border: 1px solid var(--frost-line);
+  border-radius: var(--radio-sm);
+  padding: 6px 8px;
+}
+.selector-envase label, .selector-modo-venta label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.selector-envase input[type="radio"], .selector-modo-venta input[type="radio"] {
+  width: auto;
+  accent-color: var(--amber-deep);
+}
 
 .btn-agregar {
   margin-top: 6px;
   border: none;
-  border-radius: 10px;
-  padding: 9px 0;
-  background: var(--amarillo-fuerte);
-  color: var(--blanco);
+  border-radius: var(--radio-sm);
+  padding: 10px 0;
+  background: var(--ink);
+  color: var(--amber);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.84rem;
   cursor: pointer;
-  transition: background 0.2s ease;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.btn-agregar:hover { background: var(--amarillo-hover); }
-.btn-agregar.agotado { background: var(--rojo-agotado); cursor: not-allowed; opacity: 0.85; }
+.btn-agregar:hover { background: var(--amber-deep); color: #fff; }
 
+.btn-agregar.agotado {
+  background: #F1EDE5;
+  color: var(--slate);
+  cursor: not-allowed;
+}
+
+/* ---------- BOTÓN FLOTANTE CARRITO ---------- */
 .carrito-flotante {
   position: fixed;
-  bottom: 18px;
-  right: 18px;
-  background: var(--negro-texto);
-  color: var(--amarillo-principal);
+  bottom: 20px;
+  right: 20px;
+  background: var(--ink);
+  color: var(--amber);
   border-radius: 999px;
-  padding: 14px 20px;
+  padding: 14px 22px;
   display: flex;
   align-items: center;
   gap: 10px;
   font-weight: 700;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-size: 0.9rem;
+  box-shadow: var(--sombra-flotante);
   cursor: pointer;
   z-index: 60;
-  border: 2px solid var(--amarillo-principal);
+  transition: transform 0.15s ease;
 }
+.carrito-flotante:hover { transform: translateY(-2px); }
 
 .carrito-flotante .badge {
-  background: var(--amarillo-principal);
-  color: var(--negro-texto);
+  background: var(--amber);
+  color: var(--ink);
   border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 0.8rem;
+  padding: 2px 9px;
+  font-size: 0.78rem;
+  font-weight: 800;
 }
 
+/* ---------- MODAL CARRITO / CHECKOUT ---------- */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(27,24,21,0.55);
   display: none;
   align-items: flex-end;
   justify-content: center;
@@ -216,53 +333,118 @@ body {
 .modal-overlay.abierto { display: flex; }
 
 .modal-carrito {
-  background: var(--blanco);
+  position: relative;
+  background: var(--paper);
   width: 100%;
   max-width: 480px;
   border-radius: 22px 22px 0 0;
-  padding: 20px;
-  max-height: 85vh;
+  padding: 26px 20px 20px;
+  max-height: 88vh;
   overflow-y: auto;
-  animation: subir 0.25s ease;
+  animation: subir 0.22s ease;
 }
 
-@keyframes subir { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.modal-carrito::before {
+  content: "";
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 42px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--paper-alt);
+}
 
-.modal-carrito h2 { color: var(--amarillo-hover); margin-bottom: 12px; font-size: 1.2rem; }
+@keyframes subir { from { transform: translateY(24px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
-.item-carrito { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
-.item-carrito .cantidad-control { display: flex; align-items: center; gap: 8px; }
-.item-carrito button { background: var(--amarillo-suave); border: none; width: 26px; height: 26px; border-radius: 50%; font-weight: 700; cursor: pointer; }
+.modal-carrito h2 {
+  font-family: var(--fuente-display);
+  color: var(--ink);
+  margin-bottom: 14px;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
 
-.form-cliente input, .form-cliente textarea {
+.item-carrito {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--paper-alt);
+}
+
+.item-carrito .cantidad-control { display: flex; align-items: center; gap: 10px; }
+
+.item-carrito button {
+  background: var(--frost);
+  border: 1px solid var(--frost-line);
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.form-cliente input,
+.form-cliente textarea {
   width: 100%;
-  padding: 10px 12px;
-  margin-top: 8px;
-  border-radius: 10px;
-  border: 1.5px solid #ddd;
+  padding: 11px 13px;
+  margin-top: 9px;
+  border-radius: var(--radio-sm);
+  border: 1.5px solid #E7E1D6;
   font-family: var(--fuente);
-  font-size: 0.9rem;
+  font-size: 0.92rem;
+  background: var(--paper);
+  color: var(--ink);
 }
-.form-cliente input:focus, .form-cliente textarea:focus { outline: none; border-color: var(--amarillo-fuerte); }
+.form-cliente input:focus,
+.form-cliente textarea:focus {
+  outline: none;
+  border-color: var(--amber-deep);
+}
 
-.total-carrito { font-size: 1.3rem; font-weight: 800; text-align: right; margin: 14px 0; color: var(--negro-texto); }
+.total-carrito {
+  font-family: var(--fuente-display);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.35rem;
+  font-weight: 600;
+  text-align: right;
+  margin: 16px 0;
+  color: var(--ink);
+}
 
 .btn-whatsapp {
   width: 100%;
-  background: #25D366;
-  color: var(--blanco);
+  background: var(--whatsapp);
+  color: #fff;
   border: none;
-  padding: 14px;
-  border-radius: 12px;
+  padding: 15px;
+  border-radius: var(--radio-sm);
   font-weight: 800;
-  font-size: 1rem;
+  font-size: 0.98rem;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  transition: filter 0.15s ease;
+}
+.btn-whatsapp:hover { filter: brightness(0.94); }
+
+.btn-cerrar-modal {
+  background: none;
+  border: none;
+  font-size: 1.3rem;
+  float: right;
+  cursor: pointer;
+  color: var(--slate);
 }
 
-.btn-cerrar-modal { background: none; border: none; font-size: 1.4rem; float: right; cursor: pointer; color: var(--gris-oscuro); }
-
-.vacio-carrito { text-align: center; padding: 30px 10px; color: #999; font-size: 0.9rem; }
+.vacio-carrito {
+  text-align: center;
+  padding: 34px 10px;
+  color: var(--slate);
+  font-size: 0.9rem;
+}
