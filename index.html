@@ -54,6 +54,15 @@
   </div>
 </div>
 
+<!-- Visor de fotos en grande (lightbox) -->
+<div class="lightbox-overlay" id="lightbox-overlay">
+  <button class="btn-cerrar-lightbox" id="btn-cerrar-lightbox">✕</button>
+  <button class="lightbox-nav lightbox-prev" id="lightbox-prev">‹</button>
+  <img id="lightbox-img" src="" alt="Foto del producto" />
+  <button class="lightbox-nav lightbox-next" id="lightbox-next">›</button>
+  <div class="lightbox-dots" id="lightbox-dots"></div>
+</div>
+
 <script type="module">
 import {
   db,
@@ -93,6 +102,73 @@ function imagenesDe(p) {
   if (p.imagen) return [p.imagen];
   return [];
 }
+
+/* ---------- LIGHTBOX (visor de fotos en grande) ---------- */
+const lightboxOverlay = document.getElementById("lightbox-overlay");
+const lightboxImg = document.getElementById("lightbox-img");
+const lightboxDots = document.getElementById("lightbox-dots");
+let lightboxImagenes = [];
+let lightboxIndex = 0;
+
+function abrirLightbox(imgs, indiceInicial) {
+  lightboxImagenes = imgs;
+  lightboxIndex = indiceInicial || 0;
+  renderLightbox();
+  lightboxOverlay.classList.add("abierto");
+}
+
+function renderLightbox() {
+  lightboxImg.src = lightboxImagenes[lightboxIndex];
+  const mostrarNav = lightboxImagenes.length > 1;
+  document.getElementById("lightbox-prev").style.display = mostrarNav ? "flex" : "none";
+  document.getElementById("lightbox-next").style.display = mostrarNav ? "flex" : "none";
+  lightboxDots.innerHTML = mostrarNav
+    ? lightboxImagenes
+        .map((_, i) => `<span class="dot ${i === lightboxIndex ? "activo" : ""}" data-idx="${i}"></span>`)
+        .join("")
+    : "";
+  lightboxDots.querySelectorAll(".dot").forEach((dot) => {
+    dot.addEventListener("click", () => {
+      lightboxIndex = Number(dot.dataset.idx);
+      renderLightbox();
+    });
+  });
+}
+
+document.getElementById("btn-cerrar-lightbox").addEventListener("click", () => {
+  lightboxOverlay.classList.remove("abierto");
+});
+lightboxOverlay.addEventListener("click", (e) => {
+  if (e.target === lightboxOverlay) lightboxOverlay.classList.remove("abierto");
+});
+document.getElementById("lightbox-prev").addEventListener("click", (e) => {
+  e.stopPropagation();
+  lightboxIndex = (lightboxIndex - 1 + lightboxImagenes.length) % lightboxImagenes.length;
+  renderLightbox();
+});
+document.getElementById("lightbox-next").addEventListener("click", (e) => {
+  e.stopPropagation();
+  lightboxIndex = (lightboxIndex + 1) % lightboxImagenes.length;
+  renderLightbox();
+});
+document.addEventListener("keydown", (e) => {
+  if (!lightboxOverlay.classList.contains("abierto")) return;
+  if (e.key === "Escape") lightboxOverlay.classList.remove("abierto");
+  if (e.key === "ArrowLeft") document.getElementById("lightbox-prev").click();
+  if (e.key === "ArrowRight") document.getElementById("lightbox-next").click();
+});
+
+// Delegado: clic en cualquier imagen de producto (no en los puntos) abre el visor
+gridEl.addEventListener("click", (e) => {
+  if (e.target.classList.contains("dot")) return; // los puntos ya cambian de foto por su cuenta
+  const wrap = e.target.closest(".imagen-wrap");
+  if (!wrap) return;
+  const producto = productos.find((p) => p.id === wrap.dataset.id);
+  if (!producto) return;
+  const imgs = imagenesDe(producto);
+  if (!imgs.length) return;
+  abrirLightbox(imgs, imagenActiva[wrap.dataset.id] || 0);
+});
 
 /* ---------- RENDER DE FILTROS ---------- */
 function renderFiltros() {
@@ -185,12 +261,12 @@ function renderProductos() {
             permiteSueltaTienda
               ? `<div class="selector-modo-venta" data-id="${p.id}">
                    <label><input type="radio" name="modo-${p.id}" value="caja" ${modoActual === "caja" ? "checked" : ""} /> Caja completa (${unidadesPorCaja} uds) — ${formatCOPLocal(p.precio)}</label>
-                   <label><input type="radio" name="modo-${p.id}" value="suelta" ${modoActual === "suelta" ? "checked" : ""} /> Unidad de ${p.nombre} — ${formatCOPLocal(p.precioUnidadSuelta)}</label>
+                   <label><input type="radio" name="modo-${p.id}" value="suelta" ${modoActual === "suelta" ? "checked" : ""} /> Unidad suelta — ${formatCOPLocal(p.precioUnidadSuelta)}</label>
                  </div>`
               : (esCajaProducto ? `<span class="categoria" style="color:#1565C0;">Caja x${unidadesPorCaja}</span>` : "")
           }
           ${
-            p.manejaEnvase
+            (!esCajaProducto && p.manejaEnvase)
               ? `<div class="selector-envase" data-id="${p.id}">
                    <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase</label>
                    <label><input type="radio" name="envase-${p.id}" value="con" ${conEnvase ? "checked" : ""} /> Traigo envase (${formatCOPLocal(p.precioConEnvase)})</label>
@@ -351,7 +427,7 @@ function renderCarrito() {
         <div>
           <strong>${item.nombre}</strong>${
             item.esCaja === true ? ` <small style="color:#1565C0;">(caja x${item.unidadesPorCaja})</small>` :
-            item.esCaja === false ? ` <small style="color:#1565C0;">(unidad de ${item.nombre})</small>` : ""
+            item.esCaja === false ? ` <small style="color:#1565C0;">(unidad suelta)</small>` : ""
           }${item.conEnvase === true ? ' <small style="color:#2E7D32;">(trae envase)</small>' : item.conEnvase === false ? ' <small style="color:#999;">(sin envase)</small>' : ""}<br/>
           <small>${formatCOPLocal(item.precio)} c/u</small>
         </div>
