@@ -163,16 +163,10 @@
         <div class="form-field oculto" id="campo-unidades-caja">
           <label>Unidades por caja/paquete (ej: 30, 36)</label>
           <input type="number" id="p-unidades-caja" min="1" />
-          <small style="color:#888;">El precio de arriba ("Precio sin envase") se usa como precio de la caja completa.</small>
-        </div>
-        <div class="form-field oculto" id="campo-permite-suelta">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" id="p-permite-suelta" style="width:auto;" />
-            Permitir venta de unidad suelta (desarmar la caja)
-          </label>
+          <small style="color:#888;">El precio de arriba ("Precio sin envase") se usa como precio de la caja completa. Con este dato, el sistema ya sabe vender también por unidad suelta — no hace falta configurar nada más.</small>
         </div>
         <div class="form-field oculto" id="campo-precio-suelta">
-          <label>Precio por unidad suelta</label>
+          <label>Precio por unidad suelta (sugerido automáticamente, puedes ajustarlo)</label>
           <input type="number" id="p-precio-suelta" min="0" />
         </div>
         <div class="form-field oculto" id="campo-mostrar-suelta-tienda">
@@ -183,8 +177,15 @@
           <small style="color:#888;">Si lo dejas desmarcado, en la tienda solo se vende la caja completa. Tú siempre podrás vender sueltas desde Facturación.</small>
         </div>
         <div class="form-field">
-          <label>Stock actual (en unidades — si maneja caja, ingresa el total de UNIDADES, no de cajas)</label>
+          <label id="label-stock">Stock actual (unidades)</label>
           <input type="number" id="p-stock" min="0" />
+          <div class="oculto" id="campo-stock-por-cajas" style="margin-top:8px;padding:8px;background:#F0F6FC;border-radius:8px;">
+            <label style="font-size:0.75rem;">O indica cuántas cajas completas tienes y el sistema calcula las unidades:</label>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+              <input type="number" id="p-cajas-stock" min="0" placeholder="Cajas" style="max-width:110px;" />
+              <button type="button" class="btn btn-secundario" id="btn-calcular-stock-cajas" style="white-space:nowrap;">= unidades</button>
+            </div>
+          </div>
         </div>
         <div class="form-field">
           <label>Stock mínimo (alerta)</label>
@@ -594,7 +595,7 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
   contenedor.innerHTML = coincidencias
     .map((p) => {
       const infoCaja = p.manejaCaja
-        ? ` <span style="color:#1565C0;">(caja x${p.unidadesPorCaja}${p.permiteVentaSuelta ? `, suelta: ${formatCOP(p.precioUnidadSuelta)}` : ""})</span>`
+        ? ` <span style="color:#1565C0;">(caja x${p.unidadesPorCaja}${p.permiteVentaSuelta ? `, unidad: ${formatCOP(p.precioUnidadSuelta)}` : ""})</span>`
         : "";
       return `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
         ${p.nombre} — ${formatCOP(p.precio)}${p.manejaEnvase ? ` <span style="color:#1565C0;">(con envase: ${formatCOP(p.precioConEnvase)})</span>` : ""}${infoCaja} (stock: ${p.stock} uds)
@@ -671,7 +672,7 @@ function renderTablaFactura() {
         item.manejaCaja && item.permiteVentaSuelta
           ? `<div style="font-size:0.72rem;font-weight:400;margin-top:4px;">
                <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="modo-factura-${idx}" class="radio-modo-factura" data-idx="${idx}" value="caja" ${item.esCaja ? "checked" : ""} style="width:auto;" /> Caja (x${item.unidadesPorCaja}) — ${formatCOP(item.precioSinEnvase)}</label>
-               <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="modo-factura-${idx}" class="radio-modo-factura" data-idx="${idx}" value="suelta" ${!item.esCaja ? "checked" : ""} style="width:auto;" /> Suelta — ${formatCOP(item.precioUnidadSuelta)}</label>
+               <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="modo-factura-${idx}" class="radio-modo-factura" data-idx="${idx}" value="suelta" ${!item.esCaja ? "checked" : ""} style="width:auto;" /> Unidad de ${item.nombre} — ${formatCOP(item.precioUnidadSuelta)}</label>
              </div>`
           : item.manejaCaja
           ? `<br><small style="color:#1565C0;">Caja x${item.unidadesPorCaja}</small>`
@@ -1395,27 +1396,47 @@ document.getElementById("p-maneja-envase").addEventListener("change", (e) => {
 document.getElementById("p-maneja-caja").addEventListener("change", (e) => {
   const activo = e.target.checked;
   document.getElementById("campo-unidades-caja").classList.toggle("oculto", !activo);
-  document.getElementById("campo-permite-suelta").classList.toggle("oculto", !activo);
+  document.getElementById("campo-precio-suelta").classList.toggle("oculto", !activo);
+  document.getElementById("campo-mostrar-suelta-tienda").classList.toggle("oculto", !activo);
+  document.getElementById("campo-stock-por-cajas").classList.toggle("oculto", !activo);
+  document.getElementById("label-stock").textContent = activo ? "Stock actual (unidades — no cajas)" : "Stock actual (unidades)";
   if (!activo) {
-    document.getElementById("p-permite-suelta").checked = false;
-    document.getElementById("campo-precio-suelta").classList.add("oculto");
-    document.getElementById("campo-mostrar-suelta-tienda").classList.add("oculto");
+    document.getElementById("p-mostrar-suelta-tienda").checked = false;
+    document.getElementById("p-precio-suelta").value = "";
+    document.getElementById("p-cajas-stock").value = "";
+  } else {
+    sugerirPrecioSuelta();
   }
 });
 
-document.getElementById("p-permite-suelta").addEventListener("change", (e) => {
-  document.getElementById("campo-precio-suelta").classList.toggle("oculto", !e.target.checked);
-  document.getElementById("campo-mostrar-suelta-tienda").classList.toggle("oculto", !e.target.checked);
-  if (!e.target.checked) {
-    document.getElementById("p-mostrar-suelta-tienda").checked = false;
+function sugerirPrecioSuelta() {
+  const campoSuelta = document.getElementById("p-precio-suelta");
+  if (campoSuelta.value) return; // no pisar un valor que el usuario ya escribió a mano
+  const precioCaja = Number(document.getElementById("p-precio").value) || 0;
+  const unidades = Number(document.getElementById("p-unidades-caja").value) || 0;
+  if (precioCaja > 0 && unidades > 0) {
+    campoSuelta.value = Math.ceil(precioCaja / unidades / 50) * 50; // redondeado a los $50 más cercanos
   }
+}
+document.getElementById("p-precio").addEventListener("input", sugerirPrecioSuelta);
+document.getElementById("p-unidades-caja").addEventListener("input", sugerirPrecioSuelta);
+
+document.getElementById("btn-calcular-stock-cajas").addEventListener("click", () => {
+  const cajas = Number(document.getElementById("p-cajas-stock").value) || 0;
+  const unidades = Number(document.getElementById("p-unidades-caja").value) || 0;
+  if (!unidades) {
+    mostrarToast("⚠️ Primero indica cuántas unidades trae la caja.");
+    return;
+  }
+  document.getElementById("p-stock").value = cajas * unidades;
+  mostrarToast(`✅ ${cajas} caja(s) x ${unidades} = ${cajas * unidades} unidades.`);
 });
 
 document.getElementById("btn-guardar-producto").addEventListener("click", async () => {
   const id = document.getElementById("p-id").value;
   const manejaEnvase = document.getElementById("p-maneja-envase").checked;
   const manejaCaja = document.getElementById("p-maneja-caja").checked;
-  const permiteVentaSuelta = manejaCaja && document.getElementById("p-permite-suelta").checked;
+  const permiteVentaSuelta = manejaCaja; // automático: si se vende por caja, siempre se puede vender también suelta
   const data = {
     nombre: document.getElementById("p-nombre").value.trim(),
     categoria: document.getElementById("p-categoria").value,
@@ -1469,12 +1490,13 @@ function limpiarFormularioProducto() {
   document.getElementById("p-maneja-caja").checked = false;
   document.getElementById("p-unidades-caja").value = "";
   document.getElementById("campo-unidades-caja").classList.add("oculto");
-  document.getElementById("p-permite-suelta").checked = false;
-  document.getElementById("campo-permite-suelta").classList.add("oculto");
   document.getElementById("p-precio-suelta").value = "";
   document.getElementById("campo-precio-suelta").classList.add("oculto");
   document.getElementById("p-mostrar-suelta-tienda").checked = false;
   document.getElementById("campo-mostrar-suelta-tienda").classList.add("oculto");
+  document.getElementById("p-cajas-stock").value = "";
+  document.getElementById("campo-stock-por-cajas").classList.add("oculto");
+  document.getElementById("label-stock").textContent = "Stock actual (unidades)";
   document.getElementById("p-stock").value = "";
   document.getElementById("p-stock-minimo").value = "5";
   document.getElementById("p-imagen").value = "";
@@ -1517,7 +1539,7 @@ function renderTablaInventario(filtro = "") {
       const infoCaja = p.manejaCaja
         ? `<br><small style="color:#1565C0;">Caja x${p.unidadesPorCaja} (${cajasDisponibles} cajas disp.)</small>${
             p.permiteVentaSuelta
-              ? `<br><small style="color:#1565C0;">Suelta: ${formatCOP(p.precioUnidadSuelta)}${
+              ? `<br><small style="color:#1565C0;">Unidad de ${p.nombre}: ${formatCOP(p.precioUnidadSuelta)}${
                   p.mostrarSueltaEnTienda ? " · visible en tienda" : " · solo en facturación"
                 }</small>`
               : ""
@@ -1568,12 +1590,13 @@ function cargarProductoParaEditar(id) {
   document.getElementById("p-maneja-caja").checked = !!p.manejaCaja;
   document.getElementById("p-unidades-caja").value = p.unidadesPorCaja ?? "";
   document.getElementById("campo-unidades-caja").classList.toggle("oculto", !p.manejaCaja);
-  document.getElementById("p-permite-suelta").checked = !!p.permiteVentaSuelta;
-  document.getElementById("campo-permite-suelta").classList.toggle("oculto", !p.manejaCaja);
   document.getElementById("p-precio-suelta").value = p.precioUnidadSuelta ?? "";
-  document.getElementById("campo-precio-suelta").classList.toggle("oculto", !p.permiteVentaSuelta);
+  document.getElementById("campo-precio-suelta").classList.toggle("oculto", !p.manejaCaja);
   document.getElementById("p-mostrar-suelta-tienda").checked = !!p.mostrarSueltaEnTienda;
-  document.getElementById("campo-mostrar-suelta-tienda").classList.toggle("oculto", !p.permiteVentaSuelta);
+  document.getElementById("campo-mostrar-suelta-tienda").classList.toggle("oculto", !p.manejaCaja);
+  document.getElementById("campo-stock-por-cajas").classList.toggle("oculto", !p.manejaCaja);
+  document.getElementById("p-cajas-stock").value = "";
+  document.getElementById("label-stock").textContent = p.manejaCaja ? "Stock actual (unidades — no cajas)" : "Stock actual (unidades)";
 
   document.getElementById("p-stock").value = p.stock;
   document.getElementById("p-stock-minimo").value = p.stockMinimo ?? 5;
