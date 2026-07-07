@@ -1,81 +1,103 @@
 /* =============================================================
    admin.css — Panel de Administración Punto Frío Bocagrande
+   Concepto: "Ledger" — software de back-office serio y legible:
+   base neutra fría, un único acento (ámbar) reservado para
+   acciones primarias y estados activos, datos en tablas claras.
    ============================================================= */
 
 :root {
-  --amarillo-principal: #FFC107;
-  --amarillo-fuerte: #FFA000;
-  --amarillo-suave: #FFF3CD;
-  --negro: #1A1A1A;
-  --gris-oscuro: #2E2E2E;
-  --gris-panel: #F7F7F7;
-  --blanco: #FFFFFF;
-  --rojo: #D32F2F;
-  --verde: #2E7D32;
-  --azul: #1565C0;
-  --sombra: 0 3px 12px rgba(0, 0, 0, 0.15);
-  --radio: 12px;
+  --ink: #14181F;
+  --ink-soft: #454B57;
+  --muted: #6B7280;
+  --bg: #F3F4F6;
+  --surface: #FFFFFF;
+  --border: #E4E6EB;
+  --amber: #C97A1F;
+  --amber-soft: #FBEDD9;
+  --amber-deep: #9C5F16;
+  --blue: #2563AC;
+  --blue-soft: #E7EFF8;
+  --green: #1E7B4D;
+  --green-soft: #E6F4EC;
+  --red: #C0392B;
+  --red-soft: #FBE7E4;
+  --radio: 10px;
+  --sombra: 0 1px 2px rgba(20,24,31,0.04), 0 6px 16px -6px rgba(20,24,31,0.10);
+  --fuente: "Inter", "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+*:focus-visible { outline: 2px solid var(--amber); outline-offset: 1px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+}
+
 body {
-  font-family: "Segoe UI", "Poppins", sans-serif;
-  background: var(--gris-panel);
-  color: var(--negro);
+  font-family: var(--fuente);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ---------- LOGIN MODAL ---------- */
 .login-overlay {
   position: fixed;
   inset: 0;
-  background: linear-gradient(135deg, var(--negro), #3a3a3a);
+  background: radial-gradient(circle at 30% 20%, #232A36, var(--ink) 65%);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 200;
+  padding: 16px;
 }
 
 .login-box {
-  background: var(--blanco);
-  padding: 34px 30px;
+  background: var(--surface);
+  padding: 36px 32px 30px;
   border-radius: var(--radio);
-  box-shadow: var(--sombra);
-  width: 320px;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,0.5);
+  width: 100%;
+  max-width: 340px;
   text-align: center;
-  border-top: 6px solid var(--amarillo-principal);
+  border-top: 4px solid var(--amber);
 }
 
-.login-box h2 { margin-bottom: 6px; color: var(--negro); }
-.login-box p { font-size: 0.8rem; color: #888; margin-bottom: 18px; }
+.login-box h2 { margin-bottom: 4px; color: var(--ink); font-size: 1.3rem; }
+.login-box p { font-size: 0.8rem; color: var(--muted); margin-bottom: 22px; }
 
 .login-box input {
   width: 100%;
-  padding: 11px 12px;
+  padding: 11px 13px;
   margin-bottom: 12px;
   border-radius: 8px;
-  border: 1.5px solid #ddd;
-  font-size: 0.9rem;
+  border: 1.5px solid var(--border);
+  font-size: 0.92rem;
+  font-family: var(--fuente);
+  background: var(--bg);
 }
-.login-box input:focus { outline: none; border-color: var(--amarillo-fuerte); }
+.login-box input:focus { outline: none; border-color: var(--amber); background: var(--surface); }
 
 .login-box button {
   width: 100%;
   padding: 12px;
   border-radius: 8px;
   border: none;
-  background: var(--amarillo-fuerte);
-  color: var(--blanco);
+  background: var(--amber);
+  color: #fff;
   font-weight: 700;
+  font-size: 0.92rem;
   cursor: pointer;
+  transition: background 0.15s ease;
 }
-.login-box button:hover { background: #ff8f00; }
-.login-error { color: var(--rojo); font-size: 0.8rem; margin-top: 8px; min-height: 16px; }
+.login-box button:hover { background: var(--amber-deep); }
+.login-error { color: var(--red); font-size: 0.8rem; margin-top: 10px; min-height: 16px; }
 
 /* ---------- LAYOUT PRINCIPAL ---------- */
 .admin-topbar {
-  background: var(--negro);
-  color: var(--amarillo-principal);
+  background: var(--ink);
+  color: #fff;
   padding: 14px 20px;
   display: flex;
   justify-content: space-between;
@@ -83,142 +105,178 @@ body {
   position: sticky;
   top: 0;
   z-index: 40;
+  border-bottom: 3px solid var(--amber);
 }
-.admin-topbar h1 { font-size: 1.1rem; }
+.admin-topbar h1 { font-size: 1.02rem; font-weight: 700; letter-spacing: 0.1px; }
 .admin-topbar button {
-  background: var(--amarillo-principal);
-  color: var(--negro);
-  border: none;
-  padding: 7px 14px;
-  border-radius: 8px;
-  font-weight: 700;
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  padding: 7px 15px;
+  border-radius: 7px;
+  font-weight: 600;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: 0.78rem;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
+.admin-topbar button:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.6); }
 
 .tabs {
   display: flex;
-  background: var(--blanco);
-  border-bottom: 2px solid #eee;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
   overflow-x: auto;
   position: sticky;
   top: 52px;
   z-index: 39;
+  scrollbar-width: thin;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 14px 8px;
+  min-width: max-content;
+  padding: 14px 16px;
   border: none;
   background: none;
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: #999;
+  font-weight: 600;
+  font-size: 0.83rem;
+  color: var(--muted);
   cursor: pointer;
   border-bottom: 3px solid transparent;
   white-space: nowrap;
+  transition: color 0.15s ease, background 0.15s ease;
 }
+.tab-btn:hover { color: var(--ink-soft); background: var(--bg); }
 .tab-btn.activo {
-  color: var(--amarillo-fuerte);
-  border-bottom-color: var(--amarillo-fuerte);
+  color: var(--amber-deep);
+  border-bottom-color: var(--amber);
+  background: var(--amber-soft);
 }
 
-.admin-panel { display: none; padding: 18px; max-width: 1200px; margin: 0 auto; }
+.admin-panel { display: none; padding: 20px 18px 40px; max-width: 1240px; margin: 0 auto; }
 .admin-panel.activo { display: block; }
 
 .panel-titulo {
-  font-size: 1.2rem;
-  margin-bottom: 16px;
-  color: var(--negro);
-  border-left: 5px solid var(--amarillo-principal);
-  padding-left: 10px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 18px;
+  color: var(--ink);
+  border-left: 4px solid var(--amber);
+  padding-left: 12px;
 }
 
 /* ---------- CARDS / SECCIONES ---------- */
 .card {
-  background: var(--blanco);
+  background: var(--surface);
   border-radius: var(--radio);
+  border: 1px solid var(--border);
   box-shadow: var(--sombra);
-  padding: 18px;
+  padding: 20px;
   margin-bottom: 18px;
 }
+.card h3 { font-size: 0.95rem; font-weight: 700; color: var(--ink); }
 
 .grid-2 { display: grid; gap: 16px; grid-template-columns: 1fr; }
 @media (min-width: 800px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
 
-.form-field { margin-bottom: 12px; }
-.form-field label { display: block; font-size: 0.78rem; font-weight: 700; margin-bottom: 4px; color: #555; }
+.form-field { margin-bottom: 13px; }
+.form-field label { display: block; font-size: 0.76rem; font-weight: 600; margin-bottom: 5px; color: var(--ink-soft); }
 .form-field input,
 .form-field select,
 .form-field textarea {
   width: 100%;
-  padding: 9px 11px;
+  padding: 9px 12px;
   border-radius: 8px;
-  border: 1.5px solid #ddd;
+  border: 1.5px solid var(--border);
   font-size: 0.88rem;
+  font-family: var(--fuente);
+  background: var(--surface);
+  color: var(--ink);
 }
 .form-field input:focus,
 .form-field select:focus,
-.form-field textarea:focus { outline: none; border-color: var(--amarillo-fuerte); }
+.form-field textarea:focus { outline: none; border-color: var(--amber); }
+.form-field small { color: var(--muted); font-size: 0.72rem; display: block; margin-top: 4px; line-height: 1.4; }
+
+@media (max-width: 480px) {
+  .form-field input, .form-field select, .form-field textarea { font-size: 16px; } /* evita zoom automático en iOS */
+}
 
 .btn {
-  padding: 10px 18px;
+  padding: 9px 16px;
   border-radius: 8px;
   border: none;
   font-weight: 700;
   cursor: pointer;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
+  font-family: var(--fuente);
+  transition: filter 0.15s ease, background 0.15s ease;
 }
-.btn-primario { background: var(--amarillo-fuerte); color: var(--blanco); }
-.btn-primario:hover { background: #ff8f00; }
-.btn-secundario { background: #eee; color: var(--negro); }
-.btn-verde { background: var(--verde); color: var(--blanco); }
-.btn-azul { background: var(--azul); color: var(--blanco); }
-.btn-rojo { background: var(--rojo); color: var(--blanco); }
+.btn-primario { background: var(--amber); color: #fff; }
+.btn-primario:hover { background: var(--amber-deep); }
+.btn-secundario { background: var(--bg); color: var(--ink-soft); border: 1px solid var(--border); }
+.btn-secundario:hover { background: #EAECEF; }
+.btn-verde { background: var(--green); color: #fff; }
+.btn-verde:hover { filter: brightness(0.92); }
+.btn-azul { background: var(--blue); color: #fff; }
+.btn-azul:hover { filter: brightness(0.92); }
+.btn-rojo { background: var(--red); color: #fff; }
+.btn-rojo:hover { filter: brightness(0.92); }
 .btn-fila { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
 
 /* ---------- TABLA FACTURA ---------- */
-table.tabla-factura { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.85rem; }
-table.tabla-factura th, table.tabla-factura td { padding: 8px 6px; border-bottom: 1px solid #eee; text-align: left; }
-table.tabla-factura th { background: var(--amarillo-suave); }
+table.tabla-factura { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.84rem; }
+table.tabla-factura th, table.tabla-factura td { padding: 9px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+table.tabla-factura th { background: var(--bg); color: var(--ink-soft); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.03em; }
+table.tabla-factura td { font-variant-numeric: tabular-nums; }
 
-/* ---------- INVENTARIO ---------- */
-.tabla-inventario { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+/* ---------- INVENTARIO / TABLAS DE DATOS ---------- */
+.tabla-inventario { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .tabla-inventario th {
-  background: var(--negro);
-  color: var(--amarillo-principal);
-  padding: 10px 8px;
+  background: var(--ink);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 10px 9px;
   text-align: left;
   position: sticky;
   top: 0;
 }
-.tabla-inventario td { padding: 9px 8px; border-bottom: 1px solid #eee; }
-.tabla-inventario tr.stock-bajo { background: #fff8e1; }
-.tabla-inventario tr.stock-critico { background: #ffebee; }
-.tabla-inventario img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; }
+.tabla-inventario td { padding: 10px 9px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.tabla-inventario tbody tr:nth-child(even) { background: #FAFAFB; }
+.tabla-inventario tbody tr:hover { background: var(--amber-soft); }
+.tabla-inventario tr.stock-bajo { background: #FFF6E8 !important; }
+.tabla-inventario tr.stock-critico { background: var(--red-soft) !important; }
+.tabla-inventario img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
 
 .badge-stock {
-  padding: 3px 9px;
+  padding: 3px 10px;
   border-radius: 999px;
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 700;
 }
-.badge-ok { background: #e8f5e9; color: var(--verde); }
-.badge-bajo { background: #fff3e0; color: var(--amarillo-fuerte); }
-.badge-critico { background: #ffebee; color: var(--rojo); }
+.badge-ok { background: var(--green-soft); color: var(--green); }
+.badge-bajo { background: var(--amber-soft); color: var(--amber-deep); }
+.badge-critico { background: var(--red-soft); color: var(--red); }
 
-/* ---------- CIERRE DE CAJA ---------- */
-.resumen-caja { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+/* ---------- CIERRE DE CAJA / MÉTRICAS ---------- */
+.resumen-caja { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 @media (min-width: 700px) { .resumen-caja { grid-template-columns: repeat(4, 1fr); } }
 
 .caja-metric {
-  background: var(--amarillo-suave);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--amber);
   border-radius: var(--radio);
   padding: 16px;
-  text-align: center;
+  text-align: left;
 }
-.caja-metric .valor { font-size: 1.4rem; font-weight: 800; color: var(--negro); }
-.caja-metric .label { font-size: 0.75rem; color: #777; margin-top: 4px; }
+.caja-metric .valor { font-size: 1.35rem; font-weight: 800; color: var(--ink); font-variant-numeric: tabular-nums; }
+.caja-metric .label { font-size: 0.7rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+
+canvas { max-width: 100%; }
 
 /* ---------- TIQUETE POS (impresión) ---------- */
 /* Ajustado para impresora térmica de 58mm (área imprimible ~48mm) */
@@ -247,26 +305,29 @@ table.tabla-factura th { background: var(--amarillo-suave); }
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background: var(--negro);
-  color: var(--amarillo-principal);
-  padding: 12px 18px;
-  border-radius: 10px;
+  left: 20px;
+  max-width: 340px;
+  margin-left: auto;
+  background: var(--ink);
+  color: #fff;
+  padding: 13px 18px;
+  border-radius: 9px;
   font-size: 0.85rem;
-  box-shadow: var(--sombra);
+  box-shadow: 0 12px 30px -8px rgba(0,0,0,0.4);
   z-index: 500;
   opacity: 0;
   transform: translateY(10px);
-  transition: all 0.25s ease;
+  transition: all 0.22s ease;
 }
 .toast.mostrar { opacity: 1; transform: translateY(0); }
 
 .oculto { display: none !important; }
 
-/* ---------- MODAL VISTA DE FACTURA ---------- */
+/* ---------- MODAL VISTA / EDICIÓN DE FACTURA ---------- */
 .modal-overlay-factura {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(20,24,31,0.6);
   display: none;
   align-items: center;
   justify-content: center;
@@ -276,27 +337,29 @@ table.tabla-factura th { background: var(--amarillo-suave); }
 .modal-overlay-factura.abierto { display: flex; }
 
 .modal-factura-caja {
-  background: var(--blanco);
+  background: var(--surface);
   width: 100%;
-  max-width: 560px;
+  max-width: 580px;
   border-radius: var(--radio);
-  padding: 20px;
+  padding: 24px;
   max-height: 88vh;
   overflow-y: auto;
-  box-shadow: var(--sombra);
+  box-shadow: 0 30px 60px -15px rgba(0,0,0,0.4);
   position: relative;
+  border-top: 3px solid var(--amber);
 }
 
 .btn-cerrar-modal-factura {
   position: absolute;
-  top: 12px;
-  right: 14px;
-  background: rgba(255,255,255,0.85);
-  border: none;
+  top: 14px;
+  right: 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
   border-radius: 50%;
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   font-size: 1rem;
   cursor: pointer;
-  color: var(--negro);
+  color: var(--ink-soft);
 }
+.btn-cerrar-modal-factura:hover { background: #EAECEF; }
