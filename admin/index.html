@@ -126,6 +126,47 @@
     <h2 class="panel-titulo">Inventario y Reportes</h2>
 
     <div class="card">
+      <h3 style="margin-bottom:10px;">Configuración de la tienda</h3>
+      <div class="grid-2">
+        <div>
+          <div class="form-field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="cfg-horario-activo" style="width:auto;" />
+              Aplicar horario de atención
+            </label>
+            <small>Si lo activas, fuera de este rango la tienda mostrará "Cerrado" y no dejará agregar productos.</small>
+          </div>
+          <div class="grid-2">
+            <div class="form-field">
+              <label>Abrimos a las</label>
+              <input type="time" id="cfg-hora-apertura" value="10:00" />
+            </div>
+            <div class="form-field">
+              <label>Cerramos a las</label>
+              <input type="time" id="cfg-hora-cierre" value="22:00" />
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="form-field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="cfg-banner-activo" style="width:auto;" />
+              Mostrar banner en la tienda (ofertas / más vendidos)
+            </label>
+          </div>
+          <div class="form-field">
+            <label>Texto del banner</label>
+            <input type="text" id="cfg-banner-texto" placeholder="Ej: 🔥 2x1 en Poker todo el fin de semana" maxlength="120" />
+            <small>Solo se muestra si la tienda está abierta. El aviso de "Cerrado" tiene prioridad.</small>
+          </div>
+        </div>
+      </div>
+      <div class="btn-fila">
+        <button class="btn btn-primario" id="btn-guardar-config-tienda">💾 Guardar configuración</button>
+      </div>
+    </div>
+
+    <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         <h3 id="titulo-form-producto">Agregar Producto</h3>
         <button type="button" class="btn btn-secundario oculto" id="btn-cancelar-edicion-top" title="Cancelar la edición y volver a agregar un producto nuevo">✕ Cancelar edición / Agregar nuevo</button>
@@ -1514,6 +1555,40 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
   } catch (err) {
     console.error(err);
     mostrarToast("❌ Error guardando el producto.");
+  }
+});
+
+/* ---------------------------------------------------------------
+   CONFIGURACIÓN DE LA TIENDA: horario de atención + banner
+--------------------------------------------------------------- */
+(async function cargarConfigTienda() {
+  try {
+    const snap = await getDoc(doc(db, "config", "tienda"));
+    const cfg = snap.exists() ? snap.data() : {};
+    document.getElementById("cfg-horario-activo").checked = !!cfg.horarioActivo;
+    document.getElementById("cfg-hora-apertura").value = cfg.horaApertura || "10:00";
+    document.getElementById("cfg-hora-cierre").value = cfg.horaCierre || "22:00";
+    document.getElementById("cfg-banner-activo").checked = !!cfg.bannerActivo;
+    document.getElementById("cfg-banner-texto").value = cfg.bannerTexto || "";
+  } catch (err) {
+    console.error("Error cargando configuración de la tienda:", err);
+  }
+})();
+
+document.getElementById("btn-guardar-config-tienda").addEventListener("click", async () => {
+  const cfg = {
+    horarioActivo: document.getElementById("cfg-horario-activo").checked,
+    horaApertura: document.getElementById("cfg-hora-apertura").value || "10:00",
+    horaCierre: document.getElementById("cfg-hora-cierre").value || "22:00",
+    bannerActivo: document.getElementById("cfg-banner-activo").checked,
+    bannerTexto: document.getElementById("cfg-banner-texto").value.trim()
+  };
+  try {
+    await setDoc(doc(db, "config", "tienda"), cfg, { merge: true });
+    mostrarToast("✅ Configuración de la tienda guardada.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error guardando la configuración.");
   }
 });
 
