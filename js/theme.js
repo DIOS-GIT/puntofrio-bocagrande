@@ -189,7 +189,10 @@ function formatFecha(fechaInput) {
 function generarLinkWhatsApp(carrito, cliente, numeroWhatsapp) {
   let mensaje = `🧊 *NUEVO PEDIDO - PUNTO FRÍO BOCAGRANDE* 🧊\n\n`;
   mensaje += `👤 *Cliente:* ${cliente.nombre}\n`;
+  if (cliente.cedula) mensaje += `🪪 *Cédula/NIT:* ${cliente.cedula}\n`;
+  if (cliente.correo) mensaje += `✉️ *Correo:* ${cliente.correo}\n`;
   mensaje += `📍 *Dirección:* ${cliente.direccion}\n`;
+  if (cliente.ubicacionLink) mensaje += `🗺️ *Ubicación (Google Maps):* ${cliente.ubicacionLink}\n`;
   if (cliente.telefono) mensaje += `📞 *Teléfono:* ${cliente.telefono}\n`;
   mensaje += `\n🛒 *Detalle del pedido:*\n`;
 
