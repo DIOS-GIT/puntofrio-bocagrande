@@ -16,9 +16,12 @@
   <p>Licores · Cervezas · Bebidas — Entrega en Bocagrande</p>
 </header>
 
+<div id="banner-tienda" class="banner-tienda oculto-banner"></div>
+
 <nav class="filtros" id="filtros"></nav>
 
 <div class="toolbar-tienda">
+  <input type="text" id="buscador-productos" class="buscador-productos" placeholder="🔎 Buscar producto..." />
   <select id="selector-orden">
     <option value="default">Ordenar por</option>
     <option value="precio-asc">Precio: menor a mayor</option>
@@ -84,6 +87,7 @@
 import {
   db,
   collection,
+  doc,
   onSnapshot,
   generarLinkWhatsApp
 } from "./js/theme.js";
@@ -96,6 +100,7 @@ const CATEGORIAS = ["Todos", "Licores", "Cervezas Nacionales", "Importadas", "Be
 let productos = [];       // Cache local de productos desde Firestore
 let categoriaActiva = "Todos";
 let ordenActivo = "default";
+let textoBusqueda = "";
 let carrito = [];         // [{key, id, nombre, precio, cantidad, conEnvase}]
 let envaseSeleccionado = {}; // { [productoId]: boolean } — elección del cliente antes de agregar
 let modoVentaSeleccionado = {}; // { [productoId]: "caja" | "suelta" } — solo aplica si permiteVentaSuelta y mostrarSueltaEnTienda
@@ -104,6 +109,7 @@ let imagenActiva = {};       // { [productoId]: indice de la foto que se está m
 const gridEl = document.getElementById("grid-productos");
 const filtrosEl = document.getElementById("filtros");
 const selectorOrdenEl = document.getElementById("selector-orden");
+const buscadorEl = document.getElementById("buscador-productos");
 const badgeEl = document.getElementById("badge-carrito");
 const modalOverlay = document.getElementById("modal-overlay");
 const listaCarritoEl = document.getElementById("lista-carrito");
@@ -112,6 +118,16 @@ const totalCarritoEl = document.getElementById("total-carrito");
 selectorOrdenEl.addEventListener("change", (e) => {
   ordenActivo = e.target.value;
   renderProductos();
+});
+
+let timeoutBusqueda = null;
+buscadorEl.addEventListener("input", (e) => {
+  clearTimeout(timeoutBusqueda);
+  const valor = e.target.value;
+  timeoutBusqueda = setTimeout(() => {
+    textoBusqueda = valor.trim().toLowerCase();
+    renderProductos();
+  }, 200);
 });
 
 function imagenesDe(p) {
@@ -127,8 +143,9 @@ function imagenesDe(p) {
 function calcularPrecioInfo(p, modo) {
   const esCajaProducto = !!p.manejaCaja;
   const esCaja = !esCajaProducto || modo !== "suelta";
-  const unidadesPorCaja = Number(p.unidadesPorCaja) || 1;
-  const envaseAplica = !!p.manejaEnvase;
+  // El envase (traer/devolver el envase vacío) solo aplica comprando la caja completa;
+  // por unidad suelta casi nunca se maneja devolución de envase, así que no se ofrece.
+  const envaseAplica = !!p.manejaEnvase && esCaja;
 
   let precioSin, precioCon;
   if (esCaja) {
@@ -136,13 +153,7 @@ function calcularPrecioInfo(p, modo) {
     precioCon = envaseAplica ? Number(p.precioConEnvase ?? p.precio) || 0 : precioSin;
   } else {
     precioSin = Number(p.precioUnidadSuelta ?? p.precio) || 0;
-    if (envaseAplica) {
-      // Traslada la diferencia con/sin envase de la caja completa a la unidad suelta, proporcionalmente
-      const diffPorUnidad = ((Number(p.precio) || 0) - (Number(p.precioConEnvase ?? p.precio) || 0)) / unidadesPorCaja;
-      precioCon = Math.max(0, Math.round((precioSin - diffPorUnidad) / 50) * 50);
-    } else {
-      precioCon = precioSin;
-    }
+    precioCon = precioSin;
   }
 
   return { esCaja, envaseAplica, precioSin, precioCon };
@@ -234,6 +245,10 @@ function renderProductos() {
     lista = lista.filter((p) => p.categoria === categoriaActiva);
   }
 
+  if (textoBusqueda) {
+    lista = lista.filter((p) => (p.nombre || "").toLowerCase().includes(textoBusqueda));
+  }
+
   if (ordenActivo === "precio-asc") {
     lista = [...lista].sort((a, b) => Number(a.precio) - Number(b.precio));
   } else if (ordenActivo === "precio-desc") {
@@ -262,7 +277,7 @@ function renderProductos() {
 
       const cajasDisponibles = esCajaProducto ? Math.floor(stockUnidades / unidadesPorCaja) : null;
       const disponibleModoActual = esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles : stockUnidades) : stockUnidades;
-      const sinStockModoActual = disponibleModoActual <= 0;
+      const sinStockModoActual = disponibleModoActual <= 0 || !tiendaAbierta;
 
       let stockTexto;
       if (esCajaProducto) {
@@ -312,7 +327,7 @@ function renderProductos() {
           }
           <span class="stock-info">${stockTexto}</span>
           <button class="btn-agregar ${sinStockModoActual ? "agotado" : ""}" data-id="${p.id}" ${sinStockModoActual ? "disabled" : ""}>
-            ${sinStockModoActual ? "Agotado" : "Agregar"}
+            ${!tiendaAbierta ? "Cerrado" : sinStockModoActual ? "Agotado" : "Agregar"}
           </button>
         </div>
       </div>`;
@@ -386,7 +401,7 @@ function renderDetalleProducto(id) {
 
   const cajasDisponibles = esCajaProducto ? Math.floor(stockUnidades / unidadesPorCaja) : null;
   const disponibleModoActual = esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles : stockUnidades) : stockUnidades;
-  const sinStockModoActual = disponibleModoActual <= 0;
+  const sinStockModoActual = disponibleModoActual <= 0 || !tiendaAbierta;
 
   // Tabla resumen con TODAS las combinaciones de precio disponibles para este producto
   const filasPrecio = [];
@@ -447,7 +462,7 @@ function renderDetalleProducto(id) {
       }
       <span class="stock-info">${sinStockModoActual ? "Sin stock en este modo" : `Disponibles: ${esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles + " caja(s)" : stockUnidades + " unidad(es)") : p.stock}`}</span>
       <button class="btn-agregar ${sinStockModoActual ? "agotado" : ""}" id="btn-agregar-detalle" data-id="${id}" ${sinStockModoActual ? "disabled" : ""}>
-        ${sinStockModoActual ? "Agotado" : "Agregar al pedido"}
+        ${!tiendaAbierta ? "Cerrado" : sinStockModoActual ? "Agotado" : "Agregar al pedido"}
       </button>
     </div>
   `;
@@ -505,6 +520,63 @@ onSnapshot(collection(db, "productos"), (snapshot) => {
   sincronizarCarritoConStock();
 });
 
+/* ---------- CONFIGURACIÓN DE LA TIENDA: horario de atención + banner ---------- */
+let configTienda = {};
+let tiendaAbierta = true;
+
+function horaActualBogota() {
+  // Colombia no tiene horario de verano: siempre UTC-5. Usamos la zona horaria explícita
+  // para que el horario funcione igual sin importar en qué zona esté el dispositivo del cliente.
+  const partes = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "America/Bogota",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23"
+  }).formatToParts(new Date());
+  const hora = Number(partes.find((p) => p.type === "hour").value);
+  const minuto = Number(partes.find((p) => p.type === "minute").value);
+  return hora * 60 + minuto;
+}
+
+function minutosDesdeTexto(txt) {
+  const [h, m] = (txt || "00:00").split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+}
+
+function evaluarEstadoTienda() {
+  const bannerEl = document.getElementById("banner-tienda");
+
+  if (configTienda.horarioActivo) {
+    const ahora = horaActualBogota();
+    const apertura = minutosDesdeTexto(configTienda.horaApertura || "00:00");
+    const cierre = minutosDesdeTexto(configTienda.horaCierre || "23:59");
+    tiendaAbierta = apertura <= cierre ? ahora >= apertura && ahora < cierre : ahora >= apertura || ahora < cierre;
+  } else {
+    tiendaAbierta = true;
+  }
+
+  if (!tiendaAbierta) {
+    bannerEl.className = "banner-tienda banner-cerrado";
+    bannerEl.textContent = `🕐 Estamos cerrados en este momento — abrimos a las ${configTienda.horaApertura || ""}`;
+  } else if (configTienda.bannerActivo && configTienda.bannerTexto) {
+    bannerEl.className = "banner-tienda banner-promo";
+    bannerEl.textContent = configTienda.bannerTexto;
+  } else {
+    bannerEl.className = "banner-tienda oculto-banner";
+    bannerEl.textContent = "";
+  }
+
+  renderProductos();
+}
+
+onSnapshot(doc(db, "config", "tienda"), (snap) => {
+  configTienda = snap.exists() ? snap.data() : {};
+  evaluarEstadoTienda();
+});
+
+// Revisa el horario cada minuto por si cruza la hora de apertura/cierre mientras el cliente navega
+setInterval(evaluarEstadoTienda, 60000);
+
 /* Si el stock cambia mientras el producto está en el carrito, ajustamos cantidades */
 function sincronizarCarritoConStock() {
   let cambiado = false;
@@ -543,6 +615,7 @@ function sincronizarCarritoConStock() {
 
 /* ---------- CARRITO ---------- */
 function agregarAlCarrito(id) {
+  if (!tiendaAbierta) return;
   const producto = productos.find((p) => p.id === id);
   const stockUnidades = Number(producto?.stock) || 0;
   if (!producto || stockUnidades <= 0) return;
@@ -713,6 +786,10 @@ document.getElementById("btn-compartir-ubicacion").addEventListener("click", () 
 /* ---------- ENVÍO POR WHATSAPP ---------- */
 document.getElementById("form-cliente").addEventListener("submit", (e) => {
   e.preventDefault();
+  if (!tiendaAbierta) {
+    alert("Lo sentimos, ya estamos cerrados. Vuelve a intentarlo en nuestro horario de atención.");
+    return;
+  }
   if (carrito.length === 0) {
     alert("Tu carrito está vacío.");
     return;
