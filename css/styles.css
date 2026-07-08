@@ -571,6 +571,32 @@ body {
   border-color: var(--amber-deep);
 }
 
+.campo-direccion { margin-top: 9px; }
+.campo-direccion input { margin-top: 0; }
+
+.btn-ubicacion {
+  width: 100%;
+  margin-top: 7px;
+  padding: 9px 12px;
+  border-radius: var(--radio-sm);
+  border: 1.5px dashed var(--amber-deep);
+  background: var(--frost);
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-ubicacion:hover { background: var(--amber-pale); }
+
+.nota-ubicacion {
+  display: block;
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--slate);
+}
+.nota-ubicacion a { color: var(--amber-deep); font-weight: 700; }
+
 .total-carrito {
   font-family: var(--fuente-display);
   font-variant-numeric: tabular-nums;
