@@ -126,7 +126,10 @@
     <h2 class="panel-titulo">Inventario y Reportes</h2>
 
     <div class="card">
-      <h3 style="margin-bottom:10px;" id="titulo-form-producto">Agregar Producto</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+        <h3 id="titulo-form-producto">Agregar Producto</h3>
+        <button type="button" class="btn btn-secundario oculto" id="btn-cancelar-edicion-top" title="Cancelar la edición y volver a agregar un producto nuevo">✕ Cancelar edición / Agregar nuevo</button>
+      </div>
       <input type="hidden" id="p-id" />
       <div class="grid-2">
         <div class="form-field">
@@ -1540,9 +1543,11 @@ function limpiarFormularioProducto() {
   document.getElementById("p-mostrar-categoria").checked = true;
   document.getElementById("titulo-form-producto").textContent = "Agregar Producto";
   document.getElementById("btn-cancelar-edicion").classList.add("oculto");
+  document.getElementById("btn-cancelar-edicion-top").classList.add("oculto");
 }
 
 document.getElementById("btn-cancelar-edicion").addEventListener("click", limpiarFormularioProducto);
+document.getElementById("btn-cancelar-edicion-top").addEventListener("click", limpiarFormularioProducto);
 
 function renderTablaInventario(filtro = "") {
   const tbody = document.querySelector("#tabla-inventario tbody");
@@ -1645,6 +1650,7 @@ function cargarProductoParaEditar(id) {
   }
   document.getElementById("titulo-form-producto").textContent = "Editar Producto";
   document.getElementById("btn-cancelar-edicion").classList.remove("oculto");
+  document.getElementById("btn-cancelar-edicion-top").classList.remove("oculto");
   document.getElementById("titulo-form-producto").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
