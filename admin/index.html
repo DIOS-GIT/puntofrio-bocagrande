@@ -16,7 +16,7 @@
 <!-- SheetJS para exportación a Excel/CSV -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 <!-- Chart.js para el panel de estadísticas -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" defer></script>
 </head>
 <body>
 
@@ -386,7 +386,7 @@
 <!-- Modal para ver la factura sin descargarla -->
 <div class="modal-overlay-factura" id="modal-factura-overlay">
   <div class="modal-factura-caja">
-    <button class="btn-cerrar-modal-factura" id="btn-cerrar-modal-factura">✕</button>
+    <button class="btn-cerrar-modal-factura" id="btn-cerrar-modal-factura" title="Cerrar">✕</button>
     <div id="contenido-vista-factura"></div>
   </div>
 </div>
@@ -394,7 +394,7 @@
 <!-- Modal para editar una factura ya generada -->
 <div class="modal-overlay-factura" id="modal-editar-factura-overlay">
   <div class="modal-factura-caja">
-    <button class="btn-cerrar-modal-factura" id="btn-cerrar-modal-editar-factura">✕</button>
+    <button class="btn-cerrar-modal-factura" id="btn-cerrar-modal-editar-factura" title="Cerrar">✕</button>
     <div id="contenido-editar-factura"></div>
   </div>
 </div>
@@ -716,7 +716,7 @@ function renderTablaFactura() {
         </td>
         <td>${formatCOP(precioUnit)}</td>
         <td>${formatCOP(precioUnit * item.cantidad)}</td>
-        <td><button data-idx="${idx}" class="btn-quitar-item" style="border:none;background:none;cursor:pointer;color:#D32F2F;">✕</button></td>
+        <td><button data-idx="${idx}" class="btn-quitar-item" title="Quitar producto" style="border:none;background:none;cursor:pointer;color:#D32F2F;">✕</button></td>
       </tr>`;
     })
     .join("");
@@ -1074,7 +1074,7 @@ function renderTablaEdicionFactura() {
         <td><input type="number" min="0" value="${item.cantidad}" data-idx="${idx}" class="input-cantidad-edicion" style="width:55px;" /></td>
         <td>${formatCOP(item.precio)}</td>
         <td>${formatCOP(item.precio * item.cantidad)}</td>
-        <td><button data-idx="${idx}" class="btn-quitar-item-edicion" style="border:none;background:none;cursor:pointer;color:#D32F2F;">✕</button></td>
+        <td><button data-idx="${idx}" class="btn-quitar-item-edicion" title="Quitar producto" style="border:none;background:none;cursor:pointer;color:#D32F2F;">✕</button></td>
       </tr>`
     )
     .join("");
@@ -1359,11 +1359,11 @@ async function cargarHistorialFacturas(filtro = "") {
         <td>${formatCOP(fa.total)}</td>
         <td>${fa.fecha ? formatFecha(fa.fecha) : ""}</td>
         <td>
-          <button class="btn btn-azul" data-id="${fa.id}" data-accion="ver">👁</button>
-          <button class="btn btn-secundario" data-id="${fa.id}" data-accion="imprimir">🖨</button>
-          <button class="btn btn-rojo" data-id="${fa.id}" data-accion="pdf">📄</button>
-          <button class="btn btn-secundario" data-id="${fa.id}" data-accion="editar">✎</button>
-          <button class="btn btn-rojo" data-id="${fa.id}" data-accion="eliminar">🗑</button>
+          <button class="btn btn-azul" data-id="${fa.id}" data-accion="ver" title="Ver factura">👁</button>
+          <button class="btn btn-secundario" data-id="${fa.id}" data-accion="imprimir" title="Imprimir tiquete">🖨</button>
+          <button class="btn btn-rojo" data-id="${fa.id}" data-accion="pdf" title="Descargar PDF">📄</button>
+          <button class="btn btn-secundario" data-id="${fa.id}" data-accion="editar" title="Editar factura">✎</button>
+          <button class="btn btn-rojo" data-id="${fa.id}" data-accion="eliminar" title="Eliminar factura">🗑</button>
         </td>
       </tr>`
     )
@@ -1410,7 +1410,7 @@ function renderPreviewImagenes() {
       (url, idx) => `
     <div style="position:relative;">
       <img src="${url}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:${idx === 0 ? "2px solid #FFA000" : "1px solid #ddd"};" />
-      <button type="button" data-idx="${idx}" class="btn-quitar-imagen" style="position:absolute;top:-6px;right:-6px;background:#D32F2F;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;">✕</button>
+      <button type="button" data-idx="${idx}" class="btn-quitar-imagen" title="Quitar imagen" style="position:absolute;top:-6px;right:-6px;background:#D32F2F;color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;">✕</button>
     </div>`
     )
     .join("");
@@ -1590,8 +1590,8 @@ function renderTablaInventario(filtro = "") {
         <td>${badge}</td>
         <td>${p.visibleEnTienda !== false ? '<span class="badge-stock badge-ok">Visible</span>' : '<span class="badge-stock badge-critico">Oculto</span>'}</td>
         <td>
-          <button class="btn btn-secundario" data-id="${p.id}" data-accion="editar">✎</button>
-          <button class="btn btn-rojo" data-id="${p.id}" data-accion="eliminar">🗑</button>
+          <button class="btn btn-secundario" data-id="${p.id}" data-accion="editar" title="Editar producto">✎</button>
+          <button class="btn btn-rojo" data-id="${p.id}" data-accion="eliminar" title="Eliminar producto">🗑</button>
         </td>
       </tr>`;
     })
@@ -1645,7 +1645,7 @@ function cargarProductoParaEditar(id) {
   }
   document.getElementById("titulo-form-producto").textContent = "Editar Producto";
   document.getElementById("btn-cancelar-edicion").classList.remove("oculto");
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  document.getElementById("titulo-form-producto").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 async function eliminarProducto(id) {
@@ -1958,8 +1958,8 @@ function renderTablaClientes(filtro = "") {
         <td>${c.telefono || ""}</td>
         <td>${c.direccion || ""}</td>
         <td>
-          <button class="btn btn-secundario" data-id="${c.id}" data-accion="editar-cliente">✎</button>
-          <button class="btn btn-rojo" data-id="${c.id}" data-accion="eliminar-cliente">🗑</button>
+          <button class="btn btn-secundario" data-id="${c.id}" data-accion="editar-cliente" title="Editar cliente">✎</button>
+          <button class="btn btn-rojo" data-id="${c.id}" data-accion="eliminar-cliente" title="Eliminar cliente">🗑</button>
         </td>
       </tr>`
       )
