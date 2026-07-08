@@ -47,7 +47,16 @@
 
     <form class="form-cliente" id="form-cliente">
       <input type="text" id="cliente-nombre" placeholder="Nombre completo" required />
-      <input type="text" id="cliente-direccion" placeholder="Dirección / Hotel en Bocagrande" required />
+      <input type="text" id="cliente-cedula" placeholder="Cédula o NIT (opcional, recomendado para factura electrónica)" />
+      <input type="email" id="cliente-correo" placeholder="Correo electrónico (opcional, recomendado para factura electrónica)" />
+
+      <div class="campo-direccion">
+        <input type="text" id="cliente-direccion" placeholder="Dirección / Hotel en Bocagrande" required />
+        <button type="button" id="btn-compartir-ubicacion" class="btn-ubicacion">📍 Usar mi ubicación (Google Maps)</button>
+        <small id="nota-ubicacion" class="nota-ubicacion"></small>
+        <input type="hidden" id="cliente-ubicacion-link" />
+      </div>
+
       <input type="tel" id="cliente-telefono" placeholder="Teléfono (opcional)" />
       <button type="submit" class="btn-whatsapp">📲 Enviar pedido por WhatsApp</button>
     </form>
@@ -80,7 +89,7 @@ import {
 } from "./js/theme.js";
 
 /* ⚠️ Reemplaza con el número de WhatsApp real del negocio (formato internacional sin +) */
-const NUMERO_WHATSAPP_NEGOCIO = "57 317 7975567";
+const NUMERO_WHATSAPP_NEGOCIO = "573177975567";
 
 const CATEGORIAS = ["Todos", "Licores", "Cervezas Nacionales", "Importadas", "Bebidas", "Hielo"];
 
@@ -679,6 +688,28 @@ modalOverlay.addEventListener("click", (e) => {
   if (e.target === modalOverlay) modalOverlay.classList.remove("abierto");
 });
 
+/* ---------- COMPARTIR UBICACIÓN POR GOOGLE MAPS ---------- */
+document.getElementById("btn-compartir-ubicacion").addEventListener("click", () => {
+  const nota = document.getElementById("nota-ubicacion");
+  if (!navigator.geolocation) {
+    nota.textContent = "⚠️ Tu navegador no permite compartir ubicación. Escribe la dirección manualmente.";
+    return;
+  }
+  nota.textContent = "📡 Obteniendo tu ubicación...";
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude } = pos.coords;
+      const link = `https://www.google.com/maps?q=${latitude},${longitude}`;
+      document.getElementById("cliente-ubicacion-link").value = link;
+      nota.innerHTML = `✅ Ubicación lista para enviar — <a href="${link}" target="_blank" rel="noopener">verla en el mapa</a>`;
+    },
+    () => {
+      nota.textContent = "⚠️ No se pudo obtener tu ubicación (revisa los permisos del navegador). Escribe la dirección manualmente.";
+    },
+    { enableHighAccuracy: true, timeout: 10000 }
+  );
+});
+
 /* ---------- ENVÍO POR WHATSAPP ---------- */
 document.getElementById("form-cliente").addEventListener("submit", (e) => {
   e.preventDefault();
@@ -689,17 +720,22 @@ document.getElementById("form-cliente").addEventListener("submit", (e) => {
 
   const cliente = {
     nombre: document.getElementById("cliente-nombre").value.trim(),
+    cedula: document.getElementById("cliente-cedula").value.trim(),
+    correo: document.getElementById("cliente-correo").value.trim(),
     direccion: document.getElementById("cliente-direccion").value.trim(),
+    ubicacionLink: document.getElementById("cliente-ubicacion-link").value.trim(),
     telefono: document.getElementById("cliente-telefono").value.trim()
   };
 
   const url = generarLinkWhatsApp(carrito, cliente, NUMERO_WHATSAPP_NEGOCIO);
   window.open(url, "_blank");
 
-  // Limpiar carrito después de enviar
+  // Limpiar carrito y formulario después de enviar
   carrito = [];
   actualizarBadge();
   renderCarrito();
+  document.getElementById("cliente-ubicacion-link").value = "";
+  document.getElementById("nota-ubicacion").textContent = "";
   modalOverlay.classList.remove("abierto");
 });
 
