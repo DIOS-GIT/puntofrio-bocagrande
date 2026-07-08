@@ -187,27 +187,27 @@ function formatFecha(fechaInput) {
  * @param {string} numeroWhatsapp Número del negocio en formato internacional, ej: "573001234567"
  */
 function generarLinkWhatsApp(carrito, cliente, numeroWhatsapp) {
-  let mensaje = `🧊 *NUEVO PEDIDO - PUNTO FRÍO BOCAGRANDE* 🧊\n\n`;
-  mensaje += `👤 *Cliente:* ${cliente.nombre}\n`;
-  if (cliente.cedula) mensaje += `🪪 *Cédula/NIT:* ${cliente.cedula}\n`;
-  if (cliente.correo) mensaje += `✉️ *Correo:* ${cliente.correo}\n`;
-  mensaje += `📍 *Dirección:* ${cliente.direccion}\n`;
-  if (cliente.ubicacionLink) mensaje += `🗺️ *Ubicación (Google Maps):* ${cliente.ubicacionLink}\n`;
-  if (cliente.telefono) mensaje += `📞 *Teléfono:* ${cliente.telefono}\n`;
-  mensaje += `\n🛒 *Detalle del pedido:*\n`;
+  let mensaje = `*NUEVO PEDIDO - PUNTO FRIO BOCAGRANDE*\n\n`;
+  mensaje += `*Cliente:* ${cliente.nombre}\n`;
+  if (cliente.cedula) mensaje += `*Cedula/NIT:* ${cliente.cedula}\n`;
+  if (cliente.correo) mensaje += `*Correo:* ${cliente.correo}\n`;
+  mensaje += `*Direccion:* ${cliente.direccion}\n`;
+  if (cliente.ubicacionLink) mensaje += `*Ubicacion (Google Maps):* ${cliente.ubicacionLink}\n`;
+  if (cliente.telefono) mensaje += `*Telefono:* ${cliente.telefono}\n`;
+  mensaje += `\n*Detalle del pedido:*\n`;
 
   let total = 0;
   carrito.forEach((item) => {
     const subtotal = item.cantidad * item.precio;
     total += subtotal;
     const notaEnvase = item.conEnvase === true ? " (trae envase)" : item.conEnvase === false ? " (sin envase)" : "";
-    mensaje += `• ${item.cantidad}x ${item.nombre}${notaEnvase} — ${formatCOP(item.precio)} c/u = ${formatCOP(
+    mensaje += `- ${item.cantidad}x ${item.nombre}${notaEnvase} - ${formatCOP(item.precio)} c/u = ${formatCOP(
       subtotal
     )}\n`;
   });
 
-  mensaje += `\n💰 *TOTAL: ${formatCOP(total)}*\n`;
-  mensaje += `\n_Pedido generado automáticamente desde la tienda web._`;
+  mensaje += `\n*TOTAL: ${formatCOP(total)}*\n`;
+  mensaje += `\nPedido generado automaticamente desde la tienda web.`;
 
   const url = `https://wa.me/${numeroWhatsapp}?text=${encodeURIComponent(mensaje)}`;
   return url;
