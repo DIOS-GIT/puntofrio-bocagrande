@@ -37,7 +37,10 @@
 
   <div class="admin-topbar">
     <h1>🧊 Punto Frío Bocagrande — Admin</h1>
-    <button id="btn-logout">Cerrar sesión</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="btn-tema-admin" title="Cambiar a modo oscuro">🌙</button>
+      <button id="btn-logout">Cerrar sesión</button>
+    </div>
   </div>
 
   <nav class="tabs">
@@ -198,7 +201,7 @@
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         <h3 id="titulo-form-producto">Agregar Producto</h3>
-        <button type="button" class="btn btn-secundario oculto" id="btn-cancelar-edicion-top" title="Cancelar la edición y volver a agregar un producto nuevo">✕ Cancelar edición / Agregar nuevo</button>
+        <button type="button" class="btn btn-verde" id="btn-cancelar-edicion-top" title="Limpia todos los campos para agregar un producto nuevo (evita sobrescribir uno existente por error)">➕ Agregar Producto Nuevo / Limpiar Formulario</button>
       </div>
       <input type="hidden" id="p-id" />
       <div class="grid-2">
@@ -548,6 +551,20 @@ document.getElementById("btn-login").addEventListener("click", async () => {
 });
 
 document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+
+/* ---------- MODO OSCURO (ADMIN) ---------- */
+const btnTemaAdmin = document.getElementById("btn-tema-admin");
+function aplicarTemaAdmin(tema) {
+  document.documentElement.setAttribute("data-tema", tema);
+  btnTemaAdmin.textContent = tema === "oscuro" ? "☀️" : "🌙";
+  btnTemaAdmin.title = tema === "oscuro" ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+  localStorage.setItem("pf-admin-tema", tema);
+}
+aplicarTemaAdmin(localStorage.getItem("pf-admin-tema") || "claro");
+btnTemaAdmin.addEventListener("click", () => {
+  const actual = document.documentElement.getAttribute("data-tema");
+  aplicarTemaAdmin(actual === "oscuro" ? "claro" : "oscuro");
+});
 
 onAuthStateChanged(auth, (user) => {
   const loginOverlay = document.getElementById("login-overlay");
@@ -1721,7 +1738,6 @@ function limpiarFormularioProducto() {
   document.getElementById("p-mostrar-categoria").checked = true;
   document.getElementById("titulo-form-producto").textContent = "Agregar Producto";
   document.getElementById("btn-cancelar-edicion").classList.add("oculto");
-  document.getElementById("btn-cancelar-edicion-top").classList.add("oculto");
 }
 
 document.getElementById("btn-cancelar-edicion").addEventListener("click", limpiarFormularioProducto);
@@ -1829,7 +1845,6 @@ function cargarProductoParaEditar(id) {
   }
   document.getElementById("titulo-form-producto").textContent = "Editar Producto";
   document.getElementById("btn-cancelar-edicion").classList.remove("oculto");
-  document.getElementById("btn-cancelar-edicion-top").classList.remove("oculto");
   document.getElementById("titulo-form-producto").scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
