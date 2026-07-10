@@ -83,10 +83,13 @@
           <div id="resultados-producto" style="margin-top:6px;"></div>
         </div>
         <table class="tabla-factura" id="tabla-factura-items">
-          <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th><th></th></tr></thead>
+          <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th><th>IVA</th><th></th></tr></thead>
           <tbody></tbody>
         </table>
-        <div class="total-carrito" style="text-align:right;font-size:1.2rem;font-weight:800;margin-top:10px;" id="f-total">
+        <div style="text-align:right;margin-top:10px;font-size:0.85rem;color:#454B57;" id="f-desglose">
+          Subtotal: $ 0 &nbsp;·&nbsp; IVA: $ 0
+        </div>
+        <div class="total-carrito" style="text-align:right;font-size:1.2rem;font-weight:800;margin-top:4px;" id="f-total">
           Total: $ 0
         </div>
       </div>
@@ -102,6 +105,10 @@
           <option value="Daviplata">Daviplata</option>
           <option value="Tarjeta">Tarjeta</option>
         </select>
+      </div>
+      <div class="form-field" style="max-width:260px;">
+        <label>Cajero / Vendedor que atiende</label>
+        <input type="text" id="f-cajero" placeholder="Ej: Jesús" />
       </div>
       <div class="btn-fila">
         <button class="btn btn-primario" id="btn-generar-factura">✅ Generar Factura</button>
@@ -161,6 +168,28 @@
           </div>
         </div>
       </div>
+
+      <h3 style="margin:16px 0 10px;border-top:1px solid var(--border);padding-top:16px;">Datos del negocio para las facturas</h3>
+      <div class="grid-2">
+        <div class="form-field">
+          <label>NIT / Cédula del negocio</label>
+          <input type="text" id="cfg-nit-negocio" placeholder="Ej: 900123456-7" />
+        </div>
+        <div class="form-field">
+          <label>Nombre de la estación / caja</label>
+          <input type="text" id="cfg-nombre-estacion" placeholder="Ej: Caja Principal" />
+        </div>
+        <div class="form-field" style="grid-column:1/-1;">
+          <label>Régimen tributario (texto que confirmes con tu contador)</label>
+          <input type="text" id="cfg-regimen-texto" placeholder="Ej: Régimen Simple de Tributación - No responsable de IVA" />
+        </div>
+        <div class="form-field" style="grid-column:1/-1;">
+          <label>Mensaje legal / notas adicionales al final del tiquete</label>
+          <textarea id="cfg-mensaje-legal" rows="2" placeholder="Ej: Este documento es un comprobante de venta, no sustituye la factura electrónica DIAN."></textarea>
+          <small>Aquí puedes poner la resolución DIAN, el régimen, o cualquier texto legal que tu contador te indique.</small>
+        </div>
+      </div>
+
       <div class="btn-fila">
         <button class="btn btn-primario" id="btn-guardar-config-tienda">💾 Guardar configuración</button>
       </div>
@@ -237,6 +266,11 @@
         <div class="form-field">
           <label>Stock mínimo (alerta)</label>
           <input type="number" id="p-stock-minimo" min="0" value="5" />
+        </div>
+        <div class="form-field">
+          <label>IVA (%) — se suma aparte al momento de facturar</label>
+          <input type="number" id="p-iva" min="0" max="100" step="0.1" value="19" />
+          <small>Ej: cerveza suele ir al 19%, licores destilados actualmente al 5% (verifica con tu contador, el tema está en revisión legal). Pon 0 si el producto no causa IVA.</small>
         </div>
         <div class="form-field">
           <label>Imágenes (puedes subir varias, la primera será la principal)</label>
@@ -713,6 +747,7 @@ function agregarItemFactura(idProducto, modoForzado) {
       permiteVentaSuelta: manejaCaja && !!producto.permiteVentaSuelta,
       precioUnidadSuelta: manejaCaja ? (producto.precioUnidadSuelta ?? producto.precio) : null,
       esCaja: esCajaObjetivo,
+      ivaPorcentaje: Number(producto.ivaPorcentaje) || 0,
       cantidad: 1,
       stockDisponible: producto.stock
     };
@@ -728,6 +763,14 @@ function agregarItemFactura(idProducto, modoForzado) {
 function precioItemFactura(item) {
   if (item.manejaCaja && item.esCaja === false) return item.precioUnidadSuelta;
   return item.manejaEnvase && item.conEnvase ? item.precioConEnvase : item.precioSinEnvase;
+}
+
+function subtotalItemFactura(item) {
+  return precioItemFactura(item) * item.cantidad;
+}
+
+function ivaItemFactura(item) {
+  return Math.round(subtotalItemFactura(item) * ((item.ivaPorcentaje || 0) / 100));
 }
 
 function renderTablaFactura() {
@@ -760,6 +803,7 @@ function renderTablaFactura() {
         </td>
         <td>${formatCOP(precioUnit)}</td>
         <td>${formatCOP(precioUnit * item.cantidad)}</td>
+        <td>${item.ivaPorcentaje ? `${formatCOP(ivaItemFactura(item))} <small>(${item.ivaPorcentaje}%)</small>` : "-"}</td>
         <td><button data-idx="${idx}" class="btn-quitar-item" title="Quitar producto" style="border:none;background:none;cursor:pointer;color:#D32F2F;">✕</button></td>
       </tr>`;
     })
@@ -819,7 +863,10 @@ function renderTablaFactura() {
     });
   });
 
-  const total = carritoFactura.reduce((acc, i) => acc + precioItemFactura(i) * i.cantidad, 0);
+  const subtotal = carritoFactura.reduce((acc, i) => acc + subtotalItemFactura(i), 0);
+  const ivaTotal = carritoFactura.reduce((acc, i) => acc + ivaItemFactura(i), 0);
+  const total = subtotal + ivaTotal;
+  document.getElementById("f-desglose").innerHTML = `Subtotal: ${formatCOP(subtotal)} &nbsp;·&nbsp; IVA: ${formatCOP(ivaTotal)}`;
   document.getElementById("f-total").textContent = "Total: " + formatCOP(total);
 }
 
@@ -837,6 +884,7 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
   const nombre = document.getElementById("f-nombre").value.trim();
   const correo = document.getElementById("f-correo").value.trim();
   const metodoPago = document.getElementById("f-metodo-pago").value;
+  const cajero = document.getElementById("f-cajero").value.trim();
 
   if (!nombre) {
     mostrarToast("⚠️ El nombre del cliente es obligatorio.");
@@ -847,7 +895,10 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
     return;
   }
 
-  const total = carritoFactura.reduce((acc, i) => acc + precioItemFactura(i) * i.cantidad, 0);
+  const subtotal = carritoFactura.reduce((acc, i) => acc + subtotalItemFactura(i), 0);
+  const ivaTotal = carritoFactura.reduce((acc, i) => acc + ivaItemFactura(i), 0);
+  const total = subtotal + ivaTotal;
+  const estacion = (configTienda && configTienda.nombreEstacion) || "";
 
   try {
     const resultado = await runTransaction(db, async (tx) => {
@@ -893,10 +944,16 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
           unidadesPorCaja: i.manejaCaja ? i.unidadesPorCaja : null,
           cantidad: i.cantidad,
           unidadesConsumidas: unidadesConsumidasItem(i),
-          subtotal: precioItemFactura(i) * i.cantidad
+          subtotal: subtotalItemFactura(i),
+          ivaPorcentaje: i.ivaPorcentaje || 0,
+          iva: ivaItemFactura(i)
         })),
+        subtotal,
+        iva: ivaTotal,
         total,
         metodoPago,
+        cajero: cajero || "",
+        estacion,
         fecha: serverTimestamp()
       };
       tx.set(refFactura, facturaData);
@@ -966,6 +1023,8 @@ function nombreConEnvase(item) {
 function verFacturaModal(factura) {
   const fecha = factura.fecha?.toDate ? formatFecha(factura.fecha) : new Date().toLocaleString("es-CO");
   const cont = document.getElementById("contenido-vista-factura");
+  const subtotal = factura.subtotal ?? factura.items.reduce((acc, i) => acc + (i.subtotal || 0), 0);
+  const ivaTotal = factura.iva ?? 0;
 
   cont.innerHTML = `
     <div style="background:linear-gradient(135deg,#FFC107,#FFA000);padding:18px 20px;border-radius:10px 10px 0 0;margin:-20px -20px 16px -20px;">
@@ -976,18 +1035,21 @@ function verFacturaModal(factura) {
     <p><strong>Cédula/NIT:</strong> ${factura.cliente?.cedula || "N/A"}</p>
     ${factura.cliente?.correo ? `<p><strong>Correo:</strong> ${factura.cliente.correo}</p>` : ""}
     <p><strong>Método de pago:</strong> ${factura.metodoPago}</p>
-    <p><strong>Fecha:</strong> ${fecha}</p>
+    <p><strong>Fecha y hora:</strong> ${fecha}</p>
+    ${factura.cajero ? `<p><strong>Cajero:</strong> ${factura.cajero}</p>` : ""}
+    ${factura.estacion ? `<p><strong>Estación/Caja:</strong> ${factura.estacion}</p>` : ""}
     <table class="tabla-factura" style="margin-top:12px;">
-      <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th></tr></thead>
+      <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th><th>IVA</th></tr></thead>
       <tbody>
         ${factura.items
           .map(
-            (i) => `<tr><td>${nombreConEnvase(i)}</td><td>${i.cantidad}</td><td>${formatCOP(i.precio)}</td><td>${formatCOP(i.subtotal)}</td></tr>`
+            (i) => `<tr><td>${nombreConEnvase(i)}</td><td>${i.cantidad}</td><td>${formatCOP(i.precio)}</td><td>${formatCOP(i.subtotal)}</td><td>${i.iva ? formatCOP(i.iva) : "-"}</td></tr>`
           )
           .join("")}
       </tbody>
     </table>
-    <div class="total-carrito" style="margin-top:14px;">Total: ${formatCOP(factura.total)}</div>
+    <div style="text-align:right;margin-top:10px;font-size:0.85rem;color:#454B57;">Subtotal: ${formatCOP(subtotal)} &nbsp;·&nbsp; IVA: ${formatCOP(ivaTotal)}</div>
+    <div class="total-carrito" style="margin-top:6px;">Total: ${formatCOP(factura.total)}</div>
     <div class="btn-fila" style="margin-top:16px;">
       <button class="btn btn-secundario" id="btn-ver-imprimir-tiquete">🖨 Imprimir Tiquete</button>
       <button class="btn btn-rojo" id="btn-ver-descargar-pdf">📄 Descargar PDF</button>
@@ -1300,13 +1362,22 @@ async function eliminarFactura(factura) {
 function imprimirTiquetePOS(factura) {
   const cont = document.getElementById("tiquete-pos");
   const fecha = factura.fecha?.toDate ? formatFecha(factura.fecha) : new Date().toLocaleString("es-CO");
+  const subtotal = factura.subtotal ?? factura.items.reduce((acc, i) => acc + (i.subtotal || 0), 0);
+  const ivaTotal = factura.iva ?? 0;
+  const nit = (configTienda && configTienda.nitNegocio) || "";
+  const regimen = (configTienda && configTienda.regimenTexto) || "";
+  const mensajeLegal = (configTienda && configTienda.mensajeLegal) || "";
 
   cont.innerHTML = `
     <div class="centrado">
       <strong>PUNTO FRÍO BOCAGRANDE</strong><br/>
+      ${nit ? `NIT: ${nit}<br/>` : ""}
+      ${regimen ? `${regimen}<br/>` : ""}
       Cartagena, Colombia<br/>
       Factura POS #${factura.numero}<br/>
-      ${fecha}
+      Fecha y hora: ${fecha}
+      ${factura.cajero ? `<br/>Cajero: ${factura.cajero}` : ""}
+      ${factura.estacion ? `<br/>Estación: ${factura.estacion}` : ""}
     </div>
     <hr/>
     Cliente: ${factura.cliente.nombre}<br/>
@@ -1320,9 +1391,12 @@ function imprimirTiquetePOS(factura) {
         .join("")}
     </table>
     <hr/>
+    <div>Subtotal: ${formatCOP(subtotal)}</div>
+    <div>IVA: ${formatCOP(ivaTotal)}</div>
     <div class="centrado"><strong>TOTAL: ${formatCOP(factura.total)}</strong></div>
     <div class="centrado">Pago: ${factura.metodoPago}</div>
     <hr/>
+    ${mensajeLegal ? `<div class="centrado">${mensajeLegal}</div><hr/>` : ""}
     <div class="centrado">¡Gracias por su compra!</div>
   `;
   window.print();
@@ -1332,48 +1406,70 @@ function imprimirTiquetePOS(factura) {
 function descargarFacturaPDF(factura) {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  const fecha = factura.fecha?.toDate ? formatFecha(factura.fecha) : new Date().toLocaleString("es-CO");
+  const subtotal = factura.subtotal ?? factura.items.reduce((acc, i) => acc + (i.subtotal || 0), 0);
+  const ivaTotal = factura.iva ?? 0;
+  const nit = (configTienda && configTienda.nitNegocio) || "";
+  const regimen = (configTienda && configTienda.regimenTexto) || "";
+  const mensajeLegal = (configTienda && configTienda.mensajeLegal) || "";
 
   pdf.setFillColor(255, 193, 7);
   pdf.rect(0, 0, 595, 80, "F");
   pdf.setTextColor(20, 20, 20);
   pdf.setFontSize(20);
-  pdf.text("PUNTO FRÍO BOCAGRANDE", 40, 45);
-  pdf.setFontSize(11);
-  pdf.text(`Factura de Venta #${factura.numero}`, 40, 65);
+  pdf.text("PUNTO FRÍO BOCAGRANDE", 40, 40);
+  pdf.setFontSize(10);
+  pdf.text(`Factura de Venta #${factura.numero}${nit ? " · NIT: " + nit : ""}`, 40, 58);
+  pdf.text(regimen ? regimen : "", 40, 72);
 
   pdf.setTextColor(0, 0, 0);
   pdf.setFontSize(11);
   let y = 110;
   pdf.text(`Cliente: ${factura.cliente.nombre}`, 40, y); y += 16;
   pdf.text(`Cédula/NIT: ${factura.cliente.cedula}`, 40, y); y += 16;
-  pdf.text(`Correo: ${factura.cliente.correo}`, 40, y); y += 16;
-  pdf.text(`Método de pago: ${factura.metodoPago}`, 40, y); y += 26;
+  if (factura.cliente.correo) { pdf.text(`Correo: ${factura.cliente.correo}`, 40, y); y += 16; }
+  pdf.text(`Método de pago: ${factura.metodoPago}`, 40, y); y += 16;
+  pdf.text(`Fecha y hora: ${fecha}`, 40, y); y += 16;
+  if (factura.cajero) { pdf.text(`Cajero: ${factura.cajero}`, 40, y); y += 16; }
+  if (factura.estacion) { pdf.text(`Estación/Caja: ${factura.estacion}`, 40, y); y += 16; }
+  y += 10;
 
   pdf.setFillColor(255, 243, 205);
   pdf.rect(40, y - 14, 515, 20, "F");
   pdf.setFontSize(10);
   pdf.text("Producto", 46, y);
-  pdf.text("Cant.", 340, y);
-  pdf.text("Precio", 400, y);
-  pdf.text("Subtotal", 470, y);
+  pdf.text("Cant.", 300, y);
+  pdf.text("Precio", 350, y);
+  pdf.text("Subtotal", 410, y);
+  pdf.text("IVA", 480, y);
   y += 22;
 
   factura.items.forEach((item) => {
-    pdf.text(String(nombreConEnvase(item)).slice(0, 40), 46, y);
-    pdf.text(String(item.cantidad), 345, y);
-    pdf.text(formatCOP(item.precio), 400, y);
-    pdf.text(formatCOP(item.subtotal), 470, y);
+    pdf.text(String(nombreConEnvase(item)).slice(0, 34), 46, y);
+    pdf.text(String(item.cantidad), 305, y);
+    pdf.text(formatCOP(item.precio), 350, y);
+    pdf.text(formatCOP(item.subtotal), 410, y);
+    pdf.text(item.iva ? formatCOP(item.iva) : "-", 480, y);
     y += 18;
   });
 
-  y += 14;
+  y += 10;
+  pdf.setFontSize(10);
+  pdf.text(`Subtotal: ${formatCOP(subtotal)}`, 400, y); y += 15;
+  pdf.text(`IVA: ${formatCOP(ivaTotal)}`, 400, y); y += 20;
   pdf.setFontSize(13);
   pdf.setFont(undefined, "bold");
   pdf.text(`TOTAL: ${formatCOP(factura.total)}`, 400, y);
 
-  y += 40;
-  pdf.setFontSize(9);
+  y += 35;
+  pdf.setFontSize(8.5);
   pdf.setFont(undefined, "normal");
+  pdf.setTextColor(90, 90, 90);
+  if (mensajeLegal) {
+    const lineas = pdf.splitTextToSize(mensajeLegal, 515);
+    pdf.text(lineas, 40, y);
+    y += lineas.length * 11 + 8;
+  }
   pdf.setTextColor(120, 120, 120);
   pdf.text("Documento generado electrónicamente — Punto Frío Bocagrande.", 40, y);
 
@@ -1528,6 +1624,7 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
     mostrarSueltaEnTienda: permiteVentaSuelta ? document.getElementById("p-mostrar-suelta-tienda").checked : false,
     stock: Number(document.getElementById("p-stock").value) || 0,
     stockMinimo: Number(document.getElementById("p-stock-minimo").value) || 5,
+    ivaPorcentaje: Number(document.getElementById("p-iva").value) || 0,
     imagen: imagenesActuales[0] || "",
     imagenes: imagenesActuales,
     visibleEnTienda: document.getElementById("p-visible-tienda").checked,
@@ -1559,21 +1656,22 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
 });
 
 /* ---------------------------------------------------------------
-   CONFIGURACIÓN DE LA TIENDA: horario de atención + banner
+   CONFIGURACIÓN DE LA TIENDA: horario, banner, datos del negocio
 --------------------------------------------------------------- */
-(async function cargarConfigTienda() {
-  try {
-    const snap = await getDoc(doc(db, "config", "tienda"));
-    const cfg = snap.exists() ? snap.data() : {};
-    document.getElementById("cfg-horario-activo").checked = !!cfg.horarioActivo;
-    document.getElementById("cfg-hora-apertura").value = cfg.horaApertura || "10:00";
-    document.getElementById("cfg-hora-cierre").value = cfg.horaCierre || "22:00";
-    document.getElementById("cfg-banner-activo").checked = !!cfg.bannerActivo;
-    document.getElementById("cfg-banner-texto").value = cfg.bannerTexto || "";
-  } catch (err) {
-    console.error("Error cargando configuración de la tienda:", err);
-  }
-})();
+let configTienda = {};
+
+onSnapshot(doc(db, "config", "tienda"), (snap) => {
+  configTienda = snap.exists() ? snap.data() : {};
+  document.getElementById("cfg-horario-activo").checked = !!configTienda.horarioActivo;
+  document.getElementById("cfg-hora-apertura").value = configTienda.horaApertura || "10:00";
+  document.getElementById("cfg-hora-cierre").value = configTienda.horaCierre || "22:00";
+  document.getElementById("cfg-banner-activo").checked = !!configTienda.bannerActivo;
+  document.getElementById("cfg-banner-texto").value = configTienda.bannerTexto || "";
+  document.getElementById("cfg-nit-negocio").value = configTienda.nitNegocio || "";
+  document.getElementById("cfg-nombre-estacion").value = configTienda.nombreEstacion || "";
+  document.getElementById("cfg-regimen-texto").value = configTienda.regimenTexto || "";
+  document.getElementById("cfg-mensaje-legal").value = configTienda.mensajeLegal || "";
+});
 
 document.getElementById("btn-guardar-config-tienda").addEventListener("click", async () => {
   const cfg = {
@@ -1581,7 +1679,11 @@ document.getElementById("btn-guardar-config-tienda").addEventListener("click", a
     horaApertura: document.getElementById("cfg-hora-apertura").value || "10:00",
     horaCierre: document.getElementById("cfg-hora-cierre").value || "22:00",
     bannerActivo: document.getElementById("cfg-banner-activo").checked,
-    bannerTexto: document.getElementById("cfg-banner-texto").value.trim()
+    bannerTexto: document.getElementById("cfg-banner-texto").value.trim(),
+    nitNegocio: document.getElementById("cfg-nit-negocio").value.trim(),
+    nombreEstacion: document.getElementById("cfg-nombre-estacion").value.trim(),
+    regimenTexto: document.getElementById("cfg-regimen-texto").value.trim(),
+    mensajeLegal: document.getElementById("cfg-mensaje-legal").value.trim()
   };
   try {
     await setDoc(doc(db, "config", "tienda"), cfg, { merge: true });
@@ -1611,6 +1713,7 @@ function limpiarFormularioProducto() {
   document.getElementById("label-stock").textContent = "Stock actual (unidades)";
   document.getElementById("p-stock").value = "";
   document.getElementById("p-stock-minimo").value = "5";
+  document.getElementById("p-iva").value = "19";
   document.getElementById("p-imagen").value = "";
   imagenesActuales = [];
   renderPreviewImagenes();
@@ -1713,6 +1816,7 @@ function cargarProductoParaEditar(id) {
   document.getElementById("label-stock").textContent = p.manejaCaja ? "Stock actual (unidades — no cajas)" : "Stock actual (unidades)";
 
   document.getElementById("p-stock").value = p.stock;
+  document.getElementById("p-iva").value = p.ivaPorcentaje ?? 19;
   document.getElementById("p-stock-minimo").value = p.stockMinimo ?? 5;
   document.getElementById("p-imagen").value = p.imagen || "";
   imagenesActuales = Array.isArray(p.imagenes) && p.imagenes.length ? [...p.imagenes] : (p.imagen ? [p.imagen] : []);
