@@ -29,7 +29,44 @@
 
   --fuente-display: "Fraunces", "Georgia", serif;
   --fuente: "Inter", "Segoe UI", sans-serif;
+  --chip-oscuro: #1B1815; /* fija a propósito: botones/chips oscuros no se invierten con el tema */
 }
+
+/* ---------- MODO OSCURO ---------- */
+[data-tema="oscuro"] {
+  --ink: #F1EEE7;
+  --ink-soft: #C9C2B4;
+  --slate: #948C7F;
+  --paper: #161310;
+  --paper-alt: #211D17;
+  --amber: #E2A63B;
+  --amber-deep: #F0B85A;
+  --amber-pale: #3A2E17;
+  --frost: #172420;
+  --frost-line: #24322D;
+  --danger: #E5695C;
+  --sombra-card: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px -6px rgba(0,0,0,0.5);
+  --sombra-flotante: 0 10px 30px -6px rgba(0,0,0,0.6);
+}
+
+body, .header, .card-producto, .modal-carrito, .modal-detalle-caja, .lightbox-overlay img {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-tema {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255,255,255,0.25);
+  border: none;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  cursor: pointer;
+  z-index: 5;
+}
+.btn-tema:hover { background: rgba(255,255,255,0.4); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -116,9 +153,9 @@ body {
 
 .filtro-btn.activo,
 .filtro-btn:hover {
-  background: var(--ink);
+  background: var(--chip-oscuro);
   color: var(--amber);
-  border-color: var(--ink);
+  border-color: var(--chip-oscuro);
 }
 
 /* ---------- BARRA DE ORDEN Y BÚSQUEDA ---------- */
@@ -153,7 +190,7 @@ body {
 }
 .banner-tienda.oculto-banner { display: none; }
 .banner-cerrado { background: var(--danger); color: #fff; }
-.banner-promo { background: var(--ink); color: var(--amber); }
+.banner-promo { background: var(--chip-oscuro); color: var(--amber); }
 
 .toolbar-tienda select {
   padding: 8px 14px;
@@ -472,7 +509,7 @@ body {
   border: none;
   border-radius: var(--radio-sm);
   padding: 10px 0;
-  background: var(--ink);
+  background: var(--chip-oscuro);
   color: var(--amber);
   font-weight: 700;
   font-size: 0.84rem;
@@ -492,7 +529,7 @@ body {
   position: fixed;
   bottom: 20px;
   right: 20px;
-  background: var(--ink);
+  background: var(--chip-oscuro);
   color: var(--amber);
   border-radius: 999px;
   padding: 14px 22px;
