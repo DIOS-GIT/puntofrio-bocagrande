@@ -12,6 +12,7 @@
 <body>
 
 <header class="header">
+  <button id="btn-tema" class="btn-tema" title="Cambiar a modo oscuro">🌙</button>
   <h1>🧊 Punto Frío Bocagrande</h1>
   <p>Licores · Cervezas · Bebidas — Entrega en Bocagrande</p>
 </header>
@@ -94,6 +95,20 @@ import {
 
 /* ⚠️ Reemplaza con el número de WhatsApp real del negocio (formato internacional sin +) */
 const NUMERO_WHATSAPP_NEGOCIO = "573177975567";
+
+/* ---------- MODO OSCURO ---------- */
+const btnTema = document.getElementById("btn-tema");
+function aplicarTema(tema) {
+  document.documentElement.setAttribute("data-tema", tema);
+  btnTema.textContent = tema === "oscuro" ? "☀️" : "🌙";
+  btnTema.title = tema === "oscuro" ? "Cambiar a modo claro" : "Cambiar a modo oscuro";
+  localStorage.setItem("pf-tema", tema);
+}
+aplicarTema(localStorage.getItem("pf-tema") || "claro");
+btnTema.addEventListener("click", () => {
+  const actual = document.documentElement.getAttribute("data-tema");
+  aplicarTema(actual === "oscuro" ? "claro" : "oscuro");
+});
 
 const CATEGORIAS = ["Todos", "Licores", "Cervezas Nacionales", "Importadas", "Bebidas", "Hielo"];
 
