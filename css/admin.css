@@ -24,7 +24,43 @@
   --radio: 10px;
   --sombra: 0 1px 2px rgba(20,24,31,0.04), 0 6px 16px -6px rgba(20,24,31,0.10);
   --fuente: "Inter", "Segoe UI", sans-serif;
+  --barra-oscura: #14181F; /* fija a propósito: no se invierte con el modo oscuro */
 }
+
+/* ---------- MODO OSCURO ---------- */
+[data-tema="oscuro"] {
+  --ink: #EDEFF3;
+  --ink-soft: #C7CBD3;
+  --muted: #8B93A1;
+  --bg: #12151B;
+  --surface: #1C212B;
+  --border: #2C323E;
+  --amber: #E2954B;
+  --amber-soft: #3A2A16;
+  --amber-deep: #F0B573;
+  --blue: #5E9AE0;
+  --blue-soft: #172436;
+  --green: #4CAF7D;
+  --green-soft: #123322;
+  --red: #E5695C;
+  --red-soft: #3A1A17;
+  --sombra: 0 1px 2px rgba(0,0,0,0.3), 0 6px 16px -6px rgba(0,0,0,0.5);
+}
+
+body, .card, .admin-topbar, .tabs, .login-box {
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+#btn-tema-admin {
+  background: transparent;
+  color: #fff;
+  border: 1.5px solid rgba(255,255,255,0.35);
+  padding: 7px 12px;
+  border-radius: 7px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+#btn-tema-admin:hover { background: rgba(255,255,255,0.1); }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -96,7 +132,7 @@ body {
 
 /* ---------- LAYOUT PRINCIPAL ---------- */
 .admin-topbar {
-  background: var(--ink);
+  background: var(--barra-oscura);
   color: #fff;
   padding: 14px 20px;
   display: flex;
@@ -239,7 +275,7 @@ table.tabla-factura td { font-variant-numeric: tabular-nums; }
 /* ---------- INVENTARIO / TABLAS DE DATOS ---------- */
 .tabla-inventario { width: 100%; border-collapse: collapse; font-size: 0.84rem; }
 .tabla-inventario th {
-  background: var(--ink);
+  background: var(--barra-oscura);
   color: #fff;
   font-weight: 600;
   font-size: 0.72rem;
@@ -314,7 +350,7 @@ canvas { max-width: 100%; }
   left: 20px;
   max-width: 340px;
   margin-left: auto;
-  background: var(--ink);
+  background: var(--barra-oscura);
   color: #fff;
   padding: 13px 18px;
   border-radius: 9px;
