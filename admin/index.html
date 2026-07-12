@@ -49,6 +49,7 @@
     <button class="tab-btn" data-tab="clientes">👤 Clientes</button>
     <button class="tab-btn" data-tab="caja">💰 Cierre de Caja</button>
     <button class="tab-btn" data-tab="estadisticas">📈 Estadísticas</button>
+    <button class="tab-btn" data-tab="usuarios">🔑 Usuarios</button>
   </nav>
 
   <!-- ============ MÓDULO A: FACTURACIÓN ============ -->
@@ -276,6 +277,11 @@
           <small>Ej: cerveza suele ir al 19%, licores destilados actualmente al 5% (verifica con tu contador, el tema está en revisión legal). Pon 0 si el producto no causa IVA.</small>
         </div>
         <div class="form-field">
+          <label>Costo de compra POR UNIDAD (lo que a ti te cuesta, no por caja)</label>
+          <input type="number" id="p-costo" min="0" />
+          <small>Opcional, pero necesario para calcular tu utilidad real en Estadísticas. Si el producto se vende por caja, escribe el costo de UNA unidad suelta, no de la caja completa.</small>
+        </div>
+        <div class="form-field">
           <label>Imágenes (puedes subir varias, la primera será la principal)</label>
           <div class="btn-fila">
             <button type="button" class="btn btn-secundario" id="btn-subir-imagen">📷 Subir imágenes</button>
@@ -337,6 +343,15 @@
           <button class="btn btn-azul" id="btn-export-json-ventas">🗂 JSON</button>
         </div>
       </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:6px;">Copia de seguridad completa</h3>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:10px;">
+        Descarga un solo archivo con todo tu negocio: productos, clientes y facturas. Guárdalo en un lugar seguro
+        (correo, Google Drive) periódicamente, por si algún día necesitas recuperar la información.
+      </p>
+      <button class="btn btn-primario" id="btn-backup-completo">💾 Descargar backup completo (JSON)</button>
     </div>
   </section>
 
@@ -438,7 +453,9 @@
         <div class="caja-metric"><div class="valor" id="stats-num-facturas">0</div><div class="label"># Facturas</div></div>
         <div class="caja-metric"><div class="valor" id="stats-ticket-promedio">$ 0</div><div class="label">Ticket promedio</div></div>
         <div class="caja-metric"><div class="valor" id="stats-unidades">0</div><div class="label">Unidades vendidas</div></div>
+        <div class="caja-metric" style="border-left-color:var(--green);"><div class="valor" id="stats-utilidad">$ 0</div><div class="label">Utilidad estimada</div></div>
       </div>
+      <small id="stats-utilidad-nota" style="color:var(--muted);display:block;margin-top:8px;"></small>
     </div>
 
     <div class="grid-2">
@@ -456,7 +473,53 @@
       <h3 style="margin-bottom:10px;">Detalle de productos más vendidos</h3>
       <div style="overflow-x:auto;">
         <table class="tabla-factura" id="tabla-top-productos">
-          <thead><tr><th>#</th><th>Producto</th><th>Unidades vendidas</th><th>Ingresos generados</th></tr></thead>
+          <thead><tr><th>#</th><th>Producto</th><th>Unidades vendidas</th><th>Ingresos generados</th><th>Utilidad</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ MÓDULO E: USUARIOS Y ROLES ============ -->
+  <section class="admin-panel" id="panel-usuarios">
+    <h2 class="panel-titulo">Usuarios y Roles</h2>
+
+    <div class="card">
+      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
+        Un <strong>dueño</strong> ve todo el panel. Un <strong>empleado</strong> solo ve la pestaña de Facturación
+        (no puede editar inventario, ver estadísticas, gestionar clientes ni el cierre de caja).<br/><br/>
+        <strong>Cómo agregar un empleado:</strong> primero créale una cuenta en
+        <em>Firebase Console → Authentication → Users → Add user</em> (correo + contraseña). Pídele que inicie sesión
+        una vez en este panel (verá el panel vacío, es normal). Luego ve a
+        <em>Firebase Console → Authentication</em>, copia su <strong>UID</strong>, y pégalo abajo.
+      </p>
+      <div class="grid-2">
+        <div class="form-field">
+          <label>UID del usuario (de Firebase Authentication)</label>
+          <input type="text" id="u-uid" placeholder="Ej: aB3dEfGh..." />
+        </div>
+        <div class="form-field">
+          <label>Nombre</label>
+          <input type="text" id="u-nombre" placeholder="Ej: María" />
+        </div>
+        <div class="form-field">
+          <label>Rol</label>
+          <select id="u-rol">
+            <option value="empleado">Empleado (solo Facturación)</option>
+            <option value="dueño">Dueño (acceso total)</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-fila">
+        <button class="btn btn-primario" id="btn-guardar-usuario">💾 Guardar Usuario</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;">Usuarios registrados</h3>
+      <div style="overflow-x:auto;">
+        <table class="tabla-inventario" id="tabla-usuarios">
+          <thead><tr><th>Nombre</th><th>Rol</th><th>UID</th><th>Acciones</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -566,10 +629,22 @@ btnTemaAdmin.addEventListener("click", () => {
   aplicarTemaAdmin(actual === "oscuro" ? "claro" : "oscuro");
 });
 
-onAuthStateChanged(auth, (user) => {
+let rolActual = "dueño"; // por defecto, hasta confirmar contra la colección "usuarios"
+let miUid = null;
+
+onAuthStateChanged(auth, async (user) => {
   const loginOverlay = document.getElementById("login-overlay");
   const app = document.getElementById("app");
   if (user) {
+    miUid = user.uid;
+    try {
+      const snapRol = await getDoc(doc(db, "usuarios", user.uid));
+      rolActual = snapRol.exists() ? snapRol.data().rol || "dueño" : "dueño";
+    } catch (err) {
+      console.error("No se pudo verificar el rol, se asume dueño:", err);
+      rolActual = "dueño";
+    }
+    aplicarPermisosPorRol();
     loginOverlay.classList.add("oculto");
     app.classList.remove("oculto");
     iniciarSuscripcionesFirestore();
@@ -578,6 +653,17 @@ onAuthStateChanged(auth, (user) => {
     app.classList.add("oculto");
   }
 });
+
+function aplicarPermisosPorRol() {
+  const soloDueño = ["inventario", "clientes", "caja", "estadisticas", "usuarios"];
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    const restringida = soloDueño.includes(btn.dataset.tab);
+    btn.classList.toggle("oculto", restringida && rolActual !== "dueño");
+  });
+  if (rolActual !== "dueño") {
+    document.querySelector('.tab-btn[data-tab="facturacion"]').click();
+  }
+}
 
 /* =====================================================================
    NAVEGACIÓN ENTRE TABS
@@ -936,7 +1022,7 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
         if (!snapProd.exists() || Number(snapProd.data().stock) < unidadesNecesarias) {
           throw new Error(`Stock insuficiente para "${item.nombre}".`);
         }
-        refsProductos.push({ ref: refProd, item, unidadesNecesarias });
+        refsProductos.push({ ref: refProd, item, unidadesNecesarias, costoUnitario: Number(snapProd.data().costoCompra) || 0 });
       }
 
       // 1. Actualizar consecutivo
@@ -948,6 +1034,9 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
       });
 
       // 3. Registrar factura
+      const costosPorId = {};
+      refsProductos.forEach(({ item, costoUnitario }) => { costosPorId[item.id] = costoUnitario; });
+
       const refFactura = doc(collection(db, "facturas"));
       const facturaData = {
         numero: siguienteNumero,
@@ -963,7 +1052,9 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
           unidadesConsumidas: unidadesConsumidasItem(i),
           subtotal: subtotalItemFactura(i),
           ivaPorcentaje: i.ivaPorcentaje || 0,
-          iva: ivaItemFactura(i)
+          iva: ivaItemFactura(i),
+          costoUnitario: costosPorId[i.id] || 0,
+          costoTotal: (costosPorId[i.id] || 0) * unidadesConsumidasItem(i)
         })),
         subtotal,
         iva: ivaTotal,
@@ -1642,6 +1733,7 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
     stock: Number(document.getElementById("p-stock").value) || 0,
     stockMinimo: Number(document.getElementById("p-stock-minimo").value) || 5,
     ivaPorcentaje: Number(document.getElementById("p-iva").value) || 0,
+    costoCompra: Number(document.getElementById("p-costo").value) || 0,
     imagen: imagenesActuales[0] || "",
     imagenes: imagenesActuales,
     visibleEnTienda: document.getElementById("p-visible-tienda").checked,
@@ -1731,6 +1823,7 @@ function limpiarFormularioProducto() {
   document.getElementById("p-stock").value = "";
   document.getElementById("p-stock-minimo").value = "5";
   document.getElementById("p-iva").value = "19";
+  document.getElementById("p-costo").value = "";
   document.getElementById("p-imagen").value = "";
   imagenesActuales = [];
   renderPreviewImagenes();
@@ -1833,6 +1926,7 @@ function cargarProductoParaEditar(id) {
 
   document.getElementById("p-stock").value = p.stock;
   document.getElementById("p-iva").value = p.ivaPorcentaje ?? 19;
+  document.getElementById("p-costo").value = p.costoCompra ?? "";
   document.getElementById("p-stock-minimo").value = p.stockMinimo ?? 5;
   document.getElementById("p-imagen").value = p.imagen || "";
   imagenesActuales = Array.isArray(p.imagenes) && p.imagenes.length ? [...p.imagenes] : (p.imagen ? [p.imagen] : []);
@@ -1979,11 +2073,22 @@ async function cargarEstadisticas() {
     (acc, f) => acc + (f.items || []).reduce((a, i) => a + (i.cantidad || 0), 0),
     0
   );
+  let hayCostosSinRegistrar = false;
+  const utilidadTotal = facturas.reduce((acc, f) => {
+    return acc + (f.items || []).reduce((a, i) => {
+      if (!i.costoUnitario) hayCostosSinRegistrar = true;
+      return a + (i.subtotal || 0) - (i.costoTotal || 0);
+    }, 0);
+  }, 0);
 
   document.getElementById("stats-total-ventas").textContent = formatCOP(totalVentas);
   document.getElementById("stats-num-facturas").textContent = numFacturas;
   document.getElementById("stats-ticket-promedio").textContent = formatCOP(ticketPromedio);
   document.getElementById("stats-unidades").textContent = unidadesVendidas;
+  document.getElementById("stats-utilidad").textContent = formatCOP(utilidadTotal);
+  document.getElementById("stats-utilidad-nota").textContent = hayCostosSinRegistrar
+    ? "⚠️ Algunos productos no tienen costo de compra registrado — la utilidad real es probablemente mayor de lo que muestra este número. Ve a Inventario y completa el campo \"Costo de compra\" en cada producto."
+    : "";
 
   // Ventas por día
   const ventasPorDia = {};
@@ -2003,10 +2108,11 @@ async function cargarEstadisticas() {
   facturas.forEach((f) => {
     (f.items || []).forEach((i) => {
       if (!productosAgregados[i.nombre]) {
-        productosAgregados[i.nombre] = { unidades: 0, ingresos: 0 };
+        productosAgregados[i.nombre] = { unidades: 0, ingresos: 0, costo: 0 };
       }
       productosAgregados[i.nombre].unidades += i.cantidad || 0;
       productosAgregados[i.nombre].ingresos += i.subtotal || 0;
+      productosAgregados[i.nombre].costo += i.costoTotal || 0;
     });
   });
   const topProductos = Object.entries(productosAgregados)
@@ -2018,9 +2124,9 @@ async function cargarEstadisticas() {
   tbody.innerHTML = topProductos
     .map(
       ([nombre, datos], idx) =>
-        `<tr><td>${idx + 1}</td><td>${nombre}</td><td>${datos.unidades}</td><td>${formatCOP(datos.ingresos)}</td></tr>`
+        `<tr><td>${idx + 1}</td><td>${nombre}</td><td>${datos.unidades}</td><td>${formatCOP(datos.ingresos)}</td><td>${formatCOP(datos.ingresos - datos.costo)}</td></tr>`
     )
-    .join("") || `<tr><td colspan="4" style="text-align:center;color:#999;">Sin datos en este rango.</td></tr>`;
+    .join("") || `<tr><td colspan="5" style="text-align:center;color:#999;">Sin datos en este rango.</td></tr>`;
 
   // Gráficos (requiere que Chart.js ya haya cargado)
   if (typeof Chart === "undefined") {
@@ -2207,6 +2313,32 @@ document.getElementById("btn-export-json-ventas").addEventListener("click", asyn
   descargarJSON(facturas, `ventas_puntofrio_${Date.now()}.json`);
 });
 
+document.getElementById("btn-backup-completo").addEventListener("click", async () => {
+  try {
+    mostrarToast("⏳ Generando backup, un momento...");
+    const [productosSnap, clientesSnap, facturasSnap, configSnap] = await Promise.all([
+      getDocs(collection(db, "productos")),
+      getDocs(collection(db, "clientes")),
+      getDocs(collection(db, "facturas")),
+      getDocs(collection(db, "config"))
+    ]);
+
+    const backup = {
+      generadoEn: new Date().toISOString(),
+      productos: productosSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      clientes: clientesSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      facturas: facturasSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+      config: configSnap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    };
+
+    descargarJSON(backup, `backup_puntofrio_${new Date().toISOString().slice(0, 10)}.json`);
+    mostrarToast("✅ Backup descargado correctamente.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error generando el backup.");
+  }
+});
+
 /* =====================================================================
    MÓDULO C — CIERRE DE CAJA DIARIO
 ===================================================================== */
@@ -2243,6 +2375,74 @@ document.getElementById("btn-calcular-caja").addEventListener("click", async () 
 
 document.querySelector('[data-tab="caja"]').addEventListener("click", () => {
   document.getElementById("btn-calcular-caja").click();
+});
+
+/* ---------------------------------------------------------------
+   MÓDULO E: USUARIOS Y ROLES
+--------------------------------------------------------------- */
+let usuariosCache = [];
+
+function renderTablaUsuarios() {
+  const tbody = document.querySelector("#tabla-usuarios tbody");
+  if (!tbody) return;
+  tbody.innerHTML =
+    usuariosCache
+      .map(
+        (u) => `
+      <tr>
+        <td>${u.nombre || "(sin nombre)"}</td>
+        <td>${u.rol === "dueño" ? "👑 Dueño" : "🧑 Empleado"}</td>
+        <td style="font-size:0.75rem;color:var(--muted);">${u.id}</td>
+        <td><button class="btn btn-rojo" data-id="${u.id}" title="Quitar acceso">🗑</button></td>
+      </tr>`
+      )
+      .join("") || `<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:16px;">Solo tú (dueño) tienes acceso por ahora.</td></tr>`;
+
+  tbody.querySelectorAll("button[data-id]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      if (!confirm("¿Quitar el acceso de este usuario? Ya no podrá entrar al panel.")) return;
+      try {
+        await deleteDoc(doc(db, "usuarios", btn.dataset.id));
+        mostrarToast("✅ Acceso eliminado.");
+      } catch (err) {
+        console.error(err);
+        mostrarToast("❌ Error eliminando el usuario.");
+      }
+    });
+  });
+}
+
+document.querySelector('.tab-btn[data-tab="usuarios"]').addEventListener("click", () => {
+  onSnapshot(collection(db, "usuarios"), (snap) => {
+    usuariosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderTablaUsuarios();
+  });
+});
+
+document.getElementById("btn-guardar-usuario").addEventListener("click", async () => {
+  const uid = document.getElementById("u-uid").value.trim();
+  const nombre = document.getElementById("u-nombre").value.trim();
+  const rol = document.getElementById("u-rol").value;
+
+  if (!uid) {
+    mostrarToast("⚠️ Pega el UID del usuario (lo copias de Firebase Authentication).");
+    return;
+  }
+  if (uid === miUid && rol === "empleado") {
+    mostrarToast("⚠️ No puedes bajarte a ti mismo a empleado, te quedarías sin acceso al panel.");
+    return;
+  }
+
+  try {
+    await setDoc(doc(db, "usuarios", uid), { nombre, rol }, { merge: true });
+    mostrarToast("✅ Usuario guardado.");
+    document.getElementById("u-uid").value = "";
+    document.getElementById("u-nombre").value = "";
+    document.getElementById("u-rol").value = "empleado";
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error guardando el usuario.");
+  }
 });
 </script>
 </body>
