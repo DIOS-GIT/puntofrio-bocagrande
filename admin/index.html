@@ -655,7 +655,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 function aplicarPermisosPorRol() {
-  const soloDueño = ["inventario", "clientes", "caja", "estadisticas", "usuarios"];
+  const soloDueño = ["clientes", "caja", "estadisticas", "usuarios"];
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     const restringida = soloDueño.includes(btn.dataset.tab);
     btn.classList.toggle("oculto", restringida && rolActual !== "dueño");
