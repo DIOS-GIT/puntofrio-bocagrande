@@ -25,6 +25,7 @@
   --sombra: 0 1px 2px rgba(20,24,31,0.04), 0 6px 16px -6px rgba(20,24,31,0.10);
   --fuente: "Inter", "Segoe UI", sans-serif;
   --barra-oscura: #14181F; /* fija a propósito: no se invierte con el modo oscuro */
+  --zebra: #FAFAFB;
 }
 
 /* ---------- MODO OSCURO ---------- */
@@ -45,6 +46,7 @@
   --red: #E5695C;
   --red-soft: #3A1A17;
   --sombra: 0 1px 2px rgba(0,0,0,0.3), 0 6px 16px -6px rgba(0,0,0,0.5);
+  --zebra: #232A36;
 }
 
 body, .card, .admin-topbar, .tabs, .login-box {
@@ -287,9 +289,9 @@ table.tabla-factura td { font-variant-numeric: tabular-nums; }
   top: 0;
 }
 .tabla-inventario td { padding: 10px 9px; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
-.tabla-inventario tbody tr:nth-child(even) { background: #FAFAFB; }
+.tabla-inventario tbody tr:nth-child(even) { background: var(--zebra); }
 .tabla-inventario tbody tr:hover { background: var(--amber-soft); }
-.tabla-inventario tr.stock-bajo { background: #FFF6E8 !important; }
+.tabla-inventario tr.stock-bajo { background: var(--amber-soft) !important; }
 .tabla-inventario tr.stock-critico { background: var(--red-soft) !important; }
 .tabla-inventario img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
 
