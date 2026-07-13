@@ -152,26 +152,27 @@ function imagenesDe(p) {
 }
 
 /**
- * Calcula toda la info de precio para un producto según el modo (caja/suelta).
- * El envase ahora aplica tanto si se compra por caja completa como por unidad suelta.
+ * Calcula toda la info de precio para un producto según el modo (caja/sixpack/suelta).
+ * El envase solo aplica comprando la caja completa (nunca por six pack ni por unidad suelta).
  */
 function calcularPrecioInfo(p, modo) {
   const esCajaProducto = !!p.manejaCaja;
-  const esCaja = !esCajaProducto || modo !== "suelta";
-  // El envase (traer/devolver el envase vacío) solo aplica comprando la caja completa;
-  // por unidad suelta casi nunca se maneja devolución de envase, así que no se ofrece.
-  const envaseAplica = !!p.manejaEnvase && esCaja;
+  const modoReal = esCajaProducto ? modo || "caja" : "caja";
+  const envaseAplica = !!p.manejaEnvase && modoReal === "caja";
 
   let precioSin, precioCon;
-  if (esCaja) {
-    precioSin = Number(p.precio) || 0;
-    precioCon = envaseAplica ? Number(p.precioConEnvase ?? p.precio) || 0 : precioSin;
-  } else {
+  if (modoReal === "sixpack") {
+    precioSin = Number(p.precioSixpack ?? p.precio) || 0;
+    precioCon = precioSin;
+  } else if (modoReal === "suelta") {
     precioSin = Number(p.precioUnidadSuelta ?? p.precio) || 0;
     precioCon = precioSin;
+  } else {
+    precioSin = Number(p.precio) || 0;
+    precioCon = envaseAplica ? Number(p.precioConEnvase ?? p.precio) || 0 : precioSin;
   }
 
-  return { esCaja, envaseAplica, precioSin, precioCon };
+  return { modo: modoReal, envaseAplica, precioSin, precioCon };
 }
 
 /* ---------- LIGHTBOX (visor de fotos en grande) ---------- */
@@ -283,22 +284,28 @@ function renderProductos() {
 
       const esCajaProducto = !!p.manejaCaja;
       const unidadesPorCaja = Number(p.unidadesPorCaja) || 1;
+      const permiteSixpackTienda = esCajaProducto && !!p.manejaSixpack && !!p.mostrarSixpackEnTienda;
       const permiteSueltaTienda = esCajaProducto && !!p.permiteVentaSuelta && !!p.mostrarSueltaEnTienda;
-      const modoActual = permiteSueltaTienda ? (modoVentaSeleccionado[p.id] || "caja") : "caja";
-      const esCajaSeleccionada = !esCajaProducto || modoActual === "caja";
+      const opcionesModo = esCajaProducto
+        ? [
+            { valor: "caja", etiqueta: `Caja completa (${unidadesPorCaja} uds)`, precio: p.precio, factor: unidadesPorCaja },
+            permiteSixpackTienda ? { valor: "sixpack", etiqueta: `Six pack (${p.unidadesPorSixpack} uds)`, precio: p.precioSixpack, factor: Number(p.unidadesPorSixpack) || 1 } : null,
+            permiteSueltaTienda ? { valor: "suelta", etiqueta: "Unidad suelta", precio: p.precioUnidadSuelta, factor: 1 } : null
+          ].filter(Boolean)
+        : [];
+      const modoActual = esCajaProducto ? (modoVentaSeleccionado[p.id] || "caja") : "caja";
+      const factorModoActual = esCajaProducto ? (opcionesModo.find((o) => o.valor === modoActual) || opcionesModo[0]).factor : 1;
 
       const infoPrecio = calcularPrecioInfo(p, modoActual);
       const precioMostrado = conEnvase ? infoPrecio.precioCon : infoPrecio.precioSin;
 
-      const cajasDisponibles = esCajaProducto ? Math.floor(stockUnidades / unidadesPorCaja) : null;
-      const disponibleModoActual = esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles : stockUnidades) : stockUnidades;
+      const disponibleModoActual = esCajaProducto ? Math.floor(stockUnidades / factorModoActual) : stockUnidades;
       const sinStockModoActual = disponibleModoActual <= 0 || !tiendaAbierta;
 
       let stockTexto;
       if (esCajaProducto) {
-        stockTexto = esCajaSeleccionada
-          ? (cajasDisponibles > 0 ? `Disponibles: ${cajasDisponibles} caja(s)` : "Sin cajas completas")
-          : (stockUnidades > 0 ? `Disponibles: ${stockUnidades} unidad(es)` : "Sin stock");
+        const unidadEtiqueta = modoActual === "caja" ? "caja(s)" : modoActual === "sixpack" ? "six(es)" : "unidad(es)";
+        stockTexto = disponibleModoActual > 0 ? `Disponibles: ${disponibleModoActual} ${unidadEtiqueta}` : "Sin stock en este modo";
       } else {
         stockTexto = agotadoTotal ? "Sin stock" : `Disponibles: ${p.stock}`;
       }
@@ -325,10 +332,9 @@ function renderProductos() {
           <span class="nombre">${p.nombre}</span>
           <span class="precio">${formatCOPLocal(precioMostrado)}</span>
           ${
-            permiteSueltaTienda
+            opcionesModo.length > 1
               ? `<div class="selector-modo-venta" data-id="${p.id}">
-                   <label><input type="radio" name="modo-${p.id}" value="caja" ${modoActual === "caja" ? "checked" : ""} /> Caja completa (${unidadesPorCaja} uds) — ${formatCOPLocal(p.precio)}</label>
-                   <label><input type="radio" name="modo-${p.id}" value="suelta" ${modoActual === "suelta" ? "checked" : ""} /> Unidad suelta — ${formatCOPLocal(p.precioUnidadSuelta)}</label>
+                   ${opcionesModo.map((op) => `<label><input type="radio" name="modo-${p.id}" value="${op.valor}" ${modoActual === op.valor ? "checked" : ""} /> ${op.etiqueta} — ${formatCOPLocal(op.precio)}</label>`).join("")}
                  </div>`
               : (esCajaProducto ? `<span class="categoria" style="color:#1565C0;">Caja x${unidadesPorCaja}</span>` : "")
           }
@@ -407,15 +413,22 @@ function renderDetalleProducto(id) {
 
   const esCajaProducto = !!p.manejaCaja;
   const unidadesPorCaja = Number(p.unidadesPorCaja) || 1;
+  const permiteSixpackTienda = esCajaProducto && !!p.manejaSixpack && !!p.mostrarSixpackEnTienda;
   const permiteSueltaTienda = esCajaProducto && !!p.permiteVentaSuelta && !!p.mostrarSueltaEnTienda;
-  const modoActual = permiteSueltaTienda ? (modoVentaSeleccionado[id] || "caja") : "caja";
-  const esCajaSeleccionada = !esCajaProducto || modoActual === "caja";
+  const opcionesModo = esCajaProducto
+    ? [
+        { valor: "caja", etiqueta: `Caja completa (${unidadesPorCaja} uds)`, factor: unidadesPorCaja },
+        permiteSixpackTienda ? { valor: "sixpack", etiqueta: `Six pack (${p.unidadesPorSixpack} uds)`, factor: Number(p.unidadesPorSixpack) || 1 } : null,
+        permiteSueltaTienda ? { valor: "suelta", etiqueta: "Unidad suelta", factor: 1 } : null
+      ].filter(Boolean)
+    : [];
+  const modoActual = esCajaProducto ? (modoVentaSeleccionado[id] || "caja") : "caja";
+  const factorModoActual = esCajaProducto ? (opcionesModo.find((o) => o.valor === modoActual) || opcionesModo[0]).factor : 1;
 
   const infoPrecio = calcularPrecioInfo(p, modoActual);
   const precioMostrado = conEnvase ? infoPrecio.precioCon : infoPrecio.precioSin;
 
-  const cajasDisponibles = esCajaProducto ? Math.floor(stockUnidades / unidadesPorCaja) : null;
-  const disponibleModoActual = esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles : stockUnidades) : stockUnidades;
+  const disponibleModoActual = esCajaProducto ? Math.floor(stockUnidades / factorModoActual) : stockUnidades;
   const sinStockModoActual = disponibleModoActual <= 0 || !tiendaAbierta;
 
   // Tabla resumen con TODAS las combinaciones de precio disponibles para este producto
@@ -424,10 +437,13 @@ function renderDetalleProducto(id) {
     const infoCaja = calcularPrecioInfo(p, "caja");
     filasPrecio.push([`Caja completa (${unidadesPorCaja} uds)${infoCaja.envaseAplica ? " — sin envase" : ""}`, infoCaja.precioSin]);
     if (infoCaja.envaseAplica) filasPrecio.push(["Caja completa — trayendo envases", infoCaja.precioCon]);
+    if (permiteSixpackTienda) {
+      const infoSix = calcularPrecioInfo(p, "sixpack");
+      filasPrecio.push([`Six pack (${p.unidadesPorSixpack} uds)`, infoSix.precioSin]);
+    }
     if (permiteSueltaTienda) {
       const infoSuelta = calcularPrecioInfo(p, "suelta");
-      filasPrecio.push([`Unidad suelta${infoSuelta.envaseAplica ? " — sin envase" : ""}`, infoSuelta.precioSin]);
-      if (infoSuelta.envaseAplica) filasPrecio.push(["Unidad suelta — trayendo envase", infoSuelta.precioCon]);
+      filasPrecio.push(["Unidad suelta", infoSuelta.precioSin]);
     }
   } else {
     filasPrecio.push([infoPrecio.envaseAplica ? "Sin envase" : "Precio", infoPrecio.precioSin]);
@@ -460,10 +476,9 @@ function renderDetalleProducto(id) {
       </table>
 
       ${
-        permiteSueltaTienda
+        opcionesModo.length > 1
           ? `<div class="selector-modo-venta" data-id="${id}">
-               <label><input type="radio" name="modo-detalle-${id}" value="caja" ${modoActual === "caja" ? "checked" : ""} /> Caja completa (${unidadesPorCaja} uds)</label>
-               <label><input type="radio" name="modo-detalle-${id}" value="suelta" ${modoActual === "suelta" ? "checked" : ""} /> Unidad suelta</label>
+               ${opcionesModo.map((op) => `<label><input type="radio" name="modo-detalle-${id}" value="${op.valor}" ${modoActual === op.valor ? "checked" : ""} /> ${op.etiqueta}</label>`).join("")}
              </div>`
           : ""
       }
@@ -475,7 +490,7 @@ function renderDetalleProducto(id) {
              </div>`
           : ""
       }
-      <span class="stock-info">${sinStockModoActual ? "Sin stock en este modo" : `Disponibles: ${esCajaProducto ? (esCajaSeleccionada ? cajasDisponibles + " caja(s)" : stockUnidades + " unidad(es)") : p.stock}`}</span>
+      <span class="stock-info">${sinStockModoActual ? "Sin stock en este modo" : `Disponibles: ${disponibleModoActual} ${esCajaProducto ? (modoActual === "caja" ? "caja(s)" : modoActual === "sixpack" ? "six(es)" : "unidad(es)") : ""}`}</span>
       <button class="btn-agregar ${sinStockModoActual ? "agotado" : ""}" id="btn-agregar-detalle" data-id="${id}" ${sinStockModoActual ? "disabled" : ""}>
         ${!tiendaAbierta ? "Cerrado" : sinStockModoActual ? "Agotado" : "Agregar al pedido"}
       </button>
@@ -637,15 +652,21 @@ function agregarAlCarrito(id) {
 
   const esCajaProducto = !!producto.manejaCaja;
   const unidadesPorCaja = Number(producto.unidadesPorCaja) || 1;
-  const permiteSueltaTienda = esCajaProducto && !!producto.permiteVentaSuelta && !!producto.mostrarSueltaEnTienda;
-  const modoActual = permiteSueltaTienda ? (modoVentaSeleccionado[id] || "caja") : "caja";
-  const factorConsumo = esCajaProducto ? (modoActual === "caja" ? unidadesPorCaja : 1) : 1;
+  const unidadesPorSixpack = Number(producto.unidadesPorSixpack) || 1;
+  const modoActual = esCajaProducto ? (modoVentaSeleccionado[id] || "caja") : "caja";
+  const factorConsumo = esCajaProducto
+    ? modoActual === "caja"
+      ? unidadesPorCaja
+      : modoActual === "sixpack"
+      ? unidadesPorSixpack
+      : 1
+    : 1;
 
   const infoPrecio = calcularPrecioInfo(producto, modoActual);
   const conEnvase = infoPrecio.envaseAplica ? !!envaseSeleccionado[id] : false;
   const precioUnit = conEnvase ? infoPrecio.precioCon : infoPrecio.precioSin;
 
-  const key = id + (esCajaProducto ? (infoPrecio.esCaja ? "_caja" : "_suelta") : "") + (conEnvase ? "_con" : "_sin");
+  const key = id + (esCajaProducto ? "_" + infoPrecio.modo : "") + (conEnvase ? "_con" : "_sin");
 
   const unidadesUsadas = carrito
     .filter((i) => i.id === id)
@@ -663,8 +684,9 @@ function agregarAlCarrito(id) {
       precio: precioUnit,
       cantidad: 1,
       conEnvase: infoPrecio.envaseAplica ? conEnvase : null,
-      esCaja: esCajaProducto ? infoPrecio.esCaja : null,
+      modo: esCajaProducto ? infoPrecio.modo : null,
       unidadesPorCaja: esCajaProducto ? unidadesPorCaja : null,
+      unidadesPorSixpack: esCajaProducto ? unidadesPorSixpack : null,
       factorConsumo
     });
   }
@@ -689,8 +711,9 @@ function renderCarrito() {
       <div class="item-carrito" data-key="${item.key}">
         <div>
           <strong>${item.nombre}</strong>${
-            item.esCaja === true ? ` <small style="color:#1565C0;">(caja x${item.unidadesPorCaja})</small>` :
-            item.esCaja === false ? ` <small style="color:#1565C0;">(unidad suelta)</small>` : ""
+            item.modo === "caja" ? ` <small style="color:#1565C0;">(caja x${item.unidadesPorCaja})</small>` :
+            item.modo === "sixpack" ? ` <small style="color:#1565C0;">(six x${item.unidadesPorSixpack})</small>` :
+            item.modo === "suelta" ? ` <small style="color:#1565C0;">(unidad suelta)</small>` : ""
           }<br/>
           <small>${formatCOPLocal(item.precio)} c/u</small>
           ${
@@ -718,11 +741,10 @@ function renderCarrito() {
       const producto = productos.find((p) => p.id === item.id);
       if (!producto) return;
 
-      const modo = item.esCaja === false ? "suelta" : "caja";
-      const infoPrecio = calcularPrecioInfo(producto, modo);
+      const infoPrecio = calcularPrecioInfo(producto, item.modo || "caja");
       const nuevoConEnvase = chk.checked;
       const nuevoPrecio = nuevoConEnvase ? infoPrecio.precioCon : infoPrecio.precioSin;
-      const nuevaKey = item.id + (item.esCaja === true ? "_caja" : item.esCaja === false ? "_suelta" : "") + (nuevoConEnvase ? "_con" : "_sin");
+      const nuevaKey = item.id + (item.modo ? "_" + item.modo : "") + (nuevoConEnvase ? "_con" : "_sin");
 
       const hermana = carrito.find((i) => i.key === nuevaKey && i !== item);
       if (hermana) {
