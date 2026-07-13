@@ -241,9 +241,29 @@
           </label>
         </div>
         <div class="form-field oculto" id="campo-unidades-caja">
-          <label>Unidades por caja/paquete (ej: 30, 36)</label>
+          <label>Unidades por caja/paquete (ej: 24, 30, 36)</label>
           <input type="number" id="p-unidades-caja" min="1" />
-          <small style="color:#888;">El precio de arriba ("Precio sin envase") se usa como precio de la caja completa. Con este dato, el sistema ya sabe vender también por unidad suelta — no hace falta configurar nada más.</small>
+          <small style="color:#888;">El precio de arriba ("Precio sin envase") se usa como precio de la caja completa.</small>
+        </div>
+        <div class="form-field oculto" id="campo-maneja-sixpack">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="p-maneja-sixpack" style="width:auto;" />
+            También se vende por six pack (u otro paquete intermedio)
+          </label>
+        </div>
+        <div class="form-field oculto" id="campo-unidades-sixpack">
+          <label>Unidades por six pack (ej: 6)</label>
+          <input type="number" id="p-unidades-sixpack" min="1" value="6" />
+        </div>
+        <div class="form-field oculto" id="campo-precio-sixpack">
+          <label>Precio del six pack (sugerido automáticamente, puedes ajustarlo)</label>
+          <input type="number" id="p-precio-sixpack" min="0" />
+        </div>
+        <div class="form-field oculto" id="campo-mostrar-sixpack-tienda">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="p-mostrar-sixpack-tienda" style="width:auto;" />
+            Mostrar la opción de six pack en la tienda pública
+          </label>
         </div>
         <div class="form-field oculto" id="campo-precio-suelta">
           <label>Precio por unidad suelta (sugerido automáticamente, puedes ajustarlo)</label>
@@ -780,13 +800,17 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
     .map((p) => {
       const infoEnvase = p.manejaEnvase ? ` <span style="color:#1565C0;">(con envase: ${formatCOP(p.precioConEnvase)} · sin envase: ${formatCOP(p.precio)})</span>` : "";
 
-      if (p.manejaCaja && p.permiteVentaSuelta) {
+      if (p.manejaCaja && (p.permiteVentaSuelta || p.manejaSixpack)) {
+        const botones = [`<button type="button" class="btn btn-secundario btn-agregar-modo" data-id="${p.id}" data-modo="caja" style="font-size:0.78rem;padding:6px 10px;">+ Caja (x${p.unidadesPorCaja}) — ${formatCOP(p.precio)}</button>`];
+        if (p.manejaSixpack) {
+          botones.push(`<button type="button" class="btn btn-secundario btn-agregar-modo" data-id="${p.id}" data-modo="sixpack" style="font-size:0.78rem;padding:6px 10px;">+ Six (x${p.unidadesPorSixpack}) — ${formatCOP(p.precioSixpack)}</button>`);
+        }
+        if (p.permiteVentaSuelta) {
+          botones.push(`<button type="button" class="btn btn-secundario btn-agregar-modo" data-id="${p.id}" data-modo="suelta" style="font-size:0.78rem;padding:6px 10px;">+ Unidad — ${formatCOP(p.precioUnidadSuelta)}</button>`);
+        }
         return `<div style="padding:8px;border-bottom:1px solid #eee;">
           <div style="margin-bottom:4px;">${p.nombre}${infoEnvase} (stock: ${p.stock} uds)</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <button type="button" class="btn btn-secundario btn-agregar-modo" data-id="${p.id}" data-modo="caja" style="font-size:0.78rem;padding:6px 10px;">+ Caja (x${p.unidadesPorCaja}) — ${formatCOP(p.precio)}</button>
-            <button type="button" class="btn btn-secundario btn-agregar-modo" data-id="${p.id}" data-modo="suelta" style="font-size:0.78rem;padding:6px 10px;">+ Unidad — ${formatCOP(p.precioUnidadSuelta)}</button>
-          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">${botones.join("")}</div>
         </div>`;
       }
 
@@ -807,22 +831,29 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
 
   contenedor.querySelectorAll(".btn-agregar-modo").forEach((btn) => {
     btn.addEventListener("click", () => {
-      agregarItemFactura(btn.dataset.id, btn.dataset.modo === "caja");
+      agregarItemFactura(btn.dataset.id, btn.dataset.modo);
       document.getElementById("f-buscar-producto").value = "";
       contenedor.innerHTML = "";
     });
   });
 });
 
-// Cuántas unidades reales de inventario consume un item (una caja consume "unidadesPorCaja", una suelta o un producto normal consume 1 por unidad)
-function unidadesConsumidasItem(item) {
-  const factor = item.manejaCaja ? (item.esCaja ? Number(item.unidadesPorCaja) || 1 : 1) : 1;
-  return item.cantidad * factor;
+// Factor de unidades reales de inventario que consume cada modo de venta
+function factorModo(item, modo) {
+  if (!item.manejaCaja) return 1;
+  if (modo === "caja") return Number(item.unidadesPorCaja) || 1;
+  if (modo === "sixpack") return Number(item.unidadesPorSixpack) || 1;
+  return 1; // suelta
 }
 
-// Cuántas unidades de "cantidad" caben según el stock disponible y el modo (caja/suelta) actual del item
+// Cuántas unidades reales de inventario consume un item (según su modo: caja/sixpack/suelta)
+function unidadesConsumidasItem(item) {
+  return item.cantidad * factorModo(item, item.modo);
+}
+
+// Cuántas unidades de "cantidad" caben según el stock disponible y el modo actual del item
 function maxCantidadItem(item) {
-  const factor = item.manejaCaja ? (item.esCaja ? Number(item.unidadesPorCaja) || 1 : 1) : 1;
+  const factor = factorModo(item, item.modo);
   return Math.max(0, Math.floor(item.stockDisponible / factor));
 }
 
@@ -830,9 +861,9 @@ function agregarItemFactura(idProducto, modoForzado) {
   const producto = productosCache.find((p) => p.id === idProducto);
   if (!producto) return;
   const manejaCaja = !!producto.manejaCaja;
-  // Determina el modo (caja/unidad suelta) de la línea que se va a agregar o incrementar
-  const esCajaObjetivo = manejaCaja ? (modoForzado !== undefined ? modoForzado : true) : null;
-  const existente = carritoFactura.find((i) => i.id === idProducto && i.esCaja === esCajaObjetivo);
+  // Determina el modo (caja/six/unidad suelta) de la línea que se va a agregar o incrementar
+  const modoObjetivo = manejaCaja ? (modoForzado !== undefined ? modoForzado : "caja") : null;
+  const existente = carritoFactura.find((i) => i.id === idProducto && i.modo === modoObjetivo);
 
   if (existente) {
     if (existente.cantidad < maxCantidadItem(existente)) existente.cantidad++;
@@ -847,9 +878,12 @@ function agregarItemFactura(idProducto, modoForzado) {
       conEnvase: false,
       manejaCaja,
       unidadesPorCaja: manejaCaja ? (Number(producto.unidadesPorCaja) || 1) : null,
+      manejaSixpack: manejaCaja && !!producto.manejaSixpack,
+      unidadesPorSixpack: manejaCaja ? (Number(producto.unidadesPorSixpack) || 6) : null,
+      precioSixpack: manejaCaja ? (producto.precioSixpack ?? producto.precio) : null,
       permiteVentaSuelta: manejaCaja && !!producto.permiteVentaSuelta,
       precioUnidadSuelta: manejaCaja ? (producto.precioUnidadSuelta ?? producto.precio) : null,
-      esCaja: esCajaObjetivo,
+      modo: modoObjetivo,
       ivaPorcentaje: Number(producto.ivaPorcentaje) || 0,
       cantidad: 1,
       stockDisponible: producto.stock
@@ -864,7 +898,8 @@ function agregarItemFactura(idProducto, modoForzado) {
 }
 
 function precioItemFactura(item) {
-  if (item.manejaCaja && item.esCaja === false) return item.precioUnidadSuelta;
+  if (item.manejaCaja && item.modo === "sixpack") return item.precioSixpack;
+  if (item.manejaCaja && item.modo === "suelta") return item.precioUnidadSuelta;
   return item.manejaEnvase && item.conEnvase ? item.precioConEnvase : item.precioSinEnvase;
 }
 
@@ -882,11 +917,22 @@ function renderTablaFactura() {
     .map((item, idx) => {
       const precioUnit = precioItemFactura(item);
       const maxCantidad = maxCantidadItem(item);
+      const opcionesModo = item.manejaCaja
+        ? [
+            { valor: "caja", etiqueta: `Caja (x${item.unidadesPorCaja})`, precio: item.precioSinEnvase },
+            item.manejaSixpack ? { valor: "sixpack", etiqueta: `Six (x${item.unidadesPorSixpack})`, precio: item.precioSixpack } : null,
+            item.permiteVentaSuelta ? { valor: "suelta", etiqueta: `Unidad`, precio: item.precioUnidadSuelta } : null
+          ].filter(Boolean)
+        : [];
       const modoSelector =
-        item.manejaCaja && item.permiteVentaSuelta
+        opcionesModo.length > 1
           ? `<div style="font-size:0.72rem;font-weight:400;margin-top:4px;">
-               <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="modo-factura-${idx}" class="radio-modo-factura" data-idx="${idx}" value="caja" ${item.esCaja ? "checked" : ""} style="width:auto;" /> Caja (x${item.unidadesPorCaja}) — ${formatCOP(item.precioSinEnvase)}</label>
-               <label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="modo-factura-${idx}" class="radio-modo-factura" data-idx="${idx}" value="suelta" ${!item.esCaja ? "checked" : ""} style="width:auto;" /> Unidad de ${item.nombre} — ${formatCOP(item.precioUnidadSuelta)}</label>
+               ${opcionesModo
+                 .map(
+                   (op) =>
+                     `<label style="display:flex;align-items:center;gap:4px;"><input type="radio" name="modo-factura-${idx}" class="radio-modo-factura" data-idx="${idx}" value="${op.valor}" ${item.modo === op.valor ? "checked" : ""} style="width:auto;" /> ${op.etiqueta} — ${formatCOP(op.precio)}</label>`
+                 )
+                 .join("")}
              </div>`
           : item.manejaCaja
           ? `<br><small style="color:#1565C0;">Caja x${item.unidadesPorCaja}</small>`
@@ -894,7 +940,7 @@ function renderTablaFactura() {
       return `
       <tr>
         <td>${item.nombre}${modoSelector}${
-          item.manejaEnvase
+          item.manejaEnvase && item.modo === "caja"
             ? `<br><label style="font-size:0.72rem;font-weight:400;display:flex;align-items:center;gap:4px;">
                  <input type="checkbox" class="chk-envase-factura" data-idx="${idx}" ${item.conEnvase ? "checked" : ""} style="width:auto;" />
                  Trae envase (${formatCOP(item.precioConEnvase)})
@@ -923,8 +969,8 @@ function renderTablaFactura() {
     radio.addEventListener("change", (e) => {
       const idx = Number(radio.dataset.idx);
       const item = carritoFactura[idx];
-      const nuevoEsCaja = e.target.value === "caja";
-      const factorNuevo = nuevoEsCaja ? Number(item.unidadesPorCaja) || 1 : 1;
+      const nuevoModo = e.target.value;
+      const factorNuevo = factorModo(item, nuevoModo);
       const maxConNuevoModo = Math.floor(item.stockDisponible / factorNuevo);
       if (maxConNuevoModo < 1) {
         mostrarToast("⚠️ No hay stock suficiente para ese modo de venta.");
@@ -933,7 +979,7 @@ function renderTablaFactura() {
       }
 
       // Si ya hay otra línea del mismo producto en el modo destino, se fusionan en vez de chocar
-      const otraLinea = carritoFactura.find((i, i2) => i2 !== idx && i.id === item.id && i.esCaja === nuevoEsCaja);
+      const otraLinea = carritoFactura.find((i, i2) => i2 !== idx && i.id === item.id && i.modo === nuevoModo);
       if (otraLinea) {
         otraLinea.cantidad = Math.min(otraLinea.cantidad + item.cantidad, maxCantidadItem(otraLinea));
         carritoFactura.splice(idx, 1);
@@ -941,7 +987,7 @@ function renderTablaFactura() {
         return;
       }
 
-      item.esCaja = nuevoEsCaja;
+      item.modo = nuevoModo;
       if (item.cantidad > maxConNuevoModo) item.cantidad = maxConNuevoModo;
       renderTablaFactura();
     });
@@ -1046,8 +1092,9 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
           nombre: i.nombre,
           precio: precioItemFactura(i),
           conEnvase: i.manejaEnvase ? i.conEnvase : null,
-          esCaja: i.manejaCaja ? i.esCaja : null,
+          modo: i.manejaCaja ? i.modo : null,
           unidadesPorCaja: i.manejaCaja ? i.unidadesPorCaja : null,
+          unidadesPorSixpack: i.manejaSixpack ? i.unidadesPorSixpack : null,
           cantidad: i.cantidad,
           unidadesConsumidas: unidadesConsumidasItem(i),
           subtotal: subtotalItemFactura(i),
@@ -1120,8 +1167,11 @@ function mostrarBotonesFacturaGenerada(factura) {
 
 function nombreConEnvase(item) {
   let nombre = item.nombre;
-  if (item.esCaja === true) nombre += ` (caja x${item.unidadesPorCaja})`;
-  else if (item.esCaja === false) nombre += ` (unidad suelta)`;
+  // Compatibilidad con facturas antiguas que guardaban "esCaja" (booleano) en vez de "modo"
+  const modo = item.modo !== undefined ? item.modo : item.esCaja === true ? "caja" : item.esCaja === false ? "suelta" : null;
+  if (modo === "caja") nombre += ` (caja x${item.unidadesPorCaja})`;
+  else if (modo === "sixpack") nombre += ` (six x${item.unidadesPorSixpack})`;
+  else if (modo === "suelta") nombre += ` (unidad suelta)`;
   if (item.conEnvase === true) nombre += ` (trae envase)`;
   else if (item.conEnvase === false) nombre += ` (sin envase)`;
   return nombre;
@@ -1261,7 +1311,7 @@ function abrirEdicionFactura(factura) {
           nombre: producto.nombre,
           precio: producto.precio,
           conEnvase: producto.manejaEnvase ? false : null,
-          esCaja: manejaCaja ? true : null,
+          modo: manejaCaja ? "caja" : null,
           unidadesPorCaja,
           cantidad: 1,
           unidadesConsumidas: manejaCaja ? unidadesPorCaja : 1
@@ -1299,7 +1349,7 @@ function renderTablaEdicionFactura() {
       let val = Number(inp.value);
       if (val < 0) val = 0;
       itemsEdicion[idx].cantidad = val;
-      const factor = itemsEdicion[idx].esCaja ? (Number(itemsEdicion[idx].unidadesPorCaja) || 1) : 1;
+      const factor = itemsEdicion[idx].modo === "caja" ? (Number(itemsEdicion[idx].unidadesPorCaja) || 1) : 1;
       itemsEdicion[idx].unidadesConsumidas = val * factor;
       renderTablaEdicionFactura();
     });
@@ -1387,7 +1437,7 @@ async function guardarEdicionFactura() {
           nombre: i.nombre,
           precio: i.precio,
           conEnvase: i.conEnvase,
-          esCaja: i.esCaja ?? null,
+          modo: i.modo ?? null,
           unidadesPorCaja: i.unidadesPorCaja ?? null,
           cantidad: i.cantidad,
           unidadesConsumidas: i.unidadesConsumidas ?? i.cantidad,
@@ -1678,6 +1728,7 @@ document.getElementById("p-maneja-envase").addEventListener("change", (e) => {
 document.getElementById("p-maneja-caja").addEventListener("change", (e) => {
   const activo = e.target.checked;
   document.getElementById("campo-unidades-caja").classList.toggle("oculto", !activo);
+  document.getElementById("campo-maneja-sixpack").classList.toggle("oculto", !activo);
   document.getElementById("campo-precio-suelta").classList.toggle("oculto", !activo);
   document.getElementById("campo-mostrar-suelta-tienda").classList.toggle("oculto", !activo);
   document.getElementById("campo-stock-por-cajas").classList.toggle("oculto", !activo);
@@ -1686,8 +1737,23 @@ document.getElementById("p-maneja-caja").addEventListener("change", (e) => {
     document.getElementById("p-mostrar-suelta-tienda").checked = false;
     document.getElementById("p-precio-suelta").value = "";
     document.getElementById("p-cajas-stock").value = "";
+    document.getElementById("p-maneja-sixpack").checked = false;
+    document.getElementById("p-maneja-sixpack").dispatchEvent(new Event("change"));
   } else {
     sugerirPrecioSuelta();
+  }
+});
+
+document.getElementById("p-maneja-sixpack").addEventListener("change", (e) => {
+  const activo = e.target.checked;
+  document.getElementById("campo-unidades-sixpack").classList.toggle("oculto", !activo);
+  document.getElementById("campo-precio-sixpack").classList.toggle("oculto", !activo);
+  document.getElementById("campo-mostrar-sixpack-tienda").classList.toggle("oculto", !activo);
+  if (!activo) {
+    document.getElementById("p-precio-sixpack").value = "";
+    document.getElementById("p-mostrar-sixpack-tienda").checked = false;
+  } else {
+    sugerirPrecioSixpack();
   }
 });
 
@@ -1702,6 +1768,18 @@ function sugerirPrecioSuelta() {
 }
 document.getElementById("p-precio").addEventListener("input", sugerirPrecioSuelta);
 document.getElementById("p-unidades-caja").addEventListener("input", sugerirPrecioSuelta);
+
+function sugerirPrecioSixpack() {
+  const campoSixpack = document.getElementById("p-precio-sixpack");
+  if (campoSixpack.value) return;
+  const precioCaja = Number(document.getElementById("p-precio").value) || 0;
+  const unidadesCaja = Number(document.getElementById("p-unidades-caja").value) || 0;
+  const unidadesSixpack = Number(document.getElementById("p-unidades-sixpack").value) || 0;
+  if (precioCaja > 0 && unidadesCaja > 0 && unidadesSixpack > 0) {
+    campoSixpack.value = Math.ceil(((precioCaja / unidadesCaja) * unidadesSixpack) / 50) * 50;
+  }
+}
+document.getElementById("p-unidades-sixpack").addEventListener("input", sugerirPrecioSixpack);
 
 document.getElementById("btn-calcular-stock-cajas").addEventListener("click", () => {
   const cajas = Number(document.getElementById("p-cajas-stock").value) || 0;
@@ -1719,6 +1797,7 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
   const manejaEnvase = document.getElementById("p-maneja-envase").checked;
   const manejaCaja = document.getElementById("p-maneja-caja").checked;
   const permiteVentaSuelta = manejaCaja; // automático: si se vende por caja, siempre se puede vender también suelta
+  const manejaSixpack = manejaCaja && document.getElementById("p-maneja-sixpack").checked;
   const data = {
     nombre: document.getElementById("p-nombre").value.trim(),
     categoria: document.getElementById("p-categoria").value,
@@ -1727,6 +1806,10 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
     precioConEnvase: manejaEnvase ? (Number(document.getElementById("p-precio-envase").value) || 0) : null,
     manejaCaja,
     unidadesPorCaja: manejaCaja ? (Number(document.getElementById("p-unidades-caja").value) || 1) : null,
+    manejaSixpack,
+    unidadesPorSixpack: manejaSixpack ? (Number(document.getElementById("p-unidades-sixpack").value) || 6) : null,
+    precioSixpack: manejaSixpack ? (Number(document.getElementById("p-precio-sixpack").value) || 0) : null,
+    mostrarSixpackEnTienda: manejaSixpack ? document.getElementById("p-mostrar-sixpack-tienda").checked : false,
     permiteVentaSuelta,
     precioUnidadSuelta: permiteVentaSuelta ? (Number(document.getElementById("p-precio-suelta").value) || 0) : null,
     mostrarSueltaEnTienda: permiteVentaSuelta ? document.getElementById("p-mostrar-suelta-tienda").checked : false,
@@ -1813,6 +1896,14 @@ function limpiarFormularioProducto() {
   document.getElementById("p-maneja-caja").checked = false;
   document.getElementById("p-unidades-caja").value = "";
   document.getElementById("campo-unidades-caja").classList.add("oculto");
+  document.getElementById("campo-maneja-sixpack").classList.add("oculto");
+  document.getElementById("p-maneja-sixpack").checked = false;
+  document.getElementById("p-unidades-sixpack").value = "6";
+  document.getElementById("campo-unidades-sixpack").classList.add("oculto");
+  document.getElementById("p-precio-sixpack").value = "";
+  document.getElementById("campo-precio-sixpack").classList.add("oculto");
+  document.getElementById("p-mostrar-sixpack-tienda").checked = false;
+  document.getElementById("campo-mostrar-sixpack-tienda").classList.add("oculto");
   document.getElementById("p-precio-suelta").value = "";
   document.getElementById("campo-precio-suelta").classList.add("oculto");
   document.getElementById("p-mostrar-suelta-tienda").checked = false;
@@ -1864,6 +1955,12 @@ function renderTablaInventario(filtro = "") {
       const cajasDisponibles = p.manejaCaja ? Math.floor((Number(p.stock) || 0) / (Number(p.unidadesPorCaja) || 1)) : null;
       const infoCaja = p.manejaCaja
         ? `<br><small style="color:#1565C0;">Caja x${p.unidadesPorCaja} (${cajasDisponibles} cajas disp.)</small>${
+            p.manejaSixpack
+              ? `<br><small style="color:#1565C0;">Six x${p.unidadesPorSixpack}: ${formatCOP(p.precioSixpack)}${
+                  p.mostrarSixpackEnTienda ? " · visible en tienda" : " · solo en facturación"
+                }</small>`
+              : ""
+          }${
             p.permiteVentaSuelta
               ? `<br><small style="color:#1565C0;">Unidad de ${p.nombre}: ${formatCOP(p.precioUnidadSuelta)}${
                   p.mostrarSueltaEnTienda ? " · visible en tienda" : " · solo en facturación"
@@ -1916,6 +2013,14 @@ function cargarProductoParaEditar(id) {
   document.getElementById("p-maneja-caja").checked = !!p.manejaCaja;
   document.getElementById("p-unidades-caja").value = p.unidadesPorCaja ?? "";
   document.getElementById("campo-unidades-caja").classList.toggle("oculto", !p.manejaCaja);
+  document.getElementById("campo-maneja-sixpack").classList.toggle("oculto", !p.manejaCaja);
+  document.getElementById("p-maneja-sixpack").checked = !!p.manejaSixpack;
+  document.getElementById("p-unidades-sixpack").value = p.unidadesPorSixpack ?? 6;
+  document.getElementById("campo-unidades-sixpack").classList.toggle("oculto", !p.manejaSixpack);
+  document.getElementById("p-precio-sixpack").value = p.precioSixpack ?? "";
+  document.getElementById("campo-precio-sixpack").classList.toggle("oculto", !p.manejaSixpack);
+  document.getElementById("p-mostrar-sixpack-tienda").checked = !!p.mostrarSixpackEnTienda;
+  document.getElementById("campo-mostrar-sixpack-tienda").classList.toggle("oculto", !p.manejaSixpack);
   document.getElementById("p-precio-suelta").value = p.precioUnidadSuelta ?? "";
   document.getElementById("campo-precio-suelta").classList.toggle("oculto", !p.manejaCaja);
   document.getElementById("p-mostrar-suelta-tienda").checked = !!p.mostrarSueltaEnTienda;
