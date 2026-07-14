@@ -59,12 +59,38 @@
 
     <div class="contenido-admin">
 
-  <!-- ============ INICIO (resumen del día — próximamente) ============ -->
+  <!-- ============ INICIO: RESUMEN NAVEGABLE POR DÍA ============ -->
   <section class="admin-panel activo" id="panel-inicio">
     <h2 class="panel-titulo">Inicio</h2>
-    <div class="card" style="text-align:center;padding:40px 20px;color:var(--muted);">
-      <p style="font-size:1rem;margin-bottom:6px;">🚧 Próximamente</p>
-      <p style="font-size:0.85rem;">Aquí vas a poder ver el resumen de ventas de cualquier día, no solo hoy.</p>
+
+    <div class="card">
+      <div class="nav-fecha">
+        <button type="button" class="btn btn-secundario" id="btn-dia-anterior" title="Día anterior">‹</button>
+        <button type="button" class="btn btn-secundario" id="btn-elegir-fecha-inicio">
+          📅 <span id="inicio-fecha-texto">Hoy</span>
+        </button>
+        <button type="button" class="btn btn-secundario" id="btn-dia-siguiente" title="Día siguiente">›</button>
+        <button type="button" class="btn btn-secundario" id="btn-ir-hoy">Hoy</button>
+      </div>
+
+      <div class="resumen-caja" style="margin-top:18px;">
+        <div class="caja-metric"><div class="valor" id="inicio-total-ventas">$ 0</div><div class="label">VENTAS DEL DÍA</div></div>
+        <div class="caja-metric"><div class="valor" id="inicio-num-facturas">0</div><div class="label"># Facturas</div></div>
+        <div class="caja-metric"><div class="valor" id="inicio-ticket-promedio">$ 0</div><div class="label">Ticket promedio</div></div>
+        <div class="caja-metric"><div class="valor" id="inicio-unidades">0</div><div class="label">Unidades vendidas</div></div>
+        <div class="caja-metric" style="border-left-color:var(--green);"><div class="valor" id="inicio-utilidad">$ 0</div><div class="label">Utilidad estimada</div></div>
+      </div>
+      <small id="inicio-sin-ventas" class="oculto" style="display:block;margin-top:12px;color:var(--muted);">No hay ventas registradas ese día.</small>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:10px;">Productos vendidos ese día</h3>
+      <div style="overflow-x:auto;">
+        <table class="tabla-factura" id="tabla-inicio-productos">
+          <thead><tr><th>#</th><th>Producto</th><th>Unidades</th><th>Ingresos</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </section>
 
@@ -437,7 +463,9 @@
       <div class="card">
         <div class="form-field" style="max-width:220px;">
           <label>Fecha</label>
-          <input type="date" id="caja-fecha" />
+          <button type="button" class="btn btn-secundario" id="btn-elegir-fecha-caja" style="width:100%;text-align:left;">
+            📅 <span id="caja-fecha-texto">Hoy</span>
+          </button>
         </div>
         <button class="btn btn-primario" id="btn-calcular-caja">🔄 Calcular Cierre</button>
 
@@ -621,6 +649,23 @@
 </div>
 
 <!-- Modal para ver la factura sin descargarla -->
+<!-- Calendario personalizado: resalta los días que tuvieron ventas -->
+<div class="modal-overlay-factura" id="modal-calendario-overlay">
+  <div class="modal-factura-caja" style="max-width:320px;padding:20px;">
+    <button class="btn-cerrar-modal-factura" id="btn-cerrar-calendario" title="Cerrar">✕</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <button type="button" id="calendario-mes-anterior" class="btn btn-secundario" style="padding:4px 10px;">‹</button>
+      <strong id="calendario-ventas-titulo" style="text-transform:capitalize;font-size:0.92rem;"></strong>
+      <button type="button" id="calendario-mes-siguiente" class="btn btn-secundario" style="padding:4px 10px;">›</button>
+    </div>
+    <div class="calendario-dias-header">
+      <span>D</span><span>L</span><span>M</span><span>M</span><span>J</span><span>V</span><span>S</span>
+    </div>
+    <div class="calendario-grid" id="calendario-ventas-grid"></div>
+    <small style="display:block;margin-top:12px;color:var(--muted);">🟠 Día con ventas registradas</small>
+  </div>
+</div>
+
 <div class="modal-overlay-factura" id="modal-factura-overlay">
   <div class="modal-factura-caja">
     <button class="btn-cerrar-modal-factura" id="btn-cerrar-modal-factura" title="Cerrar">✕</button>
@@ -800,6 +845,7 @@ sidebarOverlayEl.addEventListener("click", cerrarSidebarMovil);
    SUSCRIPCIÓN EN TIEMPO REAL A PRODUCTOS
 ===================================================================== */
 function iniciarSuscripcionesFirestore() {
+  cargarResumenDia(new Date());
   onSnapshot(collection(db, "productos"), (snap) => {
     productosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderTablaInventario(document.getElementById("buscar-inventario")?.value || "");
@@ -2544,18 +2590,188 @@ document.getElementById("btn-backup-completo").addEventListener("click", async (
 });
 
 /* =====================================================================
+   CALENDARIO PERSONALIZADO: resalta días con ventas registradas
+   (se usa tanto en Inicio como en Cierre de Caja)
+===================================================================== */
+let calendarioMesActual = new Date();
+let calendarioOnSeleccionar = null;
+let calendarioFechaSeleccionada = new Date();
+let diasConVentasCache = null; // Set de "YYYY-MM-DD"
+let facturasCacheGeneral = null; // reutilizado por Inicio/Caja/Calendario para no repetir consultas
+
+function claveFecha(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+
+async function obtenerFacturasCache(forzarRecarga = false) {
+  if (!facturasCacheGeneral || forzarRecarga) {
+    facturasCacheGeneral = await obtenerTodasLasFacturas();
+    diasConVentasCache = new Set();
+    facturasCacheGeneral.forEach((f) => {
+      if (f.fecha?.toDate) diasConVentasCache.add(claveFecha(f.fecha.toDate()));
+    });
+  }
+  return facturasCacheGeneral;
+}
+
+async function abrirCalendarioVentas(fechaInicial, onSeleccionar) {
+  calendarioFechaSeleccionada = fechaInicial;
+  calendarioMesActual = new Date(fechaInicial.getFullYear(), fechaInicial.getMonth(), 1);
+  calendarioOnSeleccionar = onSeleccionar;
+  await obtenerFacturasCache();
+  document.getElementById("modal-calendario-overlay").classList.add("abierto");
+  renderCalendarioVentas();
+}
+
+function renderCalendarioVentas() {
+  const cont = document.getElementById("calendario-ventas-grid");
+  document.getElementById("calendario-ventas-titulo").textContent = calendarioMesActual.toLocaleDateString("es-CO", {
+    month: "long",
+    year: "numeric"
+  });
+
+  const primerDia = new Date(calendarioMesActual.getFullYear(), calendarioMesActual.getMonth(), 1);
+  const ultimoDia = new Date(calendarioMesActual.getFullYear(), calendarioMesActual.getMonth() + 1, 0);
+  const offsetInicio = primerDia.getDay();
+
+  const celdas = [];
+  for (let i = 0; i < offsetInicio; i++) celdas.push(null);
+  for (let d = 1; d <= ultimoDia.getDate(); d++) celdas.push(d);
+
+  const hoyClave = claveFecha(new Date());
+  const seleccionadaClave = claveFecha(calendarioFechaSeleccionada);
+
+  cont.innerHTML = celdas
+    .map((d) => {
+      if (!d) return `<span class="dia-calendario vacio"></span>`;
+      const fecha = new Date(calendarioMesActual.getFullYear(), calendarioMesActual.getMonth(), d);
+      const clave = claveFecha(fecha);
+      const clases = [
+        "dia-calendario",
+        diasConVentasCache?.has(clave) ? "con-ventas" : "",
+        clave === hoyClave ? "hoy" : "",
+        clave === seleccionadaClave ? "seleccionado" : ""
+      ]
+        .filter(Boolean)
+        .join(" ");
+      return `<button type="button" class="${clases}" data-fecha="${clave}">${d}</button>`;
+    })
+    .join("");
+
+  cont.querySelectorAll(".dia-calendario:not(.vacio)").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const [y, m, d] = btn.dataset.fecha.split("-").map(Number);
+      document.getElementById("modal-calendario-overlay").classList.remove("abierto");
+      if (calendarioOnSeleccionar) calendarioOnSeleccionar(new Date(y, m - 1, d));
+    });
+  });
+}
+
+document.getElementById("calendario-mes-anterior").addEventListener("click", () => {
+  calendarioMesActual.setMonth(calendarioMesActual.getMonth() - 1);
+  renderCalendarioVentas();
+});
+document.getElementById("calendario-mes-siguiente").addEventListener("click", () => {
+  calendarioMesActual.setMonth(calendarioMesActual.getMonth() + 1);
+  renderCalendarioVentas();
+});
+document.getElementById("btn-cerrar-calendario").addEventListener("click", () => {
+  document.getElementById("modal-calendario-overlay").classList.remove("abierto");
+});
+
+function formatoFechaCorta(fecha) {
+  const hoy = new Date();
+  const ayer = new Date();
+  ayer.setDate(hoy.getDate() - 1);
+  if (claveFecha(fecha) === claveFecha(hoy)) return "Hoy";
+  if (claveFecha(fecha) === claveFecha(ayer)) return "Ayer";
+  return fecha.toLocaleDateString("es-CO", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+/* =====================================================================
+   MÓDULO INICIO — RESUMEN NAVEGABLE POR DÍA
+===================================================================== */
+let fechaInicioSeleccionada = new Date();
+
+async function cargarResumenDia(fecha) {
+  fechaInicioSeleccionada = fecha;
+  document.getElementById("inicio-fecha-texto").textContent = formatoFechaCorta(fecha);
+
+  const inicio = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0);
+  const fin = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59);
+
+  const facturas = await obtenerFacturasCache();
+  const delDia = facturas.filter((f) => {
+    if (!f.fecha?.toDate) return false;
+    const fechaFactura = f.fecha.toDate();
+    return fechaFactura >= inicio && fechaFactura <= fin;
+  });
+
+  const totalVentas = delDia.reduce((acc, f) => acc + (f.total || 0), 0);
+  const numFacturas = delDia.length;
+  const ticketPromedio = numFacturas > 0 ? totalVentas / numFacturas : 0;
+  const unidadesVendidas = delDia.reduce((acc, f) => acc + (f.items || []).reduce((a, i) => a + (i.cantidad || 0), 0), 0);
+  const utilidad = delDia.reduce(
+    (acc, f) => acc + (f.items || []).reduce((a, i) => a + (i.subtotal || 0) - (i.costoTotal || 0), 0),
+    0
+  );
+
+  document.getElementById("inicio-total-ventas").textContent = formatCOP(totalVentas);
+  document.getElementById("inicio-num-facturas").textContent = numFacturas;
+  document.getElementById("inicio-ticket-promedio").textContent = formatCOP(ticketPromedio);
+  document.getElementById("inicio-unidades").textContent = unidadesVendidas;
+  document.getElementById("inicio-utilidad").textContent = formatCOP(utilidad);
+  document.getElementById("inicio-sin-ventas").classList.toggle("oculto", numFacturas > 0);
+
+  const productosAgregados = {};
+  delDia.forEach((f) => {
+    (f.items || []).forEach((i) => {
+      if (!productosAgregados[i.nombre]) productosAgregados[i.nombre] = { unidades: 0, ingresos: 0 };
+      productosAgregados[i.nombre].unidades += i.cantidad || 0;
+      productosAgregados[i.nombre].ingresos += i.subtotal || 0;
+    });
+  });
+  const topDelDia = Object.entries(productosAgregados).sort((a, b) => b[1].unidades - a[1].unidades);
+  const tbody = document.querySelector("#tabla-inicio-productos tbody");
+  tbody.innerHTML =
+    topDelDia
+      .map(([nombre, datos], idx) => `<tr><td>${idx + 1}</td><td>${nombre}</td><td>${datos.unidades}</td><td>${formatCOP(datos.ingresos)}</td></tr>`)
+      .join("") || `<tr><td colspan="4" style="text-align:center;color:var(--muted);">Sin productos vendidos ese día.</td></tr>`;
+}
+
+document.getElementById("btn-dia-anterior").addEventListener("click", () => {
+  const nueva = new Date(fechaInicioSeleccionada);
+  nueva.setDate(nueva.getDate() - 1);
+  cargarResumenDia(nueva);
+});
+document.getElementById("btn-dia-siguiente").addEventListener("click", () => {
+  const nueva = new Date(fechaInicioSeleccionada);
+  nueva.setDate(nueva.getDate() + 1);
+  cargarResumenDia(nueva);
+});
+document.getElementById("btn-ir-hoy").addEventListener("click", () => cargarResumenDia(new Date()));
+document.getElementById("btn-elegir-fecha-inicio").addEventListener("click", () => {
+  abrirCalendarioVentas(fechaInicioSeleccionada, (fecha) => cargarResumenDia(fecha));
+});
+
+document.querySelector('.sidebar-link[data-tab="inicio"]').addEventListener("click", async () => {
+  await obtenerFacturasCache(true); // refresca por si hubo ventas nuevas desde que se abrió el panel
+  cargarResumenDia(fechaInicioSeleccionada);
+});
+
+/* =====================================================================
    MÓDULO C — CIERRE DE CAJA DIARIO
 ===================================================================== */
-document.getElementById("caja-fecha").valueAsDate = new Date();
+let fechaCajaSeleccionada = new Date();
 
-document.getElementById("btn-calcular-caja").addEventListener("click", async () => {
-  const fechaInput = document.getElementById("caja-fecha").value;
-  if (!fechaInput) return;
+async function calcularCierreCaja(fecha) {
+  fechaCajaSeleccionada = fecha;
+  document.getElementById("caja-fecha-texto").textContent = formatoFechaCorta(fecha);
 
-  const inicio = new Date(fechaInput + "T00:00:00");
-  const fin = new Date(fechaInput + "T23:59:59");
+  const inicio = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0);
+  const fin = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59);
 
-  const facturas = await obtenerTodasLasFacturas();
+  const facturas = await obtenerFacturasCache();
   const delDia = facturas.filter((f) => {
     if (!f.fecha?.toDate) return false;
     const fechaFactura = f.fecha.toDate();
@@ -2575,10 +2791,20 @@ document.getElementById("btn-calcular-caja").addEventListener("click", async () 
   document.getElementById("caja-daviplata").textContent = formatCOP(totales.Daviplata);
   document.getElementById("caja-tarjeta").textContent = formatCOP(totales.Tarjeta);
   document.getElementById("caja-num-facturas").textContent = delDia.length;
+}
+
+document.getElementById("btn-calcular-caja").addEventListener("click", async () => {
+  await obtenerFacturasCache(true);
+  calcularCierreCaja(fechaCajaSeleccionada);
 });
 
-document.querySelector('.subtab-btn[data-subtab="caja"]').addEventListener("click", () => {
-  document.getElementById("btn-calcular-caja").click();
+document.getElementById("btn-elegir-fecha-caja").addEventListener("click", () => {
+  abrirCalendarioVentas(fechaCajaSeleccionada, (fecha) => calcularCierreCaja(fecha));
+});
+
+document.querySelector('.subtab-btn[data-subtab="caja"]').addEventListener("click", async () => {
+  await obtenerFacturasCache(true);
+  calcularCierreCaja(fechaCajaSeleccionada);
 });
 
 /* ---------------------------------------------------------------
