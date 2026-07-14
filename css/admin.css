@@ -494,3 +494,57 @@ canvas { max-width: 100%; }
   color: var(--ink-soft);
 }
 .btn-cerrar-modal-factura:hover { background: #EAECEF; }
+
+/* ---------- NAVEGACIÓN DE FECHA (Inicio / Cierre de Caja) ---------- */
+.nav-fecha {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.nav-fecha #btn-elegir-fecha-inicio,
+.nav-fecha #btn-elegir-fecha-caja {
+  flex: 1;
+  min-width: 160px;
+  text-align: center;
+}
+
+/* ---------- CALENDARIO PERSONALIZADO ---------- */
+.calendario-dias-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.calendario-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.dia-calendario {
+  aspect-ratio: 1;
+  border: none;
+  background: none;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: var(--fuente);
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dia-calendario:hover { background: var(--bg); }
+.dia-calendario.vacio { cursor: default; }
+.dia-calendario.con-ventas {
+  background: var(--amber-soft);
+  color: var(--amber-deep);
+  font-weight: 700;
+}
+.dia-calendario.hoy { border: 1.5px solid var(--amber); }
+.dia-calendario.seleccionado { background: var(--amber); color: #fff; }
