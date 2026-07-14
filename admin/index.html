@@ -36,24 +36,40 @@
 <div id="app" class="oculto">
 
   <div class="admin-topbar">
-    <h1>🧊 Punto Frío Bocagrande — Admin</h1>
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button id="btn-toggle-sidebar" class="btn-hamburguesa" title="Menú" aria-label="Abrir menú">☰</button>
+      <h1>🧊 Punto Frío Bocagrande</h1>
+    </div>
     <div style="display:flex;gap:8px;align-items:center;">
       <button id="btn-tema-admin" title="Cambiar a modo oscuro">🌙</button>
       <button id="btn-logout">Cerrar sesión</button>
     </div>
   </div>
 
-  <nav class="tabs">
-    <button class="tab-btn activo" data-tab="facturacion">🧾 Facturación</button>
-    <button class="tab-btn" data-tab="inventario">📦 Inventario y Reportes</button>
-    <button class="tab-btn" data-tab="clientes">👤 Clientes</button>
-    <button class="tab-btn" data-tab="caja">💰 Cierre de Caja</button>
-    <button class="tab-btn" data-tab="estadisticas">📈 Estadísticas</button>
-    <button class="tab-btn" data-tab="usuarios">🔑 Usuarios</button>
-  </nav>
+  <div class="layout-admin">
+    <div class="sidebar-overlay" id="sidebar-overlay"></div>
+    <nav class="sidebar" id="sidebar">
+      <button class="sidebar-link activo" data-tab="inicio">🏠 <span>Inicio</span></button>
+      <button class="sidebar-link" data-tab="inventario">📦 <span>Inventario</span></button>
+      <button class="sidebar-link" data-tab="clientes">👥 <span>Clientes</span></button>
+      <button class="sidebar-link" data-tab="facturacion">🧾 <span>Facturación</span></button>
+      <button class="sidebar-link" data-tab="reportes">📊 <span>Reportes</span></button>
+      <button class="sidebar-link" data-tab="configuracion">⚙️ <span>Configuración</span></button>
+    </nav>
+
+    <div class="contenido-admin">
+
+  <!-- ============ INICIO (resumen del día — próximamente) ============ -->
+  <section class="admin-panel activo" id="panel-inicio">
+    <h2 class="panel-titulo">Inicio</h2>
+    <div class="card" style="text-align:center;padding:40px 20px;color:var(--muted);">
+      <p style="font-size:1rem;margin-bottom:6px;">🚧 Próximamente</p>
+      <p style="font-size:0.85rem;">Aquí vas a poder ver el resumen de ventas de cualquier día, no solo hoy.</p>
+    </div>
+  </section>
 
   <!-- ============ MÓDULO A: FACTURACIÓN ============ -->
-  <section class="admin-panel activo" id="panel-facturacion">
+  <section class="admin-panel" id="panel-facturacion">
     <h2 class="panel-titulo">Facturación y Clientes (DIAN Colombia)</h2>
 
     <div class="grid-2">
@@ -134,70 +150,7 @@
 
   <!-- ============ MÓDULO B: INVENTARIO Y REPORTES ============ -->
   <section class="admin-panel" id="panel-inventario">
-    <h2 class="panel-titulo">Inventario y Reportes</h2>
-
-    <div class="card">
-      <h3 style="margin-bottom:10px;">Configuración de la tienda</h3>
-      <div class="grid-2">
-        <div>
-          <div class="form-field">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-              <input type="checkbox" id="cfg-horario-activo" style="width:auto;" />
-              Aplicar horario de atención
-            </label>
-            <small>Si lo activas, fuera de este rango la tienda mostrará "Cerrado" y no dejará agregar productos.</small>
-          </div>
-          <div class="grid-2">
-            <div class="form-field">
-              <label>Abrimos a las</label>
-              <input type="time" id="cfg-hora-apertura" value="10:00" />
-            </div>
-            <div class="form-field">
-              <label>Cerramos a las</label>
-              <input type="time" id="cfg-hora-cierre" value="22:00" />
-            </div>
-          </div>
-        </div>
-        <div>
-          <div class="form-field">
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-              <input type="checkbox" id="cfg-banner-activo" style="width:auto;" />
-              Mostrar banner en la tienda (ofertas / más vendidos)
-            </label>
-          </div>
-          <div class="form-field">
-            <label>Texto del banner</label>
-            <input type="text" id="cfg-banner-texto" placeholder="Ej: 🔥 2x1 en Poker todo el fin de semana" maxlength="120" />
-            <small>Solo se muestra si la tienda está abierta. El aviso de "Cerrado" tiene prioridad.</small>
-          </div>
-        </div>
-      </div>
-
-      <h3 style="margin:16px 0 10px;border-top:1px solid var(--border);padding-top:16px;">Datos del negocio para las facturas</h3>
-      <div class="grid-2">
-        <div class="form-field">
-          <label>NIT / Cédula del negocio</label>
-          <input type="text" id="cfg-nit-negocio" placeholder="Ej: 900123456-7" />
-        </div>
-        <div class="form-field">
-          <label>Nombre de la estación / caja</label>
-          <input type="text" id="cfg-nombre-estacion" placeholder="Ej: Caja Principal" />
-        </div>
-        <div class="form-field" style="grid-column:1/-1;">
-          <label>Régimen tributario (texto que confirmes con tu contador)</label>
-          <input type="text" id="cfg-regimen-texto" placeholder="Ej: Régimen Simple de Tributación - No responsable de IVA" />
-        </div>
-        <div class="form-field" style="grid-column:1/-1;">
-          <label>Mensaje legal / notas adicionales al final del tiquete</label>
-          <textarea id="cfg-mensaje-legal" rows="2" placeholder="Ej: Este documento es un comprobante de venta, no sustituye la factura electrónica DIAN."></textarea>
-          <small>Aquí puedes poner la resolución DIAN, el régimen, o cualquier texto legal que tu contador te indique.</small>
-        </div>
-      </div>
-
-      <div class="btn-fila">
-        <button class="btn btn-primario" id="btn-guardar-config-tienda">💾 Guardar configuración</button>
-      </div>
-    </div>
+    <h2 class="panel-titulo">Inventario</h2>
 
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
@@ -471,119 +424,200 @@
   </section>
 
   <!-- ============ MÓDULO C: CIERRE DE CAJA ============ -->
-  <section class="admin-panel" id="panel-caja">
-    <h2 class="panel-titulo">Cierre de Caja Diario</h2>
-    <div class="card">
-      <div class="form-field" style="max-width:220px;">
-        <label>Fecha</label>
-        <input type="date" id="caja-fecha" />
-      </div>
-      <button class="btn btn-primario" id="btn-calcular-caja">🔄 Calcular Cierre</button>
+  <!-- ============ MÓDULO C+D: REPORTES (Caja + Estadísticas) ============ -->
+  <section class="admin-panel" id="panel-reportes">
+    <h2 class="panel-titulo">Reportes</h2>
 
-      <div class="resumen-caja" style="margin-top:18px;">
-        <div class="caja-metric"><div class="valor" id="caja-total">$ 0</div><div class="label">TOTAL DEL DÍA</div></div>
-        <div class="caja-metric"><div class="valor" id="caja-efectivo">$ 0</div><div class="label">Efectivo</div></div>
-        <div class="caja-metric"><div class="valor" id="caja-nequi">$ 0</div><div class="label">Nequi</div></div>
-        <div class="caja-metric"><div class="valor" id="caja-daviplata">$ 0</div><div class="label">Daviplata</div></div>
-        <div class="caja-metric"><div class="valor" id="caja-tarjeta">$ 0</div><div class="label">Tarjeta</div></div>
-        <div class="caja-metric"><div class="valor" id="caja-num-facturas">0</div><div class="label"># Facturas</div></div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ MÓDULO D: ESTADÍSTICAS DE VENTAS ============ -->
-  <section class="admin-panel" id="panel-estadisticas">
-    <h2 class="panel-titulo">Estadísticas de Ventas</h2>
-
-    <div class="card">
-      <div class="form-field" style="max-width:220px;">
-        <label>Rango</label>
-        <select id="stats-rango">
-          <option value="7">Últimos 7 días</option>
-          <option value="30" selected>Últimos 30 días</option>
-          <option value="90">Últimos 90 días</option>
-          <option value="0">Todo el historial</option>
-        </select>
-      </div>
-      <button class="btn btn-primario" id="btn-cargar-estadisticas">🔄 Actualizar</button>
-
-      <div class="resumen-caja" style="margin-top:18px;">
-        <div class="caja-metric"><div class="valor" id="stats-total-ventas">$ 0</div><div class="label">VENTAS TOTALES</div></div>
-        <div class="caja-metric"><div class="valor" id="stats-num-facturas">0</div><div class="label"># Facturas</div></div>
-        <div class="caja-metric"><div class="valor" id="stats-ticket-promedio">$ 0</div><div class="label">Ticket promedio</div></div>
-        <div class="caja-metric"><div class="valor" id="stats-unidades">0</div><div class="label">Unidades vendidas</div></div>
-        <div class="caja-metric" style="border-left-color:var(--green);"><div class="valor" id="stats-utilidad">$ 0</div><div class="label">Utilidad estimada</div></div>
-      </div>
-      <small id="stats-utilidad-nota" style="color:var(--muted);display:block;margin-top:8px;"></small>
+    <div class="subtabs">
+      <button class="subtab-btn activo" data-subtab="caja">💰 Cierre de Caja</button>
+      <button class="subtab-btn" data-subtab="estadisticas">📈 Estadísticas</button>
     </div>
 
-    <div class="grid-2">
+    <div class="subpanel activo" id="subpanel-caja">
       <div class="card">
-        <h3 style="margin-bottom:10px;">Ventas por día</h3>
-        <canvas id="grafico-ventas-dia" height="220"></canvas>
+        <div class="form-field" style="max-width:220px;">
+          <label>Fecha</label>
+          <input type="date" id="caja-fecha" />
+        </div>
+        <button class="btn btn-primario" id="btn-calcular-caja">🔄 Calcular Cierre</button>
+
+        <div class="resumen-caja" style="margin-top:18px;">
+          <div class="caja-metric"><div class="valor" id="caja-total">$ 0</div><div class="label">TOTAL DEL DÍA</div></div>
+          <div class="caja-metric"><div class="valor" id="caja-efectivo">$ 0</div><div class="label">Efectivo</div></div>
+          <div class="caja-metric"><div class="valor" id="caja-nequi">$ 0</div><div class="label">Nequi</div></div>
+          <div class="caja-metric"><div class="valor" id="caja-daviplata">$ 0</div><div class="label">Daviplata</div></div>
+          <div class="caja-metric"><div class="valor" id="caja-tarjeta">$ 0</div><div class="label">Tarjeta</div></div>
+          <div class="caja-metric"><div class="valor" id="caja-num-facturas">0</div><div class="label"># Facturas</div></div>
+        </div>
       </div>
+    </div>
+
+    <div class="subpanel" id="subpanel-estadisticas">
       <div class="card">
-        <h3 style="margin-bottom:10px;">Productos más vendidos</h3>
-        <canvas id="grafico-top-productos" height="220"></canvas>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3 style="margin-bottom:10px;">Detalle de productos más vendidos</h3>
-      <div style="overflow-x:auto;">
-        <table class="tabla-factura" id="tabla-top-productos">
-          <thead><tr><th>#</th><th>Producto</th><th>Unidades vendidas</th><th>Ingresos generados</th><th>Utilidad</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </section>
-
-  <!-- ============ MÓDULO E: USUARIOS Y ROLES ============ -->
-  <section class="admin-panel" id="panel-usuarios">
-    <h2 class="panel-titulo">Usuarios y Roles</h2>
-
-    <div class="card">
-      <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
-        Un <strong>dueño</strong> ve todo el panel. Un <strong>empleado</strong> solo ve la pestaña de Facturación
-        (no puede editar inventario, ver estadísticas, gestionar clientes ni el cierre de caja).<br/><br/>
-        <strong>Cómo agregar un empleado:</strong> primero créale una cuenta en
-        <em>Firebase Console → Authentication → Users → Add user</em> (correo + contraseña). Pídele que inicie sesión
-        una vez en este panel (verá el panel vacío, es normal). Luego ve a
-        <em>Firebase Console → Authentication</em>, copia su <strong>UID</strong>, y pégalo abajo.
-      </p>
-      <div class="grid-2">
-        <div class="form-field">
-          <label>UID del usuario (de Firebase Authentication)</label>
-          <input type="text" id="u-uid" placeholder="Ej: aB3dEfGh..." />
-        </div>
-        <div class="form-field">
-          <label>Nombre</label>
-          <input type="text" id="u-nombre" placeholder="Ej: María" />
-        </div>
-        <div class="form-field">
-          <label>Rol</label>
-          <select id="u-rol">
-            <option value="empleado">Empleado (solo Facturación)</option>
-            <option value="dueño">Dueño (acceso total)</option>
+        <div class="form-field" style="max-width:220px;">
+          <label>Rango</label>
+          <select id="stats-rango">
+            <option value="7">Últimos 7 días</option>
+            <option value="30" selected>Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+            <option value="0">Todo el historial</option>
           </select>
         </div>
-      </div>
-      <div class="btn-fila">
-        <button class="btn btn-primario" id="btn-guardar-usuario">💾 Guardar Usuario</button>
-      </div>
-    </div>
+        <button class="btn btn-primario" id="btn-cargar-estadisticas">🔄 Actualizar</button>
 
-    <div class="card">
-      <h3 style="margin-bottom:10px;">Usuarios registrados</h3>
-      <div style="overflow-x:auto;">
-        <table class="tabla-inventario" id="tabla-usuarios">
-          <thead><tr><th>Nombre</th><th>Rol</th><th>UID</th><th>Acciones</th></tr></thead>
-          <tbody></tbody>
-        </table>
+        <div class="resumen-caja" style="margin-top:18px;">
+          <div class="caja-metric"><div class="valor" id="stats-total-ventas">$ 0</div><div class="label">VENTAS TOTALES</div></div>
+          <div class="caja-metric"><div class="valor" id="stats-num-facturas">0</div><div class="label"># Facturas</div></div>
+          <div class="caja-metric"><div class="valor" id="stats-ticket-promedio">$ 0</div><div class="label">Ticket promedio</div></div>
+          <div class="caja-metric"><div class="valor" id="stats-unidades">0</div><div class="label">Unidades vendidas</div></div>
+          <div class="caja-metric" style="border-left-color:var(--green);"><div class="valor" id="stats-utilidad">$ 0</div><div class="label">Utilidad estimada</div></div>
+        </div>
+        <small id="stats-utilidad-nota" style="color:var(--muted);display:block;margin-top:8px;"></small>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 style="margin-bottom:10px;">Ventas por día</h3>
+          <canvas id="grafico-ventas-dia" height="220"></canvas>
+        </div>
+        <div class="card">
+          <h3 style="margin-bottom:10px;">Productos más vendidos</h3>
+          <canvas id="grafico-top-productos" height="220"></canvas>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:10px;">Detalle de productos más vendidos</h3>
+        <div style="overflow-x:auto;">
+          <table class="tabla-factura" id="tabla-top-productos">
+            <thead><tr><th>#</th><th>Producto</th><th>Unidades vendidas</th><th>Ingresos generados</th><th>Utilidad</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </section>
+
+  <!-- ============ MÓDULO E: CONFIGURACIÓN (Tienda + Usuarios) ============ -->
+  <section class="admin-panel" id="panel-configuracion">
+    <h2 class="panel-titulo">Configuración</h2>
+
+    <div class="subtabs">
+      <button class="subtab-btn activo" data-subtab="tienda">🏪 Tienda</button>
+      <button class="subtab-btn" data-subtab="usuarios">🔑 Usuarios</button>
+    </div>
+
+    <div class="subpanel activo" id="subpanel-tienda">
+      <div class="card">
+        <h3 style="margin-bottom:10px;">Horario y banner</h3>
+        <div class="grid-2">
+          <div>
+            <div class="form-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="cfg-horario-activo" style="width:auto;" />
+                Aplicar horario de atención
+              </label>
+              <small>Si lo activas, fuera de este rango la tienda mostrará "Cerrado" y no dejará agregar productos.</small>
+            </div>
+            <div class="grid-2">
+              <div class="form-field">
+                <label>Abrimos a las</label>
+                <input type="time" id="cfg-hora-apertura" value="10:00" />
+              </div>
+              <div class="form-field">
+                <label>Cerramos a las</label>
+                <input type="time" id="cfg-hora-cierre" value="22:00" />
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="form-field">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                <input type="checkbox" id="cfg-banner-activo" style="width:auto;" />
+                Mostrar banner en la tienda (ofertas / más vendidos)
+              </label>
+            </div>
+            <div class="form-field">
+              <label>Texto del banner</label>
+              <input type="text" id="cfg-banner-texto" placeholder="Ej: 🔥 2x1 en Poker todo el fin de semana" maxlength="120" />
+              <small>Solo se muestra si la tienda está abierta. El aviso de "Cerrado" tiene prioridad.</small>
+            </div>
+          </div>
+        </div>
+
+        <h3 style="margin:16px 0 10px;border-top:1px solid var(--border);padding-top:16px;">Datos del negocio para las facturas</h3>
+        <div class="grid-2">
+          <div class="form-field">
+            <label>NIT / Cédula del negocio</label>
+            <input type="text" id="cfg-nit-negocio" placeholder="Ej: 900123456-7" />
+          </div>
+          <div class="form-field">
+            <label>Nombre de la estación / caja</label>
+            <input type="text" id="cfg-nombre-estacion" placeholder="Ej: Caja Principal" />
+          </div>
+          <div class="form-field" style="grid-column:1/-1;">
+            <label>Régimen tributario (texto que confirmes con tu contador)</label>
+            <input type="text" id="cfg-regimen-texto" placeholder="Ej: Régimen Simple de Tributación - No responsable de IVA" />
+          </div>
+          <div class="form-field" style="grid-column:1/-1;">
+            <label>Mensaje legal / notas adicionales al final del tiquete</label>
+            <textarea id="cfg-mensaje-legal" rows="2" placeholder="Ej: Este documento es un comprobante de venta, no sustituye la factura electrónica DIAN."></textarea>
+            <small>Aquí puedes poner la resolución DIAN, el régimen, o cualquier texto legal que tu contador te indique.</small>
+          </div>
+        </div>
+
+        <div class="btn-fila">
+          <button class="btn btn-primario" id="btn-guardar-config-tienda">💾 Guardar configuración</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="subpanel" id="subpanel-usuarios">
+      <div class="card">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
+          Un <strong>dueño</strong> ve todo el panel. Un <strong>empleado</strong> solo ve Facturación e Inventario
+          (no puede gestionar clientes, ver reportes ni cambiar la configuración).<br/><br/>
+          <strong>Cómo agregar un empleado:</strong> primero créale una cuenta en
+          <em>Firebase Console → Authentication → Users → Add user</em> (correo + contraseña). Pídele que inicie sesión
+          una vez en este panel (verá el panel vacío, es normal). Luego ve a
+          <em>Firebase Console → Authentication</em>, copia su <strong>UID</strong>, y pégalo abajo.
+        </p>
+        <div class="grid-2">
+          <div class="form-field">
+            <label>UID del usuario (de Firebase Authentication)</label>
+            <input type="text" id="u-uid" placeholder="Ej: aB3dEfGh..." />
+          </div>
+          <div class="form-field">
+            <label>Nombre</label>
+            <input type="text" id="u-nombre" placeholder="Ej: María" />
+          </div>
+          <div class="form-field">
+            <label>Rol</label>
+            <select id="u-rol">
+              <option value="empleado">Empleado (solo Facturación e Inventario)</option>
+              <option value="dueño">Dueño (acceso total)</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-fila">
+          <button class="btn btn-primario" id="btn-guardar-usuario">💾 Guardar Usuario</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-bottom:10px;">Usuarios registrados</h3>
+        <div style="overflow-x:auto;">
+          <table class="tabla-inventario" id="tabla-usuarios">
+            <thead><tr><th>Nombre</th><th>Rol</th><th>UID</th><th>Acciones</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+    </div>
+  </div>
 </div>
 
 <!-- Modal para ver la factura sin descargarla -->
@@ -714,27 +748,53 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 function aplicarPermisosPorRol() {
-  const soloDueño = ["clientes", "caja", "estadisticas", "usuarios"];
-  document.querySelectorAll(".tab-btn").forEach((btn) => {
+  const soloDueño = ["clientes", "reportes", "configuracion"];
+  document.querySelectorAll(".sidebar-link").forEach((btn) => {
     const restringida = soloDueño.includes(btn.dataset.tab);
     btn.classList.toggle("oculto", restringida && rolActual !== "dueño");
   });
   if (rolActual !== "dueño") {
-    document.querySelector('.tab-btn[data-tab="facturacion"]').click();
+    document.querySelector('.sidebar-link[data-tab="facturacion"]').click();
   }
 }
 
 /* =====================================================================
-   NAVEGACIÓN ENTRE TABS
+   NAVEGACIÓN: SIDEBAR (principal) + SUBTABS (dentro de Reportes/Configuración)
 ===================================================================== */
-document.querySelectorAll(".tab-btn").forEach((btn) => {
+document.querySelectorAll(".sidebar-link").forEach((btn) => {
   btn.addEventListener("click", () => {
-    document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("activo"));
+    document.querySelectorAll(".sidebar-link").forEach((b) => b.classList.remove("activo"));
     document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("activo"));
     btn.classList.add("activo");
     document.getElementById("panel-" + btn.dataset.tab).classList.add("activo");
+    cerrarSidebarMovil();
   });
 });
+
+document.querySelectorAll(".subtab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const contenedor = btn.closest(".admin-panel");
+    contenedor.querySelectorAll(".subtab-btn").forEach((b) => b.classList.remove("activo"));
+    contenedor.querySelectorAll(".subpanel").forEach((p) => p.classList.remove("activo"));
+    btn.classList.add("activo");
+    document.getElementById("subpanel-" + btn.dataset.subtab).classList.add("activo");
+  });
+});
+
+/* ---------- SIDEBAR EN MÓVIL (hamburguesa + overlay) ---------- */
+const sidebarEl = document.getElementById("sidebar");
+const sidebarOverlayEl = document.getElementById("sidebar-overlay");
+
+function abrirSidebarMovil() {
+  sidebarEl.classList.add("abierto");
+  sidebarOverlayEl.classList.add("visible");
+}
+function cerrarSidebarMovil() {
+  sidebarEl.classList.remove("abierto");
+  sidebarOverlayEl.classList.remove("visible");
+}
+document.getElementById("btn-toggle-sidebar").addEventListener("click", abrirSidebarMovil);
+sidebarOverlayEl.addEventListener("click", cerrarSidebarMovil);
 
 /* =====================================================================
    SUSCRIPCIÓN EN TIEMPO REAL A PRODUCTOS
@@ -2327,7 +2387,7 @@ async function cargarEstadisticas() {
 document.getElementById("btn-cargar-estadisticas").addEventListener("click", cargarEstadisticas);
 
 // Cargar estadísticas automáticamente la primera vez que se abre esa pestaña
-document.querySelector('.tab-btn[data-tab="estadisticas"]').addEventListener("click", () => {
+document.querySelector('.subtab-btn[data-subtab="estadisticas"]').addEventListener("click", () => {
   cargarEstadisticas();
 });
 
@@ -2517,7 +2577,7 @@ document.getElementById("btn-calcular-caja").addEventListener("click", async () 
   document.getElementById("caja-num-facturas").textContent = delDia.length;
 });
 
-document.querySelector('[data-tab="caja"]').addEventListener("click", () => {
+document.querySelector('.subtab-btn[data-subtab="caja"]').addEventListener("click", () => {
   document.getElementById("btn-calcular-caja").click();
 });
 
@@ -2556,7 +2616,7 @@ function renderTablaUsuarios() {
   });
 }
 
-document.querySelector('.tab-btn[data-tab="usuarios"]').addEventListener("click", () => {
+document.querySelector('.subtab-btn[data-subtab="usuarios"]').addEventListener("click", () => {
   onSnapshot(collection(db, "usuarios"), (snap) => {
     usuariosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderTablaUsuarios();
