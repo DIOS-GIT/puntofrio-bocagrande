@@ -205,45 +205,61 @@
         <button type="button" class="btn btn-verde" id="btn-cancelar-edicion-top" title="Limpia todos los campos para agregar un producto nuevo (evita sobrescribir uno existente por error)">➕ Agregar Producto Nuevo / Limpiar Formulario</button>
       </div>
       <input type="hidden" id="p-id" />
-      <div class="grid-2">
-        <div class="form-field">
-          <label>Nombre</label>
-          <input type="text" id="p-nombre" />
+
+      <div class="subcard">
+        <h4>Información básica</h4>
+        <div class="grid-2">
+          <div class="form-field">
+            <label>Nombre</label>
+            <input type="text" id="p-nombre" />
+          </div>
+          <div class="form-field">
+            <label>Categoría</label>
+            <select id="p-categoria">
+              <option>Licores</option>
+              <option>Cervezas Nacionales</option>
+              <option>Importadas</option>
+              <option>Bebidas</option>
+              <option>Hielo</option>
+            </select>
+          </div>
         </div>
-        <div class="form-field">
-          <label>Categoría</label>
-          <select id="p-categoria">
-            <option>Licores</option>
-            <option>Cervezas Nacionales</option>
-            <option>Importadas</option>
-            <option>Bebidas</option>
-            <option>Hielo</option>
-          </select>
+      </div>
+
+      <div class="subcard">
+        <h4>Precio y envase</h4>
+        <div class="grid-2">
+          <div class="form-field">
+            <label>Precio sin envase (COP)</label>
+            <input type="number" id="p-precio" min="0" />
+          </div>
+          <div class="form-field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="p-maneja-envase" style="width:auto;" />
+              Maneja envase retornable
+            </label>
+          </div>
+          <div class="form-field oculto" id="campo-precio-envase" style="grid-column:1/-1;">
+            <label>Precio con envase (cliente trae/devuelve el envase vacío)</label>
+            <input type="number" id="p-precio-envase" min="0" />
+          </div>
         </div>
-        <div class="form-field">
-          <label>Precio sin envase (COP)</label>
-          <input type="number" id="p-precio" min="0" />
-        </div>
-        <div class="form-field">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" id="p-maneja-envase" style="width:auto;" />
-            Maneja envase retornable
-          </label>
-        </div>
-        <div class="form-field oculto" id="campo-precio-envase">
-          <label>Precio con envase (cliente trae/devuelve el envase vacío)</label>
-          <input type="number" id="p-precio-envase" min="0" />
-        </div>
+      </div>
+
+      <div class="subcard">
+        <h4>Presentaciones de venta</h4>
         <div class="form-field">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="p-maneja-caja" style="width:auto;" />
             Se vende por caja/paquete
           </label>
         </div>
-        <div class="form-field oculto" id="campo-unidades-caja">
-          <label>Unidades por caja/paquete (ej: 24, 30, 36)</label>
-          <input type="number" id="p-unidades-caja" min="1" />
-          <small style="color:#888;">El precio de arriba ("Precio sin envase") se usa como precio de la caja completa.</small>
+        <div class="grid-2">
+          <div class="form-field oculto" id="campo-unidades-caja">
+            <label>Unidades por caja/paquete (ej: 24, 30, 36)</label>
+            <input type="number" id="p-unidades-caja" min="1" />
+            <small style="color:var(--muted);">El precio de arriba ("Precio sin envase") se usa como precio de la caja completa.</small>
+          </div>
         </div>
         <div class="form-field oculto" id="campo-maneja-sixpack">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -251,13 +267,15 @@
             También se vende por six pack (u otro paquete intermedio)
           </label>
         </div>
-        <div class="form-field oculto" id="campo-unidades-sixpack">
-          <label>Unidades por six pack (ej: 6)</label>
-          <input type="number" id="p-unidades-sixpack" min="1" value="6" />
-        </div>
-        <div class="form-field oculto" id="campo-precio-sixpack">
-          <label>Precio del six pack (sugerido automáticamente, puedes ajustarlo)</label>
-          <input type="number" id="p-precio-sixpack" min="0" />
+        <div class="grid-2">
+          <div class="form-field oculto" id="campo-unidades-sixpack">
+            <label>Unidades por six pack (ej: 6)</label>
+            <input type="number" id="p-unidades-sixpack" min="1" value="6" />
+          </div>
+          <div class="form-field oculto" id="campo-precio-sixpack">
+            <label>Precio del six pack (sugerido automáticamente, puedes ajustarlo)</label>
+            <input type="number" id="p-precio-sixpack" min="0" />
+          </div>
         </div>
         <div class="form-field oculto" id="campo-mostrar-sixpack-tienda">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
@@ -265,42 +283,60 @@
             Mostrar la opción de six pack en la tienda pública
           </label>
         </div>
-        <div class="form-field oculto" id="campo-precio-suelta">
-          <label>Precio por unidad suelta (sugerido automáticamente, puedes ajustarlo)</label>
-          <input type="number" id="p-precio-suelta" min="0" />
+        <div class="grid-2">
+          <div class="form-field oculto" id="campo-precio-suelta">
+            <label>Precio por unidad suelta (sugerido automáticamente, puedes ajustarlo)</label>
+            <input type="number" id="p-precio-suelta" min="0" />
+          </div>
         </div>
         <div class="form-field oculto" id="campo-mostrar-suelta-tienda">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
             <input type="checkbox" id="p-mostrar-suelta-tienda" style="width:auto;" />
             Mostrar la opción de unidad suelta en la tienda pública
           </label>
-          <small style="color:#888;">Si lo dejas desmarcado, en la tienda solo se vende la caja completa. Tú siempre podrás vender sueltas desde Facturación.</small>
+          <small style="color:var(--muted);">Si lo dejas desmarcado, en la tienda solo se vende la caja completa. Tú siempre podrás vender sueltas desde Facturación.</small>
         </div>
-        <div class="form-field">
-          <label id="label-stock">Stock actual (unidades)</label>
-          <input type="number" id="p-stock" min="0" />
-          <div class="oculto" id="campo-stock-por-cajas" style="margin-top:8px;padding:8px;background:#F0F6FC;border-radius:8px;">
-            <label style="font-size:0.75rem;">O indica cuántas cajas completas tienes y el sistema calcula las unidades:</label>
-            <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
-              <input type="number" id="p-cajas-stock" min="0" placeholder="Cajas" style="max-width:110px;" />
-              <button type="button" class="btn btn-secundario" id="btn-calcular-stock-cajas" style="white-space:nowrap;">= unidades</button>
+      </div>
+
+      <div class="subcard">
+        <h4>Inventario</h4>
+        <div class="grid-2">
+          <div class="form-field">
+            <label id="label-stock">Stock actual (unidades)</label>
+            <input type="number" id="p-stock" min="0" />
+            <div class="oculto" id="campo-stock-por-cajas" style="margin-top:8px;padding:8px;background:var(--blue-soft);border-radius:8px;">
+              <label style="font-size:0.75rem;">O indica cuántas cajas completas tienes y el sistema calcula las unidades:</label>
+              <div style="display:flex;gap:8px;align-items:center;margin-top:4px;">
+                <input type="number" id="p-cajas-stock" min="0" placeholder="Cajas" style="max-width:110px;" />
+                <button type="button" class="btn btn-secundario" id="btn-calcular-stock-cajas" style="white-space:nowrap;">= unidades</button>
+              </div>
             </div>
           </div>
+          <div class="form-field">
+            <label>Stock mínimo (alerta)</label>
+            <input type="number" id="p-stock-minimo" min="0" value="5" />
+          </div>
         </div>
-        <div class="form-field">
-          <label>Stock mínimo (alerta)</label>
-          <input type="number" id="p-stock-minimo" min="0" value="5" />
+      </div>
+
+      <div class="subcard">
+        <h4>Impuestos y costos</h4>
+        <div class="grid-2">
+          <div class="form-field">
+            <label>IVA (%) — se suma aparte al momento de facturar</label>
+            <input type="number" id="p-iva" min="0" max="100" step="0.1" value="19" />
+            <small>Ej: cerveza suele ir al 19%, licores destilados actualmente al 5% (verifica con tu contador, el tema está en revisión legal). Pon 0 si el producto no causa IVA.</small>
+          </div>
+          <div class="form-field">
+            <label>Costo de compra POR UNIDAD (lo que a ti te cuesta, no por caja)</label>
+            <input type="number" id="p-costo" min="0" />
+            <small>Opcional, pero necesario para calcular tu utilidad real en Estadísticas. Si el producto se vende por caja, escribe el costo de UNA unidad suelta, no de la caja completa.</small>
+          </div>
         </div>
-        <div class="form-field">
-          <label>IVA (%) — se suma aparte al momento de facturar</label>
-          <input type="number" id="p-iva" min="0" max="100" step="0.1" value="19" />
-          <small>Ej: cerveza suele ir al 19%, licores destilados actualmente al 5% (verifica con tu contador, el tema está en revisión legal). Pon 0 si el producto no causa IVA.</small>
-        </div>
-        <div class="form-field">
-          <label>Costo de compra POR UNIDAD (lo que a ti te cuesta, no por caja)</label>
-          <input type="number" id="p-costo" min="0" />
-          <small>Opcional, pero necesario para calcular tu utilidad real en Estadísticas. Si el producto se vende por caja, escribe el costo de UNA unidad suelta, no de la caja completa.</small>
-        </div>
+      </div>
+
+      <div class="subcard">
+        <h4>Imágenes y visibilidad</h4>
         <div class="form-field">
           <label>Imágenes (puedes subir varias, la primera será la principal)</label>
           <div class="btn-fila">
@@ -309,19 +345,22 @@
           <input type="hidden" id="p-imagen" />
           <div id="preview-imagenes" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;"></div>
         </div>
-        <div class="form-field">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" id="p-visible-tienda" style="width:auto;" checked />
-            Mostrar este producto en la tienda pública
-          </label>
-        </div>
-        <div class="form-field">
-          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-            <input type="checkbox" id="p-mostrar-categoria" style="width:auto;" checked />
-            Mostrar la categoría en la tarjeta del producto
-          </label>
+        <div class="grid-2">
+          <div class="form-field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="p-visible-tienda" style="width:auto;" checked />
+              Mostrar este producto en la tienda pública
+            </label>
+          </div>
+          <div class="form-field">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="p-mostrar-categoria" style="width:auto;" checked />
+              Mostrar la categoría en la tarjeta del producto
+            </label>
+          </div>
         </div>
       </div>
+
       <div class="btn-fila">
         <button class="btn btn-primario" id="btn-guardar-producto">💾 Guardar Producto</button>
         <button class="btn btn-secundario oculto" id="btn-cancelar-edicion">Cancelar edición</button>
