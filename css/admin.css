@@ -454,6 +454,12 @@ canvas { max-width: 100%; }
 
 .oculto { display: none !important; }
 
+/* Información sensible (costo de compra, utilidad): solo visible para el dueño */
+body.rol-empleado #campo-costo-compra,
+body.rol-empleado .col-utilidad {
+  display: none !important;
+}
+
 /* ---------- MODAL VISTA / EDICIÓN DE FACTURA ---------- */
 .modal-overlay-factura {
   position: fixed;
