@@ -135,6 +135,18 @@
         <div style="text-align:right;margin-top:10px;font-size:0.85rem;color:#454B57;" id="f-desglose">
           Subtotal: $ 0 &nbsp;·&nbsp; IVA: $ 0
         </div>
+        <div id="f-puntos-cliente" class="oculto" style="text-align:right;margin-top:8px;font-size:0.82rem;color:var(--muted);">
+          🎁 Este cliente tiene <strong id="f-puntos-disponibles">0</strong> puntos disponibles.
+          <div style="display:inline-flex;gap:6px;align-items:center;margin-left:8px;">
+            <label style="font-weight:600;">Canjear:</label>
+            <input type="number" id="f-puntos-canjear" min="0" value="0" style="width:70px;padding:5px 7px;border-radius:6px;border:1px solid var(--border);" />
+            <button type="button" class="btn btn-secundario" id="btn-aplicar-puntos" style="padding:5px 10px;font-size:0.78rem;">Aplicar</button>
+          </div>
+        </div>
+        <div id="f-descuento-linea" class="oculto" style="text-align:right;margin-top:6px;font-size:0.85rem;color:var(--green);">
+          Descuento: -<span id="f-descuento-valor">$ 0</span>
+          <button type="button" id="btn-quitar-descuento" style="border:none;background:none;color:var(--red);cursor:pointer;font-size:0.78rem;margin-left:6px;">quitar</button>
+        </div>
         <div class="total-carrito" style="text-align:right;font-size:1.2rem;font-weight:800;margin-top:4px;" id="f-total">
           Total: $ 0
         </div>
@@ -306,10 +318,11 @@
             <input type="number" id="p-iva" min="0" max="100" step="0.1" value="19" />
             <small>Ej: cerveza suele ir al 19%, licores destilados actualmente al 5% (verifica con tu contador, el tema está en revisión legal). Pon 0 si el producto no causa IVA.</small>
           </div>
-          <div class="form-field">
+          <div class="form-field" id="campo-costo-compra">
             <label>Costo de compra POR UNIDAD (lo que a ti te cuesta, no por caja)</label>
             <input type="number" id="p-costo" min="0" />
             <small>Opcional, pero necesario para calcular tu utilidad real en Estadísticas. Si el producto se vende por caja, escribe el costo de UNA unidad suelta, no de la caja completa.</small>
+            <div id="p-ganancia-preview" style="margin-top:8px;font-size:0.85rem;font-weight:600;color:var(--green);"></div>
           </div>
         </div>
       </div>
@@ -365,7 +378,7 @@
       <div style="overflow-x:auto;margin-top:12px;">
         <table class="tabla-inventario" id="tabla-inventario">
           <thead>
-            <tr><th>Img</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Tienda</th><th>Acciones</th></tr>
+            <tr><th>Img</th><th>Nombre</th><th>Categoría</th><th>Precio</th><th class="col-utilidad">Utilidad</th><th>Stock</th><th>Estado</th><th>Tienda</th><th>Acciones</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -421,6 +434,13 @@
           <label>Dirección</label>
           <input type="text" id="c-direccion" />
         </div>
+        <div class="form-field" style="grid-column:1/-1;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+            <input type="checkbox" id="c-participa-puntos" style="width:auto;" />
+            Este cliente participa en el programa de puntos
+          </label>
+          <small>Aunque el programa esté activado en Configuración, cada cliente se habilita aquí de forma individual — tú decides quién entra.</small>
+        </div>
       </div>
       <div class="btn-fila">
         <button class="btn btn-primario" id="btn-guardar-cliente">💾 Guardar Cliente</button>
@@ -441,7 +461,7 @@
       <div style="overflow-x:auto;margin-top:12px;">
         <table class="tabla-inventario" id="tabla-clientes">
           <thead>
-            <tr><th>Cédula/NIT</th><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Dirección</th><th>Acciones</th></tr>
+            <tr><th>Cédula/NIT</th><th>Nombre</th><th>Correo</th><th>Teléfono</th><th>Dirección</th><th>Puntos</th><th>Acciones</th></tr>
           </thead>
           <tbody></tbody>
         </table>
@@ -573,6 +593,27 @@
           </div>
         </div>
 
+        <h3 style="margin:16px 0 10px;border-top:1px solid var(--border);padding-top:16px;">Programa de puntos / fidelización</h3>
+        <div class="grid-2">
+          <div class="form-field" style="grid-column:1/-1;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="cfg-puntos-activo" style="width:auto;" />
+              Activar programa de puntos para clientes registrados
+            </label>
+            <small>Solo aplica a clientes con cédula/NIT guardado en Facturación — un consumidor final ocasional no acumula puntos.</small>
+          </div>
+          <div class="form-field">
+            <label>Pesos gastados por cada punto ganado</label>
+            <input type="number" id="cfg-pesos-por-punto" min="1" value="1000" />
+            <small>Ej: 1000 = el cliente gana 1 punto por cada $1.000 de su compra.</small>
+          </div>
+          <div class="form-field">
+            <label>Valor de cada punto al canjear (COP)</label>
+            <input type="number" id="cfg-valor-por-punto" min="0" value="50" />
+            <small>Ej: 50 = cada punto descuenta $50 del total al canjearlo.</small>
+          </div>
+        </div>
+
         <h3 style="margin:16px 0 10px;border-top:1px solid var(--border);padding-top:16px;">Datos del negocio para las facturas</h3>
         <div class="grid-2">
           <div class="form-field">
@@ -649,6 +690,14 @@
 </div>
 
 <!-- Modal para ver la factura sin descargarla -->
+<!-- Historial de compras de un cliente -->
+<div class="modal-overlay-factura" id="modal-historial-overlay">
+  <div class="modal-factura-caja">
+    <button class="btn-cerrar-modal-factura" id="btn-cerrar-historial" title="Cerrar">✕</button>
+    <div id="contenido-historial-cliente"></div>
+  </div>
+</div>
+
 <!-- Calendario personalizado: resalta los días que tuvieron ventas -->
 <div class="modal-overlay-factura" id="modal-calendario-overlay">
   <div class="modal-factura-caja" style="max-width:320px;padding:20px;">
@@ -700,6 +749,7 @@ import {
   runTransaction,
   onSnapshot,
   query,
+  where,
   orderBy,
   serverTimestamp,
   increment,
@@ -721,6 +771,43 @@ import {
 let productosCache = [];
 let clientesCache = [];        // [{id, cedula, nombre, correo}]
 let carritoFactura = [];       // [{id, nombre, precio, cantidad, stockDisponible}]
+let puntosClienteActual = 0;   // puntos disponibles del cliente cargado en Facturación
+let puntosCanjeadosActual = 0; // puntos que se van a descontar en ESTA factura
+let descuentoAplicado = 0;     // descuento en COP resultante de canjear puntos
+
+function mostrarPuntosCliente(puntos, participa = false) {
+  puntosClienteActual = puntos;
+  puntosCanjeadosActual = 0;
+  descuentoAplicado = 0;
+  document.getElementById("f-puntos-canjear").value = 0;
+  document.getElementById("f-descuento-linea").classList.add("oculto");
+  const activo = !!configTienda?.puntosActivo && participa;
+  document.getElementById("f-puntos-cliente").classList.toggle("oculto", !activo || puntos <= 0);
+  document.getElementById("f-puntos-disponibles").textContent = puntos;
+  renderTablaFactura();
+}
+
+document.getElementById("btn-aplicar-puntos").addEventListener("click", () => {
+  let puntosPedidos = Number(document.getElementById("f-puntos-canjear").value) || 0;
+  if (puntosPedidos < 0) puntosPedidos = 0;
+  if (puntosPedidos > puntosClienteActual) puntosPedidos = puntosClienteActual;
+
+  const valorPorPunto = Number(configTienda?.valorPorPunto) || 0;
+  puntosCanjeadosActual = puntosPedidos;
+  descuentoAplicado = puntosPedidos * valorPorPunto;
+  document.getElementById("f-puntos-canjear").value = puntosPedidos;
+  document.getElementById("f-descuento-linea").classList.toggle("oculto", descuentoAplicado <= 0);
+  document.getElementById("f-descuento-valor").textContent = formatCOP(descuentoAplicado);
+  renderTablaFactura();
+});
+
+document.getElementById("btn-quitar-descuento").addEventListener("click", () => {
+  puntosCanjeadosActual = 0;
+  descuentoAplicado = 0;
+  document.getElementById("f-puntos-canjear").value = 0;
+  document.getElementById("f-descuento-linea").classList.add("oculto");
+  renderTablaFactura();
+});
 let ultimaFacturaGenerada = null;
 
 const CORREO_NEGOCIO = "ventas@puntofriobocagrande.com"; // ⚠️ Reemplazar
@@ -801,6 +888,9 @@ function aplicarPermisosPorRol() {
   if (rolActual !== "dueño") {
     document.querySelector('.sidebar-link[data-tab="facturacion"]').click();
   }
+
+  // El costo de compra y la utilidad son información sensible: solo el dueño las ve
+  document.body.classList.toggle("rol-empleado", rolActual !== "dueño");
 }
 
 /* =====================================================================
@@ -876,6 +966,9 @@ document.getElementById("f-cedula").addEventListener(
         document.getElementById("f-nombre").value = data.nombre || "";
         document.getElementById("f-correo").value = data.correo || "";
         mostrarToast("Cliente encontrado en la base de datos ✅");
+        mostrarPuntosCliente(data.puntos || 0, !!data.participaPuntos);
+      } else {
+        mostrarPuntosCliente(0);
       }
     } catch (err) {
       console.error("Error buscando cliente:", err);
@@ -889,6 +982,7 @@ document.getElementById("btn-consumidor-final").addEventListener("click", () => 
   document.getElementById("f-nombre").value = "Consumidor Final";
   document.getElementById("f-correo").value = CORREO_NEGOCIO;
   document.getElementById("resultados-cliente").innerHTML = "";
+  mostrarPuntosCliente(0);
 });
 
 // Búsqueda de cliente por NOMBRE mientras se escribe (autocompletar)
@@ -920,6 +1014,7 @@ document.getElementById("f-nombre").addEventListener("input", (e) => {
       document.getElementById("f-correo").value = cliente.correo || "";
       contenedor.innerHTML = "";
       mostrarToast("Cliente cargado ✅");
+      mostrarPuntosCliente(cliente.puntos || 0, !!cliente.participaPuntos);
     });
   });
 });
@@ -1159,7 +1254,8 @@ function renderTablaFactura() {
 
   const subtotal = carritoFactura.reduce((acc, i) => acc + subtotalItemFactura(i), 0);
   const ivaTotal = carritoFactura.reduce((acc, i) => acc + ivaItemFactura(i), 0);
-  const total = subtotal + ivaTotal;
+  if (descuentoAplicado > subtotal + ivaTotal) descuentoAplicado = subtotal + ivaTotal;
+  const total = Math.max(0, subtotal + ivaTotal - descuentoAplicado);
   document.getElementById("f-desglose").innerHTML = `Subtotal: ${formatCOP(subtotal)} &nbsp;·&nbsp; IVA: ${formatCOP(ivaTotal)}`;
   document.getElementById("f-total").textContent = "Total: " + formatCOP(total);
 }
@@ -1191,7 +1287,9 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
 
   const subtotal = carritoFactura.reduce((acc, i) => acc + subtotalItemFactura(i), 0);
   const ivaTotal = carritoFactura.reduce((acc, i) => acc + ivaItemFactura(i), 0);
-  const total = subtotal + ivaTotal;
+  const descuentoFinal = Math.min(descuentoAplicado, subtotal + ivaTotal);
+  const total = Math.max(0, subtotal + ivaTotal - descuentoFinal);
+  const puntosACanjear = puntosCanjeadosActual;
   const estacion = (configTienda && configTienda.nombreEstacion) || "";
 
   try {
@@ -1215,6 +1313,24 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
         }
         refsProductos.push({ ref: refProd, item, unidadesNecesarias, costoUnitario: Number(snapProd.data().costoCompra) || 0 });
       }
+
+      // Leer el saldo de puntos ACTUAL del cliente (fase de lectura, antes de cualquier escritura)
+      let refCliente = null;
+      let puntosActualesCliente = 0;
+      let clienteParticipaPuntos = false;
+      if (cedula) {
+        refCliente = doc(db, "clientes", cedula);
+        const snapCliente = await tx.get(refCliente);
+        if (snapCliente.exists()) {
+          puntosActualesCliente = Number(snapCliente.data().puntos) || 0;
+          clienteParticipaPuntos = !!snapCliente.data().participaPuntos;
+        }
+      }
+      const puntosCanjeadosReal = clienteParticipaPuntos ? Math.min(puntosACanjear, puntosActualesCliente) : 0;
+      const puntosGanados =
+        configTienda?.puntosActivo && clienteParticipaPuntos
+          ? Math.floor(total / (Number(configTienda.pesosPorPunto) || 1000))
+          : 0;
 
       // 1. Actualizar consecutivo
       tx.set(refConsecutivos, { ultimoNumero: siguienteNumero }, { merge: true });
@@ -1250,6 +1366,9 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
         })),
         subtotal,
         iva: ivaTotal,
+        descuento: descuentoFinal,
+        puntosCanjeados: puntosCanjeadosReal,
+        puntosGanados,
         total,
         metodoPago,
         cajero: cajero || "",
@@ -1260,8 +1379,17 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
 
       // 4. Guardar/actualizar cliente (solo si dio cédula/NIT, ya que es el ID del documento)
       if (cedula) {
-        const refCliente = doc(db, "clientes", cedula);
-        tx.set(refCliente, { cedula, nombre, correo, actualizadoEn: serverTimestamp() }, { merge: true });
+        tx.set(
+          refCliente,
+          {
+            cedula,
+            nombre,
+            correo,
+            puntos: puntosActualesCliente - puntosCanjeadosReal + puntosGanados,
+            actualizadoEn: serverTimestamp()
+          },
+          { merge: true }
+        );
       }
 
       // 5. Cola de envío de correo (solo si el cliente dio uno)
@@ -1289,6 +1417,7 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
     document.getElementById("f-cedula").value = "";
     document.getElementById("f-nombre").value = "";
     document.getElementById("f-correo").value = "";
+    mostrarPuntosCliente(0);
   } catch (err) {
     console.error("Error generando factura:", err);
     mostrarToast("❌ " + err.message);
@@ -1352,7 +1481,9 @@ function verFacturaModal(factura) {
       </tbody>
     </table>
     <div style="text-align:right;margin-top:10px;font-size:0.85rem;color:#454B57;">Subtotal: ${formatCOP(subtotal)} &nbsp;·&nbsp; IVA: ${formatCOP(ivaTotal)}</div>
+    ${factura.descuento ? `<div style="text-align:right;margin-top:4px;font-size:0.85rem;color:#2E7D32;">Descuento${factura.puntosCanjeados ? ` (${factura.puntosCanjeados} puntos)` : ""}: -${formatCOP(factura.descuento)}</div>` : ""}
     <div class="total-carrito" style="margin-top:6px;">Total: ${formatCOP(factura.total)}</div>
+    ${factura.puntosGanados ? `<p style="text-align:right;font-size:0.8rem;color:#888;margin-top:4px;">🎁 El cliente ganó ${factura.puntosGanados} puntos con esta compra.</p>` : ""}
     <div class="btn-fila" style="margin-top:16px;">
       <button class="btn btn-secundario" id="btn-ver-imprimir-tiquete">🖨 Imprimir Tiquete</button>
       <button class="btn btn-rojo" id="btn-ver-descargar-pdf">📄 Descargar PDF</button>
@@ -1696,8 +1827,10 @@ function imprimirTiquetePOS(factura) {
     <hr/>
     <div>Subtotal: ${formatCOP(subtotal)}</div>
     <div>IVA: ${formatCOP(ivaTotal)}</div>
+    ${factura.descuento ? `<div>Descuento${factura.puntosCanjeados ? ` (${factura.puntosCanjeados} pts)` : ""}: -${formatCOP(factura.descuento)}</div>` : ""}
     <div class="centrado"><strong>TOTAL: ${formatCOP(factura.total)}</strong></div>
     <div class="centrado">Pago: ${factura.metodoPago}</div>
+    ${factura.puntosGanados ? `<div class="centrado">Puntos ganados: ${factura.puntosGanados}</div>` : ""}
     <hr/>
     ${mensajeLegal ? `<div class="centrado">${mensajeLegal}</div><hr/>` : ""}
     <div class="centrado">¡Gracias por su compra!</div>
@@ -1759,10 +1892,21 @@ function descargarFacturaPDF(factura) {
   y += 10;
   pdf.setFontSize(10);
   pdf.text(`Subtotal: ${formatCOP(subtotal)}`, 400, y); y += 15;
-  pdf.text(`IVA: ${formatCOP(ivaTotal)}`, 400, y); y += 20;
+  pdf.text(`IVA: ${formatCOP(ivaTotal)}`, 400, y); y += 15;
+  if (factura.descuento) {
+    pdf.text(`Descuento${factura.puntosCanjeados ? ` (${factura.puntosCanjeados} pts)` : ""}: -${formatCOP(factura.descuento)}`, 400, y);
+    y += 15;
+  }
+  y += 5;
   pdf.setFontSize(13);
   pdf.setFont(undefined, "bold");
   pdf.text(`TOTAL: ${formatCOP(factura.total)}`, 400, y);
+  y += 20;
+  if (factura.puntosGanados) {
+    pdf.setFontSize(9);
+    pdf.setFont(undefined, "normal");
+    pdf.text(`Puntos ganados en esta compra: ${factura.puntosGanados}`, 400, y);
+  }
 
   y += 35;
   pdf.setFontSize(8.5);
@@ -1902,6 +2046,32 @@ document.getElementById("p-maneja-sixpack").addEventListener("change", (e) => {
   }
 });
 
+function actualizarGananciaPreview() {
+  const cont = document.getElementById("p-ganancia-preview");
+  const costo = Number(document.getElementById("p-costo").value) || 0;
+  if (!costo) {
+    cont.textContent = "";
+    return;
+  }
+  const manejaCaja = document.getElementById("p-maneja-caja").checked;
+  const precioUnidad = manejaCaja
+    ? Number(document.getElementById("p-precio-suelta").value) || 0
+    : Number(document.getElementById("p-precio").value) || 0;
+  const gananciaUnidad = precioUnidad - costo;
+  let texto = `💰 Ganancia por unidad: ${formatCOP(gananciaUnidad)}`;
+  if (manejaCaja) {
+    const unidadesCaja = Number(document.getElementById("p-unidades-caja").value) || 1;
+    const precioCaja = Number(document.getElementById("p-precio").value) || 0;
+    const gananciaCaja = precioCaja - costo * unidadesCaja;
+    texto += ` &nbsp;·&nbsp; por caja: ${formatCOP(gananciaCaja)}`;
+  }
+  cont.innerHTML = texto;
+}
+["p-precio", "p-costo", "p-precio-suelta", "p-unidades-caja", "p-maneja-caja"].forEach((idCampo) => {
+  document.getElementById(idCampo).addEventListener("input", actualizarGananciaPreview);
+  document.getElementById(idCampo).addEventListener("change", actualizarGananciaPreview);
+});
+
 function sugerirPrecioSuelta() {
   const campoSuelta = document.getElementById("p-precio-suelta");
   if (campoSuelta.value) return; // no pisar un valor que el usuario ya escribió a mano
@@ -2004,6 +2174,9 @@ onSnapshot(doc(db, "config", "tienda"), (snap) => {
   document.getElementById("cfg-hora-cierre").value = configTienda.horaCierre || "22:00";
   document.getElementById("cfg-banner-activo").checked = !!configTienda.bannerActivo;
   document.getElementById("cfg-banner-texto").value = configTienda.bannerTexto || "";
+  document.getElementById("cfg-puntos-activo").checked = !!configTienda.puntosActivo;
+  document.getElementById("cfg-pesos-por-punto").value = configTienda.pesosPorPunto || 1000;
+  document.getElementById("cfg-valor-por-punto").value = configTienda.valorPorPunto ?? 50;
   document.getElementById("cfg-nit-negocio").value = configTienda.nitNegocio || "";
   document.getElementById("cfg-nombre-estacion").value = configTienda.nombreEstacion || "";
   document.getElementById("cfg-regimen-texto").value = configTienda.regimenTexto || "";
@@ -2017,6 +2190,9 @@ document.getElementById("btn-guardar-config-tienda").addEventListener("click", a
     horaCierre: document.getElementById("cfg-hora-cierre").value || "22:00",
     bannerActivo: document.getElementById("cfg-banner-activo").checked,
     bannerTexto: document.getElementById("cfg-banner-texto").value.trim(),
+    puntosActivo: document.getElementById("cfg-puntos-activo").checked,
+    pesosPorPunto: Number(document.getElementById("cfg-pesos-por-punto").value) || 1000,
+    valorPorPunto: Number(document.getElementById("cfg-valor-por-punto").value) || 0,
     nitNegocio: document.getElementById("cfg-nit-negocio").value.trim(),
     nombreEstacion: document.getElementById("cfg-nombre-estacion").value.trim(),
     regimenTexto: document.getElementById("cfg-regimen-texto").value.trim(),
@@ -2060,6 +2236,7 @@ function limpiarFormularioProducto() {
   document.getElementById("p-stock-minimo").value = "5";
   document.getElementById("p-iva").value = "19";
   document.getElementById("p-costo").value = "";
+  document.getElementById("p-ganancia-preview").textContent = "";
   document.getElementById("p-imagen").value = "";
   imagenesActuales = [];
   renderPreviewImagenes();
@@ -2114,12 +2291,20 @@ function renderTablaInventario(filtro = "") {
           }`
         : "";
 
+      const costo = Number(p.costoCompra) || 0;
+      const utilidadUnidad = (Number(p.precioUnidadSuelta ?? p.precio) || 0) - costo;
+      const utilidadCaja = p.manejaCaja ? (Number(p.precio) || 0) - costo * (Number(p.unidadesPorCaja) || 1) : null;
+      const infoUtilidad = costo
+        ? `${formatCOP(utilidadUnidad)} <small>/u</small>${p.manejaCaja ? `<br><small>${formatCOP(utilidadCaja)} /caja</small>` : ""}`
+        : `<small style="color:var(--muted);">sin costo</small>`;
+
       return `
       <tr class="${filaClase}">
         <td><img src="${p.imagen || "https://placehold.co/40x40?text=%20"}" /></td>
         <td>${p.nombre}</td>
         <td>${p.categoria || ""}</td>
         <td>${formatCOP(p.precio)}${p.manejaEnvase ? `<br><small style="color:#1565C0;">Con envase: ${formatCOP(p.precioConEnvase)}</small>` : ""}${infoCaja}</td>
+        <td class="col-utilidad">${infoUtilidad}</td>
         <td>${p.stock}${p.manejaCaja ? `<br><small style="color:#888;">(unidades)</small>` : ""}</td>
         <td>${badge}</td>
         <td>${p.visibleEnTienda !== false ? '<span class="badge-stock badge-ok">Visible</span>' : '<span class="badge-stock badge-critico">Oculto</span>'}</td>
@@ -2177,6 +2362,7 @@ function cargarProductoParaEditar(id) {
   document.getElementById("p-stock").value = p.stock;
   document.getElementById("p-iva").value = p.ivaPorcentaje ?? 19;
   document.getElementById("p-costo").value = p.costoCompra ?? "";
+  actualizarGananciaPreview();
   document.getElementById("p-stock-minimo").value = p.stockMinimo ?? 5;
   document.getElementById("p-imagen").value = p.imagen || "";
   imagenesActuales = Array.isArray(p.imagenes) && p.imagenes.length ? [...p.imagenes] : (p.imagen ? [p.imagen] : []);
@@ -2447,13 +2633,14 @@ document.getElementById("btn-guardar-cliente").addEventListener("click", async (
   const correo = document.getElementById("c-correo").value.trim();
   const telefono = document.getElementById("c-telefono").value.trim();
   const direccion = document.getElementById("c-direccion").value.trim();
+  const participaPuntos = document.getElementById("c-participa-puntos").checked;
 
   if (!nombre) {
     mostrarToast("⚠️ El nombre es obligatorio.");
     return;
   }
 
-  const data = { cedula: cedula || "", nombre, correo, telefono, direccion, actualizadoEn: serverTimestamp() };
+  const data = { cedula: cedula || "", nombre, correo, telefono, direccion, participaPuntos, actualizadoEn: serverTimestamp() };
 
   try {
     if (idOriginal) {
@@ -2487,6 +2674,7 @@ function limpiarFormularioCliente() {
   document.getElementById("c-correo").value = "";
   document.getElementById("c-telefono").value = "";
   document.getElementById("c-direccion").value = "";
+  document.getElementById("c-participa-puntos").checked = false;
   document.getElementById("titulo-form-cliente").textContent = "Agregar Cliente";
   document.getElementById("btn-cancelar-edicion-cliente").classList.add("oculto");
 }
@@ -2513,14 +2701,19 @@ function renderTablaClientes(filtro = "") {
         <td>${c.correo || ""}</td>
         <td>${c.telefono || ""}</td>
         <td>${c.direccion || ""}</td>
+        <td>${c.participaPuntos ? `${c.puntos || 0} 🎁` : `<span style="color:var(--muted);">—</span>`}</td>
         <td>
+          <button class="btn btn-azul" data-id="${c.id}" data-accion="historial-cliente" title="Ver historial de compras">📜</button>
           <button class="btn btn-secundario" data-id="${c.id}" data-accion="editar-cliente" title="Editar cliente">✎</button>
           <button class="btn btn-rojo" data-id="${c.id}" data-accion="eliminar-cliente" title="Eliminar cliente">🗑</button>
         </td>
       </tr>`
       )
-      .join("") || `<tr><td colspan="6" style="text-align:center;color:#999;padding:16px;">Sin clientes registrados.</td></tr>`;
+      .join("") || `<tr><td colspan="7" style="text-align:center;color:#999;padding:16px;">Sin clientes registrados.</td></tr>`;
 
+  tbody.querySelectorAll('button[data-accion="historial-cliente"]').forEach((btn) => {
+    btn.addEventListener("click", () => abrirHistorialCliente(btn.dataset.id));
+  });
   tbody.querySelectorAll('button[data-accion="editar-cliente"]').forEach((btn) => {
     btn.addEventListener("click", () => cargarClienteParaEditar(btn.dataset.id));
   });
@@ -2538,6 +2731,7 @@ function cargarClienteParaEditar(id) {
   document.getElementById("c-correo").value = c.correo || "";
   document.getElementById("c-telefono").value = c.telefono || "";
   document.getElementById("c-direccion").value = c.direccion || "";
+  document.getElementById("c-participa-puntos").checked = !!c.participaPuntos;
   document.getElementById("titulo-form-cliente").textContent = "Editar Cliente";
   document.getElementById("btn-cancelar-edicion-cliente").classList.remove("oculto");
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -2553,6 +2747,71 @@ async function eliminarCliente(id) {
     mostrarToast("❌ Error eliminando el cliente.");
   }
 }
+
+/* ---------- HISTORIAL DE COMPRAS DE UN CLIENTE ---------- */
+async function abrirHistorialCliente(id) {
+  const cliente = clientesCache.find((c) => c.id === id);
+  if (!cliente) return;
+
+  const cont = document.getElementById("contenido-historial-cliente");
+  cont.innerHTML = `<p style="text-align:center;color:var(--muted);padding:20px;">Cargando historial...</p>`;
+  document.getElementById("modal-historial-overlay").classList.add("abierto");
+
+  try {
+    const snap = await getDocs(
+      query(collection(db, "facturas"), where("cliente.cedula", "==", cliente.cedula), orderBy("fecha", "desc"))
+    );
+    const facturas = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+    const totalGastado = facturas.reduce((acc, f) => acc + (f.total || 0), 0);
+    const productosAgregados = {};
+    facturas.forEach((f) => {
+      (f.items || []).forEach((i) => {
+        productosAgregados[i.nombre] = (productosAgregados[i.nombre] || 0) + (i.cantidad || 0);
+      });
+    });
+    const favorito = Object.entries(productosAgregados).sort((a, b) => b[1] - a[1])[0];
+
+    cont.innerHTML = `
+      <h3 style="margin-bottom:4px;">${cliente.nombre}</h3>
+      <p style="color:var(--muted);font-size:0.82rem;margin-bottom:14px;">Cédula/NIT: ${cliente.cedula || "N/A"}${cliente.puntos ? ` · 🎁 ${cliente.puntos} puntos` : ""}</p>
+
+      <div class="resumen-caja" style="margin-bottom:16px;">
+        <div class="caja-metric"><div class="valor">${formatCOP(totalGastado)}</div><div class="label">Total histórico gastado</div></div>
+        <div class="caja-metric"><div class="valor">${facturas.length}</div><div class="label"># Compras</div></div>
+        <div class="caja-metric"><div class="valor" style="font-size:0.95rem;">${favorito ? favorito[0] : "-"}</div><div class="label">Producto favorito</div></div>
+      </div>
+
+      <table class="tabla-factura">
+        <thead><tr><th>#</th><th>Fecha</th><th>Productos</th><th>Total</th></tr></thead>
+        <tbody>
+          ${
+            facturas
+              .map(
+                (f) => `<tr>
+                  <td>#${f.numero}</td>
+                  <td>${f.fecha?.toDate ? formatFecha(f.fecha) : ""}</td>
+                  <td>${(f.items || []).map((i) => `${i.cantidad}x ${i.nombre}`).join(", ")}</td>
+                  <td>${formatCOP(f.total)}</td>
+                </tr>`
+              )
+              .join("") || `<tr><td colspan="4" style="text-align:center;color:var(--muted);">Este cliente todavía no tiene compras registradas.</td></tr>`
+          }
+        </tbody>
+      </table>
+    `;
+  } catch (err) {
+    console.error(err);
+    cont.innerHTML = `<p style="text-align:center;color:var(--red);padding:20px;">No se pudo cargar el historial. Si es la primera vez, revisa la consola: puede que Firestore te pida crear un índice (sale un link para crearlo con un clic).</p>`;
+  }
+}
+
+document.getElementById("btn-cerrar-historial").addEventListener("click", () => {
+  document.getElementById("modal-historial-overlay").classList.remove("abierto");
+});
+document.getElementById("modal-historial-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "modal-historial-overlay") document.getElementById("modal-historial-overlay").classList.remove("abierto");
+});
 
 document.getElementById("buscar-cliente-tabla").addEventListener("input", (e) => {
   renderTablaClientes(e.target.value);
