@@ -929,6 +929,16 @@ function cerrarSidebarMovil() {
   sidebarOverlayEl.classList.remove("visible");
 }
 document.getElementById("btn-toggle-sidebar").addEventListener("click", abrirSidebarMovil);
+
+// Mide la altura REAL del topbar (puede variar si el título pasa a dos líneas en pantallas angostas)
+// y la expone como variable CSS para que el sidebar nunca quede tapado ni deje huecos.
+function actualizarAlturaTopbar() {
+  const topbar = document.querySelector(".admin-topbar");
+  if (topbar) document.documentElement.style.setProperty("--altura-topbar", topbar.offsetHeight + "px");
+}
+actualizarAlturaTopbar();
+window.addEventListener("resize", actualizarAlturaTopbar);
+window.addEventListener("orientationchange", actualizarAlturaTopbar);
 sidebarOverlayEl.addEventListener("click", cerrarSidebarMovil);
 
 /* =====================================================================
