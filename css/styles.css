@@ -49,6 +49,137 @@
   --sombra-flotante: 0 10px 30px -6px rgba(0,0,0,0.6);
 }
 
+/* =============================================================
+   ESTILOS VISUALES SELECCIONABLES (Configuración → Diseño)
+   El "modo oscuro" de arriba sigue existiendo pero solo se ofrece
+   sobre el estilo "clasico" (Frost & Citrus). Los demás ya tienen
+   personalidad propia y el botón de luna/sol se oculta para ellos.
+   ============================================================= */
+html[data-estilo]:not([data-estilo="clasico"]) .btn-tema { display: none; }
+
+/* ---------- ESTILO "NEVERA": frío, redondeado, juguetón ---------- */
+[data-estilo="nevera"] {
+  --ink: #0F2A3D;
+  --ink-soft: #3E5A6C;
+  --slate: #5B7A8C;
+  --paper: #EAF6FB;
+  --paper-alt: #D8EFF7;
+  --amber: #FFC72C;
+  --amber-deep: #E63946;
+  --amber-pale: #FFE9A8;
+  --frost: #F0FAFE;
+  --frost-line: #BFE3F0;
+  --danger: #E63946;
+  --chip-oscuro: #0F2A3D;
+  --radio-sm: 10px;
+  --radio-md: 14px;
+  --radio-lg: 20px;
+  --fuente-display: "Baloo 2", "Segoe UI", sans-serif;
+  --fuente: "Inter", "Segoe UI", sans-serif;
+}
+
+/* ---------- ESTILO "BOCAGRANDE": elegante, arena y dorado ---------- */
+[data-estilo="bocagrande"] {
+  --ink: #1B3A4B;
+  --ink-soft: #4A6270;
+  --slate: #6E7E85;
+  --paper: #EDE4D3;
+  --paper-alt: #E4D8C0;
+  --amber: #C9A227;
+  --amber-deep: #E4572E;
+  --amber-pale: #E4D8C0;
+  --frost: #F7F2E6;
+  --frost-line: #D9CBAE;
+  --danger: #B23A2E;
+  --chip-oscuro: #1B3A4B;
+  --radio-sm: 4px;
+  --radio-md: 6px;
+  --radio-lg: 8px;
+  --fuente-display: "Fraunces", "Georgia", serif;
+  --fuente: "Work Sans", "Segoe UI", sans-serif;
+}
+
+/* ---------- ESTILO "TIENDA DE BARRIO": vintage, letrero pintado ---------- */
+[data-estilo="tienda-barrio"] {
+  --ink: #26301F;
+  --ink-soft: #54503F;
+  --slate: #6B6250;
+  --paper: #F1EADA;
+  --paper-alt: #E7DEC6;
+  --amber: #D9A017;
+  --amber-deep: #B23A2E;
+  --amber-pale: #E7DEC6;
+  --frost: #EFE7D2;
+  --frost-line: #D8CBAA;
+  --danger: #B23A2E;
+  --chip-oscuro: #2F4B2E;
+  --radio-sm: 2px;
+  --radio-md: 3px;
+  --radio-lg: 4px;
+  --fuente-display: "Alfa Slab One", "Georgia", serif;
+  --fuente: "Inter", "Segoe UI", sans-serif;
+}
+
+/* ---------- ESTILO "CALLE CALIENTE": nocturno, neón rosa/ámbar ---------- */
+[data-estilo="calle-caliente"] {
+  --ink: #F5EFFF;
+  --ink-soft: #D8CBEE;
+  --slate: #B6A9CC;
+  --paper: #241B2F;
+  --paper-alt: #2F2440;
+  --amber: #FFB84D;
+  --amber-deep: #FF3CAC;
+  --amber-pale: #3A2A52;
+  --frost: #2F2440;
+  --frost-line: #4A3A63;
+  --danger: #FF5C7A;
+  --chip-oscuro: #1A1024;
+  --radio-sm: 10px;
+  --radio-md: 14px;
+  --radio-lg: 18px;
+  --fuente-display: "Archivo Black", "Segoe UI", sans-serif;
+  --fuente: "Inter", "Segoe UI", sans-serif;
+}
+/* El header usa --amber de fondo con --ink de texto; en este tema --amber es claro
+   y --ink también (para que el cuerpo sea legible sobre --paper oscuro), así que
+   el header necesita su propio contraste oscuro sobre el fondo ámbar. */
+[data-estilo="calle-caliente"] .header { color: #1A1024; }
+[data-estilo="calle-caliente"] .header p { color: #3A2A52; }
+
+/* ---------- ESTILO "GOLDEN HOUR": atardecer sobre la bahía, vidrio esmerilado ---------- */
+[data-estilo="golden-hour"] {
+  --ink: #2B1B2E;
+  --ink-soft: #5A4A62;
+  --slate: #8A7A97;
+  --paper: #FBEFE0;
+  --paper-alt: #F5DFC4;
+  --amber: #F2B84B;
+  --amber-deep: #FF7A59;
+  --amber-pale: #FFE3C2;
+  --frost: #FFEEDD;
+  --frost-line: #FFD9B0;
+  --danger: #E0483F;
+  --chip-oscuro: #2B1B4E;
+  --radio-sm: 10px;
+  --radio-md: 14px;
+  --radio-lg: 20px;
+  --fuente-display: "Sora", "Segoe UI", sans-serif;
+  --fuente: "Sora", "Segoe UI", sans-serif;
+}
+[data-estilo="golden-hour"] body {
+  background: linear-gradient(180deg, #2B1B4E 0%, #6E3B6E 30%, #E0704A 65%, #F2B84B 100%) fixed;
+}
+[data-estilo="golden-hour"] .header { background: transparent; color: #fff; box-shadow: none; }
+[data-estilo="golden-hour"] .header::before { display: none; }
+[data-estilo="golden-hour"] .header p { color: rgba(255,255,255,.85); }
+[data-estilo="golden-hour"] .card-producto,
+[data-estilo="golden-hour"] .modal-carrito,
+[data-estilo="golden-hour"] .modal-detalle-caja {
+  background: rgba(255,255,255,.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
 body, .header, .card-producto, .modal-carrito, .modal-detalle-caja, .lightbox-overlay img {
   transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
