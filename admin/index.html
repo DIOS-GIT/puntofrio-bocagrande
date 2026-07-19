@@ -191,26 +191,6 @@
     <h2 class="panel-titulo">Inventario</h2>
 
     <div class="card">
-      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" id="btn-toggle-categorias">
-        <h3 style="margin:0;">🏷️ Categorías</h3>
-        <span id="icono-toggle-categorias" style="font-size:0.8rem;color:var(--muted);">▾ mostrar</span>
-      </div>
-      <div id="contenido-categorias" class="oculto" style="margin-top:14px;">
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
-          <div class="form-field" style="flex:1;min-width:180px;margin-bottom:0;">
-            <label>Nueva categoría</label>
-            <input type="text" id="cat-nueva-nombre" placeholder="Ej: Snacks" />
-          </div>
-          <button class="btn btn-primario" id="btn-agregar-categoria">+ Agregar</button>
-        </div>
-        <div id="lista-categorias"></div>
-        <small style="color:var(--muted);display:block;margin-top:10px;">
-          Al renombrar una categoría, todos los productos que ya la usaban se actualizan automáticamente. Si eliminas una categoría que sigue en uso, esos productos conservan el nombre viejo pero ya no aparecerá en la lista para elegir en productos nuevos — te avisamos antes de borrar si hay productos afectados.
-        </small>
-      </div>
-    </div>
-
-    <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         <h3 id="titulo-form-producto">Agregar Producto</h3>
         <button type="button" class="btn btn-verde" id="btn-cancelar-edicion-top" title="Limpia todos los campos para agregar un producto nuevo (evita sobrescribir uno existente por error)">➕ Agregar Producto Nuevo / Limpiar Formulario</button>
@@ -226,7 +206,14 @@
           </div>
           <div class="form-field">
             <label>Categoría</label>
-            <select id="p-categoria"></select>
+            <select id="p-categoria">
+              <option>Licores</option>
+              <option>Cervezas Nacionales</option>
+              <option>Importadas</option>
+              <option>Bebidas</option>
+              <option>Bebidas $2.500</option>
+              <option>Hielo</option>
+            </select>
           </div>
         </div>
       </div>
@@ -336,7 +323,7 @@
             <label>Costo de compra POR UNIDAD (lo que a ti te cuesta, no por caja)</label>
             <input type="number" id="p-costo" min="0" />
             <small>Opcional, pero necesario para calcular tu utilidad real en Estadísticas. Si el producto se vende por caja, escribe el costo de UNA unidad suelta, no de la caja completa.</small>
-            <div id="p-ganancia-preview" style="margin-top:10px;padding:9px 12px;background:var(--bg);border-radius:8px;font-size:0.85rem;font-weight:600;color:var(--green);"></div>
+            <div id="p-ganancia-preview" style="margin-top:8px;font-size:0.85rem;font-weight:600;color:var(--green);"></div>
           </div>
         </div>
       </div>
@@ -369,6 +356,7 @@
 
       <div class="btn-fila">
         <button class="btn btn-primario" id="btn-guardar-producto">💾 Guardar Producto</button>
+        <button class="btn btn-secundario" id="btn-guardar-y-otra" title="Guarda este producto y deja listo el formulario para cargar otro con la misma categoría, precio, IVA y demás — solo cambias nombre, foto y stock.">💾➕ Guardar y agregar otra similar</button>
         <button class="btn btn-secundario oculto" id="btn-cancelar-edicion">Cancelar edición</button>
       </div>
     </div>
@@ -761,7 +749,6 @@ import {
   updateDoc,
   addDoc,
   runTransaction,
-  writeBatch,
   onSnapshot,
   query,
   where,
@@ -784,8 +771,8 @@ import {
    ESTADO GLOBAL
 ===================================================================== */
 let productosCache = [];
+const categoriasColapsadas = new Set(); // categorías plegadas en la tabla de Inventario
 let clientesCache = [];        // [{id, cedula, nombre, correo}]
-let categoriasCache = [];      // [{id, nombre, orden}]
 let carritoFactura = [];       // [{id, nombre, precio, cantidad, stockDisponible}]
 let puntosClienteActual = 0;   // puntos disponibles del cliente cargado en Facturación
 let puntosCanjeadosActual = 0; // puntos que se van a descontar en ESTA factura
@@ -971,30 +958,6 @@ function iniciarSuscripcionesFirestore() {
     clientesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderTablaClientes(document.getElementById("buscar-cliente-tabla")?.value || "");
   });
-
-  onSnapshot(query(collection(db, "categorias"), orderBy("orden")), async (snap) => {
-    if (snap.empty) {
-      await sembrarCategoriasIniciales();
-      return; // el propio onSnapshot se vuelve a disparar en cuanto se creen
-    }
-    categoriasCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    renderListaCategorias();
-    renderSelectCategoria();
-  });
-}
-
-// La primera vez que se usa el sistema, la colección "categorias" no existe:
-// la creamos con las 5 categorías que ya venían de fábrica, para no romper nada.
-let categoriasSembradas = false;
-async function sembrarCategoriasIniciales() {
-  if (categoriasSembradas) return;
-  categoriasSembradas = true;
-  const iniciales = ["Licores", "Cervezas Nacionales", "Importadas", "Bebidas", "Hielo"];
-  const batch = writeBatch(db);
-  iniciales.forEach((nombre, idx) => {
-    batch.set(doc(collection(db, "categorias")), { nombre, orden: idx });
-  });
-  await batch.commit();
 }
 
 /* =====================================================================
@@ -2100,7 +2063,7 @@ function actualizarGananciaPreview() {
   const cont = document.getElementById("p-ganancia-preview");
   const costo = Number(document.getElementById("p-costo").value) || 0;
   if (!costo) {
-    cont.innerHTML = `<span style="color:var(--muted);font-weight:400;">Ingresa el costo de compra para ver tu ganancia aquí.</span>`;
+    cont.textContent = "";
     return;
   }
   const manejaCaja = document.getElementById("p-maneja-caja").checked;
@@ -2117,7 +2080,6 @@ function actualizarGananciaPreview() {
   }
   cont.innerHTML = texto;
 }
-actualizarGananciaPreview(); // muestra el mensaje guía apenas carga la página
 ["p-precio", "p-costo", "p-precio-suelta", "p-unidades-caja", "p-maneja-caja"].forEach((idCampo) => {
   document.getElementById(idCampo).addEventListener("input", actualizarGananciaPreview);
   document.getElementById(idCampo).addEventListener("change", actualizarGananciaPreview);
@@ -2158,7 +2120,7 @@ document.getElementById("btn-calcular-stock-cajas").addEventListener("click", ()
   mostrarToast(`✅ ${cajas} caja(s) x ${unidades} = ${cajas * unidades} unidades.`);
 });
 
-document.getElementById("btn-guardar-producto").addEventListener("click", async () => {
+async function guardarProductoDesdeFormulario() {
   const id = document.getElementById("p-id").value;
   const manejaEnvase = document.getElementById("p-maneja-envase").checked;
   const manejaCaja = document.getElementById("p-maneja-caja").checked;
@@ -2191,11 +2153,11 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
 
   if (!data.nombre) {
     mostrarToast("⚠️ El nombre del producto es obligatorio.");
-    return;
+    return false;
   }
   if (manejaCaja && !data.unidadesPorCaja) {
     mostrarToast("⚠️ Indica cuántas unidades trae la caja.");
-    return;
+    return false;
   }
 
   try {
@@ -2206,11 +2168,26 @@ document.getElementById("btn-guardar-producto").addEventListener("click", async 
       await addDoc(collection(db, "productos"), data);
       mostrarToast("✅ Producto agregado.");
     }
-    limpiarFormularioProducto();
+    return true;
   } catch (err) {
     console.error(err);
     mostrarToast("❌ Error guardando el producto.");
+    return false;
   }
+}
+
+document.getElementById("btn-guardar-producto").addEventListener("click", async () => {
+  const ok = await guardarProductoDesdeFormulario();
+  if (ok) limpiarFormularioProducto();
+});
+
+document.getElementById("btn-guardar-y-otra").addEventListener("click", async () => {
+  if (document.getElementById("p-id").value) {
+    mostrarToast("⚠️ Esto es solo para agregar productos nuevos, no mientras editas uno existente.");
+    return;
+  }
+  const ok = await guardarProductoDesdeFormulario();
+  if (ok) limpiarCamposIndividualesProducto();
 });
 
 /* ---------------------------------------------------------------
@@ -2258,116 +2235,6 @@ document.getElementById("btn-guardar-config-tienda").addEventListener("click", a
   }
 });
 
-/* ---------------------------------------------------------------
-   GESTIÓN DE CATEGORÍAS (agregar / renombrar / eliminar)
---------------------------------------------------------------- */
-document.getElementById("btn-toggle-categorias").addEventListener("click", () => {
-  const cont = document.getElementById("contenido-categorias");
-  const icono = document.getElementById("icono-toggle-categorias");
-  const abierto = !cont.classList.contains("oculto");
-  cont.classList.toggle("oculto", abierto);
-  icono.textContent = abierto ? "▾ mostrar" : "▴ ocultar";
-});
-
-function renderSelectCategoria() {
-  const select = document.getElementById("p-categoria");
-  const valorActual = select.value;
-  select.innerHTML = categoriasCache.map((c) => `<option value="${c.nombre}">${c.nombre}</option>`).join("");
-  if (categoriasCache.some((c) => c.nombre === valorActual)) select.value = valorActual;
-}
-
-function renderListaCategorias() {
-  const cont = document.getElementById("lista-categorias");
-  cont.innerHTML = categoriasCache
-    .map(
-      (c) => `
-    <div class="fila-categoria" data-id="${c.id}">
-      <input type="text" class="input-categoria-nombre" value="${c.nombre}" data-id="${c.id}" data-original="${c.nombre}" />
-      <button type="button" class="btn btn-secundario btn-guardar-categoria" data-id="${c.id}" title="Guardar cambio de nombre">💾</button>
-      <button type="button" class="btn btn-rojo btn-eliminar-categoria" data-id="${c.id}" title="Eliminar categoría">🗑</button>
-    </div>`
-    )
-    .join("");
-
-  cont.querySelectorAll(".btn-guardar-categoria").forEach((btn) => {
-    btn.addEventListener("click", () => renombrarCategoria(btn.dataset.id));
-  });
-  cont.querySelectorAll(".btn-eliminar-categoria").forEach((btn) => {
-    btn.addEventListener("click", () => eliminarCategoria(btn.dataset.id));
-  });
-}
-
-document.getElementById("btn-agregar-categoria").addEventListener("click", async () => {
-  const input = document.getElementById("cat-nueva-nombre");
-  const nombre = input.value.trim();
-  if (!nombre) {
-    mostrarToast("⚠️ Escribe un nombre para la categoría.");
-    return;
-  }
-  if (categoriasCache.some((c) => c.nombre.toLowerCase() === nombre.toLowerCase())) {
-    mostrarToast("⚠️ Ya existe una categoría con ese nombre.");
-    return;
-  }
-  try {
-    const orden = categoriasCache.length ? Math.max(...categoriasCache.map((c) => c.orden || 0)) + 1 : 0;
-    await addDoc(collection(db, "categorias"), { nombre, orden });
-    input.value = "";
-    mostrarToast("✅ Categoría agregada.");
-  } catch (err) {
-    console.error(err);
-    mostrarToast("❌ Error agregando la categoría.");
-  }
-});
-
-async function renombrarCategoria(id) {
-  const input = document.querySelector(`.input-categoria-nombre[data-id="${id}"]`);
-  const nuevoNombre = input.value.trim();
-  const nombreOriginal = input.dataset.original;
-  if (!nuevoNombre) {
-    mostrarToast("⚠️ El nombre no puede quedar vacío.");
-    return;
-  }
-  if (nuevoNombre === nombreOriginal) return; // no cambió nada
-
-  try {
-    const batch = writeBatch(db);
-    batch.update(doc(db, "categorias", id), { nombre: nuevoNombre });
-
-    // Actualiza en cascada todos los productos que ya usaban el nombre viejo
-    const snapProductos = await getDocs(query(collection(db, "productos"), where("categoria", "==", nombreOriginal)));
-    snapProductos.forEach((docProducto) => {
-      batch.update(doc(db, "productos", docProducto.id), { categoria: nuevoNombre });
-    });
-
-    await batch.commit();
-    mostrarToast(`✅ Categoría renombrada${snapProductos.size ? ` y actualizada en ${snapProductos.size} producto(s)` : ""}.`);
-  } catch (err) {
-    console.error(err);
-    mostrarToast("❌ Error renombrando la categoría.");
-  }
-}
-
-async function eliminarCategoria(id) {
-  const cat = categoriasCache.find((c) => c.id === id);
-  if (!cat) return;
-
-  try {
-    const snapProductos = await getDocs(query(collection(db, "productos"), where("categoria", "==", cat.nombre)));
-    const enUso = snapProductos.size;
-    const mensaje =
-      enUso > 0
-        ? `"${cat.nombre}" todavía la usan ${enUso} producto(s). Si la eliminas, esos productos conservarán el nombre "${cat.nombre}" pero ya no podrás elegirla para productos nuevos. ¿Eliminar de todas formas?`
-        : `¿Eliminar la categoría "${cat.nombre}"?`;
-    if (!confirm(mensaje)) return;
-
-    await deleteDoc(doc(db, "categorias", id));
-    mostrarToast("✅ Categoría eliminada.");
-  } catch (err) {
-    console.error(err);
-    mostrarToast("❌ Error eliminando la categoría.");
-  }
-}
-
 function limpiarFormularioProducto() {
   document.getElementById("p-id").value = "";
   document.getElementById("p-nombre").value = "";
@@ -2397,7 +2264,7 @@ function limpiarFormularioProducto() {
   document.getElementById("p-stock-minimo").value = "5";
   document.getElementById("p-iva").value = "19";
   document.getElementById("p-costo").value = "";
-  actualizarGananciaPreview();
+  document.getElementById("p-ganancia-preview").textContent = "";
   document.getElementById("p-imagen").value = "";
   imagenesActuales = [];
   renderPreviewImagenes();
@@ -2409,6 +2276,22 @@ function limpiarFormularioProducto() {
 
 document.getElementById("btn-cancelar-edicion").addEventListener("click", limpiarFormularioProducto);
 document.getElementById("btn-cancelar-edicion-top").addEventListener("click", limpiarFormularioProducto);
+
+// Limpia solo nombre, foto y stock — deja categoría, precio, IVA, envase, caja/six/suelta
+// y stock mínimo tal como estaban, para cargar rápido varios productos parecidos
+// (ej. varias bebidas distintas que comparten precio y categoría "Bebidas $2.500").
+function limpiarCamposIndividualesProducto() {
+  document.getElementById("p-id").value = "";
+  document.getElementById("p-nombre").value = "";
+  document.getElementById("p-stock").value = "";
+  document.getElementById("p-cajas-stock").value = "";
+  document.getElementById("p-imagen").value = "";
+  imagenesActuales = [];
+  renderPreviewImagenes();
+  document.getElementById("titulo-form-producto").textContent = "Agregar Producto";
+  document.getElementById("btn-cancelar-edicion").classList.add("oculto");
+  document.getElementById("p-nombre").focus();
+}
 
 function renderTablaInventario(filtro = "") {
   const tbody = document.querySelector("#tabla-inventario tbody");
@@ -2422,61 +2305,99 @@ function renderTablaInventario(filtro = "") {
     return coincideNombre || coincidePrecio;
   });
 
-  tbody.innerHTML = lista
-    .map((p) => {
-      const stockMin = p.stockMinimo ?? 5;
-      let filaClase = "";
-      let badge = `<span class="badge-stock badge-ok">OK</span>`;
-      if (Number(p.stock) <= 0) {
-        filaClase = "stock-critico";
-        badge = `<span class="badge-stock badge-critico">AGOTADO</span>`;
-      } else if (Number(p.stock) <= stockMin) {
-        filaClase = "stock-bajo";
-        badge = `<span class="badge-stock badge-bajo">STOCK BAJO</span>`;
-      }
+  // Agrupar por categoría (respetando el orden del <select> de categorías, con
+  // cualquier categoría nueva al final) para no perder de vista cuántos productos
+  // distintos hay bajo un mismo precio/categoría (ej. "Bebidas $2.500").
+  const ordenCategorias = Array.from(document.querySelectorAll("#p-categoria option")).map((o) => o.value);
+  const grupos = new Map();
+  lista.forEach((p) => {
+    const cat = p.categoria || "Sin categoría";
+    if (!grupos.has(cat)) grupos.set(cat, []);
+    grupos.get(cat).push(p);
+  });
+  const categoriasOrdenadas = Array.from(grupos.keys()).sort((a, b) => {
+    const ia = ordenCategorias.indexOf(a);
+    const ib = ordenCategorias.indexOf(b);
+    if (ia === -1 && ib === -1) return a.localeCompare(b);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
 
-      const cajasDisponibles = p.manejaCaja ? Math.floor((Number(p.stock) || 0) / (Number(p.unidadesPorCaja) || 1)) : null;
-      const infoCaja = p.manejaCaja
-        ? `<br><small style="color:#1565C0;">Caja x${p.unidadesPorCaja} (${cajasDisponibles} cajas disp.)</small>${
-            p.manejaSixpack
-              ? `<br><small style="color:#1565C0;">Six x${p.unidadesPorSixpack}: ${formatCOP(p.precioSixpack)}${
-                  p.mostrarSixpackEnTienda ? " · visible en tienda" : " · solo en facturación"
-                }</small>`
-              : ""
-          }${
-            p.permiteVentaSuelta
-              ? `<br><small style="color:#1565C0;">Unidad de ${p.nombre}: ${formatCOP(p.precioUnidadSuelta)}${
-                  p.mostrarSueltaEnTienda ? " · visible en tienda" : " · solo en facturación"
-                }</small>`
-              : ""
-          }`
-        : "";
+  const filaProducto = (p) => {
+    const stockMin = p.stockMinimo ?? 5;
+    let filaClase = "";
+    let badge = `<span class="badge-stock badge-ok">OK</span>`;
+    if (Number(p.stock) <= 0) {
+      filaClase = "stock-critico";
+      badge = `<span class="badge-stock badge-critico">AGOTADO</span>`;
+    } else if (Number(p.stock) <= stockMin) {
+      filaClase = "stock-bajo";
+      badge = `<span class="badge-stock badge-bajo">STOCK BAJO</span>`;
+    }
 
-      const costo = Number(p.costoCompra) || 0;
-      const utilidadUnidad = (Number(p.precioUnidadSuelta ?? p.precio) || 0) - costo;
-      const utilidadCaja = p.manejaCaja ? (Number(p.precio) || 0) - costo * (Number(p.unidadesPorCaja) || 1) : null;
-      const infoUtilidad = costo
-        ? `${formatCOP(utilidadUnidad)} <small>/u</small>${p.manejaCaja ? `<br><small>${formatCOP(utilidadCaja)} /caja</small>` : ""}`
-        : `<small style="color:var(--muted);">sin costo</small>`;
+    const cajasDisponibles = p.manejaCaja ? Math.floor((Number(p.stock) || 0) / (Number(p.unidadesPorCaja) || 1)) : null;
+    const infoCaja = p.manejaCaja
+      ? `<br><small style="color:#1565C0;">Caja x${p.unidadesPorCaja} (${cajasDisponibles} cajas disp.)</small>${
+          p.manejaSixpack
+            ? `<br><small style="color:#1565C0;">Six x${p.unidadesPorSixpack}: ${formatCOP(p.precioSixpack)}${
+                p.mostrarSixpackEnTienda ? " · visible en tienda" : " · solo en facturación"
+              }</small>`
+            : ""
+        }${
+          p.permiteVentaSuelta
+            ? `<br><small style="color:#1565C0;">Unidad de ${p.nombre}: ${formatCOP(p.precioUnidadSuelta)}${
+                p.mostrarSueltaEnTienda ? " · visible en tienda" : " · solo en facturación"
+              }</small>`
+            : ""
+        }`
+      : "";
 
-      return `
-      <tr class="${filaClase}">
-        <td><img src="${p.imagen || "https://placehold.co/40x40?text=%20"}" /></td>
-        <td>${p.nombre}</td>
-        <td>${p.categoria || ""}</td>
-        <td>${formatCOP(p.precio)}${p.manejaEnvase ? `<br><small style="color:#1565C0;">Con envase: ${formatCOP(p.precioConEnvase)}</small>` : ""}${infoCaja}</td>
-        <td class="col-utilidad">${infoUtilidad}</td>
-        <td>${p.stock}${p.manejaCaja ? `<br><small style="color:#888;">(unidades)</small>` : ""}</td>
-        <td>${badge}</td>
-        <td>${p.visibleEnTienda !== false ? '<span class="badge-stock badge-ok">Visible</span>' : '<span class="badge-stock badge-critico">Oculto</span>'}</td>
-        <td>
-          <button class="btn btn-secundario" data-id="${p.id}" data-accion="editar" title="Editar producto">✎</button>
-          <button class="btn btn-rojo" data-id="${p.id}" data-accion="eliminar" title="Eliminar producto">🗑</button>
-        </td>
+    const costo = Number(p.costoCompra) || 0;
+    const utilidadUnidad = (Number(p.precioUnidadSuelta ?? p.precio) || 0) - costo;
+    const utilidadCaja = p.manejaCaja ? (Number(p.precio) || 0) - costo * (Number(p.unidadesPorCaja) || 1) : null;
+    const infoUtilidad = costo
+      ? `${formatCOP(utilidadUnidad)} <small>/u</small>${p.manejaCaja ? `<br><small>${formatCOP(utilidadCaja)} /caja</small>` : ""}`
+      : `<small style="color:var(--muted);">sin costo</small>`;
+
+    return `
+    <tr class="${filaClase}">
+      <td><img src="${p.imagen || "https://placehold.co/40x40?text=%20"}" /></td>
+      <td>${p.nombre}</td>
+      <td>${p.categoria || ""}</td>
+      <td>${formatCOP(p.precio)}${p.manejaEnvase ? `<br><small style="color:#1565C0;">Con envase: ${formatCOP(p.precioConEnvase)}</small>` : ""}${infoCaja}</td>
+      <td class="col-utilidad">${infoUtilidad}</td>
+      <td>${p.stock}${p.manejaCaja ? `<br><small style="color:#888;">(unidades)</small>` : ""}</td>
+      <td>${badge}</td>
+      <td>${p.visibleEnTienda !== false ? '<span class="badge-stock badge-ok">Visible</span>' : '<span class="badge-stock badge-critico">Oculto</span>'}</td>
+      <td>
+        <button class="btn btn-secundario" data-id="${p.id}" data-accion="editar" title="Editar producto">✎</button>
+        <button class="btn btn-rojo" data-id="${p.id}" data-accion="eliminar" title="Eliminar producto">🗑</button>
+      </td>
+    </tr>`;
+  };
+
+  tbody.innerHTML = categoriasOrdenadas
+    .map((cat) => {
+      const items = grupos.get(cat);
+      const colapsada = categoriasColapsadas.has(cat);
+      const encabezado = `
+      <tr class="fila-grupo-categoria" data-categoria="${cat.replace(/"/g, "&quot;")}" style="cursor:pointer;background:var(--fondo-suave,#f3f3f3);">
+        <td colspan="9" style="font-weight:600;">${colapsada ? "▸" : "▾"} ${cat} <small style="font-weight:400;color:var(--muted);">(${items.length} producto${items.length === 1 ? "" : "s"})</small></td>
       </tr>`;
+      const filas = colapsada ? "" : items.map(filaProducto).join("");
+      return encabezado + filas;
     })
     .join("");
 
+  tbody.querySelectorAll(".fila-grupo-categoria").forEach((tr) => {
+    tr.addEventListener("click", () => {
+      const cat = tr.dataset.categoria;
+      if (categoriasColapsadas.has(cat)) categoriasColapsadas.delete(cat);
+      else categoriasColapsadas.add(cat);
+      renderTablaInventario(document.getElementById("buscar-inventario")?.value || "");
+    });
+  });
   tbody.querySelectorAll('button[data-accion="editar"]').forEach((btn) => {
     btn.addEventListener("click", () => cargarProductoParaEditar(btn.dataset.id));
   });
