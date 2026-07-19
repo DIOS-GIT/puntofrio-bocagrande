@@ -454,6 +454,24 @@ canvas { max-width: 100%; }
 
 .oculto { display: none !important; }
 
+.fila-categoria {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.fila-categoria .input-categoria-nombre {
+  flex: 1;
+  padding: 8px 11px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border);
+  font-size: 0.85rem;
+  font-family: var(--fuente);
+  background: var(--surface);
+  color: var(--ink);
+}
+.fila-categoria .btn { padding: 7px 11px; font-size: 0.8rem; }
+
 /* Información sensible (costo de compra, utilidad): solo visible para el dueño */
 body.rol-empleado #campo-costo-compra,
 body.rol-empleado .col-utilidad {
