@@ -89,6 +89,8 @@ import {
   db,
   collection,
   doc,
+  query,
+  orderBy,
   onSnapshot,
   generarLinkWhatsApp
 } from "./js/theme.js";
@@ -110,7 +112,7 @@ btnTema.addEventListener("click", () => {
   aplicarTema(actual === "oscuro" ? "claro" : "oscuro");
 });
 
-const CATEGORIAS = ["Todos", "Licores", "Cervezas Nacionales", "Importadas", "Bebidas", "Hielo"];
+let categorias = ["Todos"]; // se llena en tiempo real desde Firestore (colección "categorias")
 
 let productos = [];       // Cache local de productos desde Firestore
 let categoriaActiva = "Todos";
@@ -240,7 +242,7 @@ gridEl.addEventListener("click", (e) => {
 
 /* ---------- RENDER DE FILTROS ---------- */
 function renderFiltros() {
-  filtrosEl.innerHTML = CATEGORIAS.map(
+  filtrosEl.innerHTML = categorias.map(
     (cat) => `<button class="filtro-btn ${cat === categoriaActiva ? "activo" : ""}" data-cat="${cat}">${cat}</button>`
   ).join("");
 
@@ -548,6 +550,12 @@ onSnapshot(collection(db, "productos"), (snapshot) => {
   productos = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   renderProductos();
   sincronizarCarritoConStock();
+});
+
+onSnapshot(query(collection(db, "categorias"), orderBy("orden")), (snapshot) => {
+  categorias = ["Todos", ...snapshot.docs.map((d) => d.data().nombre)];
+  renderFiltros();
+  renderProductos();
 });
 
 /* ---------- CONFIGURACIÓN DE LA TIENDA: horario de atención + banner ---------- */
