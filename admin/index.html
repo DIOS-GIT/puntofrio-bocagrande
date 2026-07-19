@@ -602,6 +602,7 @@
 
     <div class="subtabs">
       <button class="subtab-btn activo" data-subtab="tienda">🏪 Tienda</button>
+      <button class="subtab-btn" data-subtab="diseno">🎨 Diseño</button>
       <button class="subtab-btn" data-subtab="usuarios">🔑 Usuarios</button>
     </div>
 
@@ -687,6 +688,19 @@
 
         <div class="btn-fila">
           <button class="btn btn-primario" id="btn-guardar-config-tienda">💾 Guardar configuración</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="subpanel" id="subpanel-diseno">
+      <div class="card">
+        <h3 style="margin-bottom:6px;">Estilo visual de la tienda</h3>
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px;">
+          Elige cómo se ve la tienda pública para tus clientes. El cambio aplica al instante para todos en cuanto guardas — no necesitas tocar código.
+        </p>
+        <div id="grid-disenos" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;"></div>
+        <div class="btn-fila" style="margin-top:18px;">
+          <button class="btn btn-primario" id="btn-guardar-diseno">💾 Guardar diseño</button>
         </div>
       </div>
     </div>
@@ -2306,6 +2320,8 @@ onSnapshot(doc(db, "config", "tienda"), (snap) => {
   document.getElementById("cfg-nombre-estacion").value = configTienda.nombreEstacion || "";
   document.getElementById("cfg-regimen-texto").value = configTienda.regimenTexto || "";
   document.getElementById("cfg-mensaje-legal").value = configTienda.mensajeLegal || "";
+  disenoSeleccionado = configTienda.estiloVisual || "clasico";
+  renderSelectorDisenos();
 });
 
 document.getElementById("btn-guardar-config-tienda").addEventListener("click", async () => {
@@ -2329,6 +2345,95 @@ document.getElementById("btn-guardar-config-tienda").addEventListener("click", a
   } catch (err) {
     console.error(err);
     mostrarToast("❌ Error guardando la configuración.");
+  }
+});
+
+/* ---------------------------------------------------------------
+   DISEÑO: estilo visual seleccionable para la tienda pública.
+   Se guarda en el mismo doc config/tienda (campo estiloVisual) y
+   la tienda pública lo lee para poner data-estilo="..." en <html>.
+--------------------------------------------------------------- */
+const CATALOGO_DISENOS = [
+  {
+    id: "clasico",
+    nombre: "Frost & Citrus (actual)",
+    descripcion: "Crema y ámbar — el diseño que ya tienes hoy. Incluye modo oscuro.",
+    colores: ["#FFFDF9", "#E2A63B", "#1B1815", "#EAF5F5"],
+    fuente: "Fraunces + Inter"
+  },
+  {
+    id: "nevera",
+    nombre: "Nevera",
+    descripcion: "Frío y juguetón: azul hielo, amarillo y rojo, tipografía redondeada.",
+    colores: ["#EAF6FB", "#FFC72C", "#0F2A3D", "#E63946"],
+    fuente: "Baloo 2 + Inter"
+  },
+  {
+    id: "bocagrande",
+    nombre: "Bocagrande Beach Club",
+    descripcion: "Elegante y cálido: arena, dorado y coral, tipo carta de club de playa.",
+    colores: ["#EDE4D3", "#C9A227", "#1B3A4B", "#E4572E"],
+    fuente: "Fraunces + Work Sans"
+  },
+  {
+    id: "tienda-barrio",
+    nombre: "Tienda de Barrio",
+    descripcion: "Vintage, letrero pintado a mano: mostaza y verde, esquinas rectas.",
+    colores: ["#F1EADA", "#D9A017", "#2F4B2E", "#B23A2E"],
+    fuente: "Alfa Slab One + Inter"
+  },
+  {
+    id: "calle-caliente",
+    nombre: "Calle Caliente",
+    descripcion: "Nocturno y vibrante: morado profundo con neón rosa y ámbar.",
+    colores: ["#241B2F", "#FFB84D", "#FF3CAC", "#F5EFFF"],
+    fuente: "Archivo Black + Inter"
+  },
+  {
+    id: "golden-hour",
+    nombre: "Golden Hour",
+    descripcion: "Atardecer sobre la bahía: degradado morado a dorado, tarjetas de vidrio.",
+    colores: ["#2B1B4E", "#E0704A", "#F2B84B", "#FFFFFF"],
+    fuente: "Sora"
+  }
+];
+
+let disenoSeleccionado = "clasico";
+
+function renderSelectorDisenos() {
+  const cont = document.getElementById("grid-disenos");
+  cont.innerHTML = CATALOGO_DISENOS.map((d) => {
+    const activo = d.id === disenoSeleccionado;
+    return `
+    <label class="tarjeta-diseno" data-id="${d.id}" style="display:block;cursor:pointer;border:2px solid ${
+      activo ? "var(--acento,#FFA000)" : "var(--border,#e0e0e0)"
+    };border-radius:10px;padding:14px;background:${activo ? "rgba(255,160,0,0.06)" : "transparent"};">
+      <input type="radio" name="diseno-estilo" value="${d.id}" ${activo ? "checked" : ""} style="width:auto;margin-right:8px;" />
+      <strong>${d.nombre}</strong>
+      <div style="display:flex;gap:6px;margin:10px 0;">
+        ${d.colores.map((c) => `<span style="width:22px;height:22px;border-radius:50%;background:${c};border:1px solid rgba(0,0,0,.15);display:inline-block;"></span>`).join("")}
+      </div>
+      <div style="font-size:0.8rem;color:var(--muted);margin-bottom:4px;">${d.descripcion}</div>
+      <div style="font-size:0.72rem;color:var(--muted);font-style:italic;">Tipografía: ${d.fuente}</div>
+    </label>`;
+  }).join("");
+
+  cont.querySelectorAll('input[name="diseno-estilo"]').forEach((input) => {
+    input.addEventListener("change", () => {
+      disenoSeleccionado = input.value;
+      renderSelectorDisenos();
+    });
+  });
+}
+renderSelectorDisenos();
+
+document.getElementById("btn-guardar-diseno").addEventListener("click", async () => {
+  try {
+    await setDoc(doc(db, "config", "tienda"), { estiloVisual: disenoSeleccionado }, { merge: true });
+    mostrarToast("✅ Diseño actualizado — ya se aplicó en la tienda pública.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error guardando el diseño.");
   }
 });
 
