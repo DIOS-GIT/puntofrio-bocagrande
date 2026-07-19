@@ -211,6 +211,30 @@
     </div>
 
     <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" id="btn-toggle-subcategorias">
+        <h3 style="margin:0;">🏷️ Subcategorías</h3>
+        <span id="icono-toggle-subcategorias" style="font-size:0.8rem;color:var(--muted);">▾ mostrar</span>
+      </div>
+      <div id="contenido-subcategorias" class="oculto" style="margin-top:14px;">
+        <div class="form-field" style="margin-bottom:14px;">
+          <label>Categoría padre</label>
+          <select id="subcat-categoria-padre"></select>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+          <div class="form-field" style="flex:1;min-width:180px;margin-bottom:0;">
+            <label>Nueva subcategoría</label>
+            <input type="text" id="subcat-nueva-nombre" placeholder="Ej: Bebidas $2.500" />
+          </div>
+          <button class="btn btn-primario" id="btn-agregar-subcategoria">+ Agregar</button>
+        </div>
+        <div id="lista-subcategorias"></div>
+        <small style="color:var(--muted);display:block;margin-top:10px;">
+          Las subcategorías son para uso interno: organizar mejor el Inventario y encontrar productos más rápido en Facturación (ej. buscar "Bebidas $2.500" muestra todas las bebidas de ese precio). No se muestran en la tienda pública. Al renombrar, los productos que ya la usaban se actualizan automáticamente.
+        </small>
+      </div>
+    </div>
+
+    <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         <h3 id="titulo-form-producto">Agregar Producto</h3>
         <button type="button" class="btn btn-verde" id="btn-cancelar-edicion-top" title="Limpia todos los campos para agregar un producto nuevo (evita sobrescribir uno existente por error)">➕ Agregar Producto Nuevo / Limpiar Formulario</button>
@@ -227,6 +251,17 @@
           <div class="form-field">
             <label>Categoría</label>
             <select id="p-categoria"></select>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-field">
+            <label>Subcategoría <small style="color:var(--muted);font-weight:400;">(opcional — solo uso interno)</small></label>
+            <select id="p-subcategoria">
+              <option value="">Sin subcategoría</option>
+            </select>
+          </div>
+          <div class="form-field" style="display:flex;align-items:flex-end;">
+            <button type="button" class="btn btn-secundario" id="btn-nueva-subcategoria-rapida" style="width:100%;">+ Nueva subcategoría para esta categoría</button>
           </div>
         </div>
       </div>
@@ -788,6 +823,7 @@ let productosCache = [];
 const categoriasColapsadas = new Set(); // categorías plegadas en la tabla de Inventario
 let clientesCache = [];        // [{id, cedula, nombre, correo}]
 let categoriasCache = [];      // [{id, nombre, orden}]
+let subcategoriasCache = [];   // [{id, nombre, categoriaPadre, orden}]
 let carritoFactura = [];       // [{id, nombre, precio, cantidad, stockDisponible}]
 let puntosClienteActual = 0;   // puntos disponibles del cliente cargado en Facturación
 let puntosCanjeadosActual = 0; // puntos que se van a descontar en ESTA factura
@@ -982,6 +1018,13 @@ function iniciarSuscripcionesFirestore() {
     categoriasCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderListaCategorias();
     renderSelectCategoria();
+    renderSelectCategoriaPadreSubcategoria();
+  });
+
+  onSnapshot(query(collection(db, "subcategorias"), orderBy("orden")), (snap) => {
+    subcategoriasCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderListaSubcategorias();
+    renderSelectSubcategoria();
   });
 }
 
@@ -1085,7 +1128,13 @@ document.getElementById("f-buscar-producto").addEventListener("input", (e) => {
   if (!texto) { contenedor.innerHTML = ""; return; }
 
   const coincidencias = productosCache
-    .filter((p) => p.nombre.toLowerCase().includes(texto) && Number(p.stock) > 0)
+    .filter((p) => {
+      if (Number(p.stock) <= 0) return false;
+      const enNombre = p.nombre.toLowerCase().includes(texto);
+      const enCategoria = (p.categoria || "").toLowerCase().includes(texto);
+      const enSubcategoria = (p.subcategoria || "").toLowerCase().includes(texto);
+      return enNombre || enCategoria || enSubcategoria;
+    })
     .slice(0, 6);
 
   contenedor.innerHTML = coincidencias
@@ -1619,7 +1668,14 @@ function abrirEdicionFactura(factura) {
     const contenedor = document.getElementById("resultados-producto-edicion");
     if (!texto) { contenedor.innerHTML = ""; return; }
 
-    const coincidencias = productosCache.filter((p) => p.nombre.toLowerCase().includes(texto)).slice(0, 6);
+    const coincidencias = productosCache
+      .filter((p) => {
+        const enNombre = p.nombre.toLowerCase().includes(texto);
+        const enCategoria = (p.categoria || "").toLowerCase().includes(texto);
+        const enSubcategoria = (p.subcategoria || "").toLowerCase().includes(texto);
+        return enNombre || enCategoria || enSubcategoria;
+      })
+      .slice(0, 6);
     contenedor.innerHTML = coincidencias
       .map(
         (p) => `<div style="padding:8px;border-bottom:1px solid #eee;cursor:pointer;" data-id="${p.id}">
@@ -2169,6 +2225,7 @@ async function guardarProductoDesdeFormulario() {
   const data = {
     nombre: document.getElementById("p-nombre").value.trim(),
     categoria: document.getElementById("p-categoria").value,
+    subcategoria: document.getElementById("p-subcategoria").value || null,
     precio: Number(document.getElementById("p-precio").value) || 0,
     manejaEnvase,
     precioConEnvase: manejaEnvase ? (Number(document.getElementById("p-precio-envase").value) || 0) : null,
@@ -2385,6 +2442,171 @@ async function eliminarCategoria(id) {
   }
 }
 
+/* ---------------------------------------------------------------
+   GESTIÓN DE SUBCATEGORÍAS (uso interno: inventario y facturación,
+   no se muestran en la tienda pública). Cada una cuelga de una
+   categoría padre (por nombre, igual que "categoria" en productos).
+--------------------------------------------------------------- */
+document.getElementById("btn-toggle-subcategorias").addEventListener("click", () => {
+  const cont = document.getElementById("contenido-subcategorias");
+  const icono = document.getElementById("icono-toggle-subcategorias");
+  const abierto = !cont.classList.contains("oculto");
+  cont.classList.toggle("oculto", abierto);
+  icono.textContent = abierto ? "▾ mostrar" : "▴ ocultar";
+});
+
+function renderSelectCategoriaPadreSubcategoria() {
+  const select = document.getElementById("subcat-categoria-padre");
+  const valorActual = select.value;
+  select.innerHTML = categoriasCache.map((c) => `<option value="${c.nombre}">${c.nombre}</option>`).join("");
+  if (categoriasCache.some((c) => c.nombre === valorActual)) select.value = valorActual;
+  renderListaSubcategorias();
+}
+document.getElementById("subcat-categoria-padre").addEventListener("change", renderListaSubcategorias);
+
+function renderListaSubcategorias() {
+  const cont = document.getElementById("lista-subcategorias");
+  const padre = document.getElementById("subcat-categoria-padre").value;
+  const items = subcategoriasCache.filter((s) => s.categoriaPadre === padre);
+  cont.innerHTML = items.length
+    ? items
+        .map(
+          (s) => `
+    <div class="fila-categoria" data-id="${s.id}">
+      <input type="text" class="input-subcategoria-nombre" value="${s.nombre}" data-id="${s.id}" data-original="${s.nombre}" />
+      <button type="button" class="btn btn-secundario btn-guardar-subcategoria" data-id="${s.id}" title="Guardar cambio de nombre">💾</button>
+      <button type="button" class="btn btn-rojo btn-eliminar-subcategoria" data-id="${s.id}" title="Eliminar subcategoría">🗑</button>
+    </div>`
+        )
+        .join("")
+    : `<small style="color:var(--muted);">Esta categoría todavía no tiene subcategorías.</small>`;
+
+  cont.querySelectorAll(".btn-guardar-subcategoria").forEach((btn) => {
+    btn.addEventListener("click", () => renombrarSubcategoria(btn.dataset.id));
+  });
+  cont.querySelectorAll(".btn-eliminar-subcategoria").forEach((btn) => {
+    btn.addEventListener("click", () => eliminarSubcategoria(btn.dataset.id));
+  });
+}
+
+async function crearSubcategoria(nombre, categoriaPadre) {
+  const nombreLimpio = nombre.trim();
+  if (!nombreLimpio) {
+    mostrarToast("⚠️ Escribe un nombre para la subcategoría.");
+    return null;
+  }
+  if (subcategoriasCache.some((s) => s.categoriaPadre === categoriaPadre && s.nombre.toLowerCase() === nombreLimpio.toLowerCase())) {
+    mostrarToast("⚠️ Ya existe esa subcategoría en esta categoría.");
+    return null;
+  }
+  try {
+    const relevantes = subcategoriasCache.filter((s) => s.categoriaPadre === categoriaPadre);
+    const orden = relevantes.length ? Math.max(...relevantes.map((s) => s.orden || 0)) + 1 : 0;
+    const ref = await addDoc(collection(db, "subcategorias"), { nombre: nombreLimpio, categoriaPadre, orden });
+    mostrarToast("✅ Subcategoría agregada.");
+    return { id: ref.id, nombre: nombreLimpio, categoriaPadre, orden };
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error agregando la subcategoría.");
+    return null;
+  }
+}
+
+document.getElementById("btn-agregar-subcategoria").addEventListener("click", async () => {
+  const input = document.getElementById("subcat-nueva-nombre");
+  const padre = document.getElementById("subcat-categoria-padre").value;
+  if (!padre) {
+    mostrarToast("⚠️ Primero crea al menos una categoría.");
+    return;
+  }
+  const creada = await crearSubcategoria(input.value, padre);
+  if (creada) input.value = "";
+});
+
+async function renombrarSubcategoria(id) {
+  const input = document.querySelector(`.input-subcategoria-nombre[data-id="${id}"]`);
+  const nuevoNombre = input.value.trim();
+  const nombreOriginal = input.dataset.original;
+  if (!nuevoNombre) {
+    mostrarToast("⚠️ El nombre no puede quedar vacío.");
+    return;
+  }
+  if (nuevoNombre === nombreOriginal) return;
+
+  try {
+    const sub = subcategoriasCache.find((s) => s.id === id);
+    const batch = writeBatch(db);
+    batch.update(doc(db, "subcategorias", id), { nombre: nuevoNombre });
+
+    const snapProductos = await getDocs(
+      query(collection(db, "productos"), where("categoria", "==", sub.categoriaPadre), where("subcategoria", "==", nombreOriginal))
+    );
+    snapProductos.forEach((docProducto) => {
+      batch.update(doc(db, "productos", docProducto.id), { subcategoria: nuevoNombre });
+    });
+
+    await batch.commit();
+    mostrarToast(`✅ Subcategoría renombrada${snapProductos.size ? ` y actualizada en ${snapProductos.size} producto(s)` : ""}.`);
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error renombrando la subcategoría.");
+  }
+}
+
+async function eliminarSubcategoria(id) {
+  const sub = subcategoriasCache.find((s) => s.id === id);
+  if (!sub) return;
+
+  try {
+    const snapProductos = await getDocs(
+      query(collection(db, "productos"), where("categoria", "==", sub.categoriaPadre), where("subcategoria", "==", sub.nombre))
+    );
+    const enUso = snapProductos.size;
+    const mensaje =
+      enUso > 0
+        ? `"${sub.nombre}" todavía la usan ${enUso} producto(s). Si la eliminas, esos productos quedarán sin subcategoría. ¿Eliminar de todas formas?`
+        : `¿Eliminar la subcategoría "${sub.nombre}"?`;
+    if (!confirm(mensaje)) return;
+
+    await deleteDoc(doc(db, "subcategorias", id));
+    mostrarToast("✅ Subcategoría eliminada.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error eliminando la subcategoría.");
+  }
+}
+
+// Repuebla el <select> de subcategoría del formulario de producto, filtrado
+// por la categoría actualmente elegida en "p-categoria".
+function renderSelectSubcategoria() {
+  const select = document.getElementById("p-subcategoria");
+  const categoriaActual = document.getElementById("p-categoria").value;
+  const valorActual = select.value;
+  const opciones = subcategoriasCache.filter((s) => s.categoriaPadre === categoriaActual);
+  select.innerHTML =
+    `<option value="">Sin subcategoría</option>` + opciones.map((s) => `<option value="${s.nombre}">${s.nombre}</option>`).join("");
+  if (opciones.some((s) => s.nombre === valorActual)) select.value = valorActual;
+}
+document.getElementById("p-categoria").addEventListener("change", renderSelectSubcategoria);
+
+document.getElementById("btn-nueva-subcategoria-rapida").addEventListener("click", async () => {
+  const categoriaActual = document.getElementById("p-categoria").value;
+  if (!categoriaActual) {
+    mostrarToast("⚠️ Primero elige una categoría.");
+    return;
+  }
+  const nombre = prompt(`Nueva subcategoría dentro de "${categoriaActual}":`);
+  if (nombre === null) return; // canceló
+  const creada = await crearSubcategoria(nombre, categoriaActual);
+  if (creada) {
+    // renderSelectSubcategoria() ya se dispara solo vía onSnapshot al llegar el
+    // cambio de Firestore, pero seleccionamos aquí de una vez para no esperar.
+    setTimeout(() => {
+      document.getElementById("p-subcategoria").value = creada.nombre;
+    }, 300);
+  }
+});
+
 function limpiarFormularioProducto() {
   document.getElementById("p-id").value = "";
   document.getElementById("p-nombre").value = "";
@@ -2515,7 +2737,7 @@ function renderTablaInventario(filtro = "") {
     <tr class="${filaClase}">
       <td><img src="${p.imagen || "https://placehold.co/40x40?text=%20"}" /></td>
       <td>${p.nombre}</td>
-      <td>${p.categoria || ""}</td>
+      <td>${p.categoria || ""}${p.subcategoria ? `<br><small style="color:var(--muted);">${p.subcategoria}</small>` : ""}</td>
       <td>${formatCOP(p.precio)}${p.manejaEnvase ? `<br><small style="color:#1565C0;">Con envase: ${formatCOP(p.precioConEnvase)}</small>` : ""}${infoCaja}</td>
       <td class="col-utilidad">${infoUtilidad}</td>
       <td>${p.stock}${p.manejaCaja ? `<br><small style="color:#888;">(unidades)</small>` : ""}</td>
@@ -2536,8 +2758,47 @@ function renderTablaInventario(filtro = "") {
       <tr class="fila-grupo-categoria" data-categoria="${cat.replace(/"/g, "&quot;")}" style="cursor:pointer;background:var(--fondo-suave,#f3f3f3);">
         <td colspan="9" style="font-weight:600;">${colapsada ? "▸" : "▾"} ${cat} <small style="font-weight:400;color:var(--muted);">(${items.length} producto${items.length === 1 ? "" : "s"})</small></td>
       </tr>`;
-      const filas = colapsada ? "" : items.map(filaProducto).join("");
-      return encabezado + filas;
+      if (colapsada) return encabezado;
+
+      // Dentro de la categoría: productos sin subcategoría van directos,
+      // y los que sí tienen subcategoría se agrupan en un sub-encabezado
+      // plegable (ej. "Bebidas $2.500") respetando el orden guardado.
+      const sinSub = items.filter((p) => !p.subcategoria);
+      const conSub = items.filter((p) => p.subcategoria);
+      const ordenSub = subcategoriasCache
+        .filter((s) => s.categoriaPadre === cat)
+        .slice()
+        .sort((a, b) => (a.orden || 0) - (b.orden || 0))
+        .map((s) => s.nombre);
+      const subgrupos = new Map();
+      conSub.forEach((p) => {
+        if (!subgrupos.has(p.subcategoria)) subgrupos.set(p.subcategoria, []);
+        subgrupos.get(p.subcategoria).push(p);
+      });
+      const subOrdenadas = Array.from(subgrupos.keys()).sort((a, b) => {
+        const ia = ordenSub.indexOf(a);
+        const ib = ordenSub.indexOf(b);
+        if (ia === -1 && ib === -1) return a.localeCompare(b);
+        if (ia === -1) return 1;
+        if (ib === -1) return -1;
+        return ia - ib;
+      });
+
+      const filasSinSub = sinSub.map(filaProducto).join("");
+      const filasConSub = subOrdenadas
+        .map((sub) => {
+          const claveSub = `${cat}::${sub}`;
+          const subItems = subgrupos.get(sub);
+          const subColapsada = categoriasColapsadas.has(claveSub);
+          const subEncabezado = `
+          <tr class="fila-grupo-subcategoria" data-subcategoria="${claveSub.replace(/"/g, "&quot;")}" style="cursor:pointer;background:#fafafa;">
+            <td colspan="9" style="padding-left:28px;font-weight:600;font-size:0.85rem;">${subColapsada ? "▸" : "▾"} ${sub} <small style="font-weight:400;color:var(--muted);">(${subItems.length} producto${subItems.length === 1 ? "" : "s"})</small></td>
+          </tr>`;
+          return subEncabezado + (subColapsada ? "" : subItems.map(filaProducto).join(""));
+        })
+        .join("");
+
+      return encabezado + filasSinSub + filasConSub;
     })
     .join("");
 
@@ -2546,6 +2807,15 @@ function renderTablaInventario(filtro = "") {
       const cat = tr.dataset.categoria;
       if (categoriasColapsadas.has(cat)) categoriasColapsadas.delete(cat);
       else categoriasColapsadas.add(cat);
+      renderTablaInventario(document.getElementById("buscar-inventario")?.value || "");
+    });
+  });
+  tbody.querySelectorAll(".fila-grupo-subcategoria").forEach((tr) => {
+    tr.addEventListener("click", (ev) => {
+      ev.stopPropagation();
+      const clave = tr.dataset.subcategoria;
+      if (categoriasColapsadas.has(clave)) categoriasColapsadas.delete(clave);
+      else categoriasColapsadas.add(clave);
       renderTablaInventario(document.getElementById("buscar-inventario")?.value || "");
     });
   });
@@ -2568,6 +2838,8 @@ function cargarProductoParaEditar(id) {
   document.getElementById("p-id").value = p.id;
   document.getElementById("p-nombre").value = p.nombre;
   document.getElementById("p-categoria").value = p.categoria;
+  renderSelectSubcategoria();
+  document.getElementById("p-subcategoria").value = p.subcategoria || "";
   document.getElementById("p-precio").value = p.precio;
   document.getElementById("p-maneja-envase").checked = !!p.manejaEnvase;
   document.getElementById("p-precio-envase").value = p.precioConEnvase ?? "";
