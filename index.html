@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Work+Sans:wght@400;500;600&family=Alfa+Slab+One&family=Archivo+Black&family=Sora:wght@500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
 
@@ -111,6 +112,11 @@ btnTema.addEventListener("click", () => {
   const actual = document.documentElement.getAttribute("data-tema");
   aplicarTema(actual === "oscuro" ? "claro" : "oscuro");
 });
+
+/* ---------- ESTILO VISUAL (Configuración → Diseño en el admin) ---------- */
+function aplicarEstiloVisual(estilo) {
+  document.documentElement.setAttribute("data-estilo", estilo || "clasico");
+}
 
 let categorias = ["Todos"]; // se llena en tiempo real desde Firestore (colección "categorias")
 
@@ -609,6 +615,7 @@ function evaluarEstadoTienda() {
 
 onSnapshot(doc(db, "config", "tienda"), (snap) => {
   configTienda = snap.exists() ? snap.data() : {};
+  aplicarEstiloVisual(configTienda.estiloVisual || "clasico");
   evaluarEstadoTienda();
 });
 
