@@ -191,6 +191,26 @@
     <h2 class="panel-titulo">Inventario</h2>
 
     <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" id="btn-toggle-categorias">
+        <h3 style="margin:0;">🏷️ Categorías</h3>
+        <span id="icono-toggle-categorias" style="font-size:0.8rem;color:var(--muted);">▾ mostrar</span>
+      </div>
+      <div id="contenido-categorias" class="oculto" style="margin-top:14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;">
+          <div class="form-field" style="flex:1;min-width:180px;margin-bottom:0;">
+            <label>Nueva categoría</label>
+            <input type="text" id="cat-nueva-nombre" placeholder="Ej: Snacks" />
+          </div>
+          <button class="btn btn-primario" id="btn-agregar-categoria">+ Agregar</button>
+        </div>
+        <div id="lista-categorias"></div>
+        <small style="color:var(--muted);display:block;margin-top:10px;">
+          Al renombrar una categoría, todos los productos que ya la usaban se actualizan automáticamente. Si eliminas una categoría que sigue en uso, esos productos conservan el nombre viejo pero ya no aparecerá en la lista para elegir en productos nuevos — te avisamos antes de borrar si hay productos afectados.
+        </small>
+      </div>
+    </div>
+
+    <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
         <h3 id="titulo-form-producto">Agregar Producto</h3>
         <button type="button" class="btn btn-verde" id="btn-cancelar-edicion-top" title="Limpia todos los campos para agregar un producto nuevo (evita sobrescribir uno existente por error)">➕ Agregar Producto Nuevo / Limpiar Formulario</button>
@@ -206,13 +226,7 @@
           </div>
           <div class="form-field">
             <label>Categoría</label>
-            <select id="p-categoria">
-              <option>Licores</option>
-              <option>Cervezas Nacionales</option>
-              <option>Importadas</option>
-              <option>Bebidas</option>
-              <option>Hielo</option>
-            </select>
+            <select id="p-categoria"></select>
           </div>
         </div>
       </div>
@@ -322,7 +336,7 @@
             <label>Costo de compra POR UNIDAD (lo que a ti te cuesta, no por caja)</label>
             <input type="number" id="p-costo" min="0" />
             <small>Opcional, pero necesario para calcular tu utilidad real en Estadísticas. Si el producto se vende por caja, escribe el costo de UNA unidad suelta, no de la caja completa.</small>
-            <div id="p-ganancia-preview" style="margin-top:8px;font-size:0.85rem;font-weight:600;color:var(--green);"></div>
+            <div id="p-ganancia-preview" style="margin-top:10px;padding:9px 12px;background:var(--bg);border-radius:8px;font-size:0.85rem;font-weight:600;color:var(--green);"></div>
           </div>
         </div>
       </div>
@@ -747,6 +761,7 @@ import {
   updateDoc,
   addDoc,
   runTransaction,
+  writeBatch,
   onSnapshot,
   query,
   where,
@@ -770,6 +785,7 @@ import {
 ===================================================================== */
 let productosCache = [];
 let clientesCache = [];        // [{id, cedula, nombre, correo}]
+let categoriasCache = [];      // [{id, nombre, orden}]
 let carritoFactura = [];       // [{id, nombre, precio, cantidad, stockDisponible}]
 let puntosClienteActual = 0;   // puntos disponibles del cliente cargado en Facturación
 let puntosCanjeadosActual = 0; // puntos que se van a descontar en ESTA factura
@@ -955,6 +971,30 @@ function iniciarSuscripcionesFirestore() {
     clientesCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderTablaClientes(document.getElementById("buscar-cliente-tabla")?.value || "");
   });
+
+  onSnapshot(query(collection(db, "categorias"), orderBy("orden")), async (snap) => {
+    if (snap.empty) {
+      await sembrarCategoriasIniciales();
+      return; // el propio onSnapshot se vuelve a disparar en cuanto se creen
+    }
+    categoriasCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    renderListaCategorias();
+    renderSelectCategoria();
+  });
+}
+
+// La primera vez que se usa el sistema, la colección "categorias" no existe:
+// la creamos con las 5 categorías que ya venían de fábrica, para no romper nada.
+let categoriasSembradas = false;
+async function sembrarCategoriasIniciales() {
+  if (categoriasSembradas) return;
+  categoriasSembradas = true;
+  const iniciales = ["Licores", "Cervezas Nacionales", "Importadas", "Bebidas", "Hielo"];
+  const batch = writeBatch(db);
+  iniciales.forEach((nombre, idx) => {
+    batch.set(doc(collection(db, "categorias")), { nombre, orden: idx });
+  });
+  await batch.commit();
 }
 
 /* =====================================================================
@@ -2060,7 +2100,7 @@ function actualizarGananciaPreview() {
   const cont = document.getElementById("p-ganancia-preview");
   const costo = Number(document.getElementById("p-costo").value) || 0;
   if (!costo) {
-    cont.textContent = "";
+    cont.innerHTML = `<span style="color:var(--muted);font-weight:400;">Ingresa el costo de compra para ver tu ganancia aquí.</span>`;
     return;
   }
   const manejaCaja = document.getElementById("p-maneja-caja").checked;
@@ -2077,6 +2117,7 @@ function actualizarGananciaPreview() {
   }
   cont.innerHTML = texto;
 }
+actualizarGananciaPreview(); // muestra el mensaje guía apenas carga la página
 ["p-precio", "p-costo", "p-precio-suelta", "p-unidades-caja", "p-maneja-caja"].forEach((idCampo) => {
   document.getElementById(idCampo).addEventListener("input", actualizarGananciaPreview);
   document.getElementById(idCampo).addEventListener("change", actualizarGananciaPreview);
@@ -2217,6 +2258,116 @@ document.getElementById("btn-guardar-config-tienda").addEventListener("click", a
   }
 });
 
+/* ---------------------------------------------------------------
+   GESTIÓN DE CATEGORÍAS (agregar / renombrar / eliminar)
+--------------------------------------------------------------- */
+document.getElementById("btn-toggle-categorias").addEventListener("click", () => {
+  const cont = document.getElementById("contenido-categorias");
+  const icono = document.getElementById("icono-toggle-categorias");
+  const abierto = !cont.classList.contains("oculto");
+  cont.classList.toggle("oculto", abierto);
+  icono.textContent = abierto ? "▾ mostrar" : "▴ ocultar";
+});
+
+function renderSelectCategoria() {
+  const select = document.getElementById("p-categoria");
+  const valorActual = select.value;
+  select.innerHTML = categoriasCache.map((c) => `<option value="${c.nombre}">${c.nombre}</option>`).join("");
+  if (categoriasCache.some((c) => c.nombre === valorActual)) select.value = valorActual;
+}
+
+function renderListaCategorias() {
+  const cont = document.getElementById("lista-categorias");
+  cont.innerHTML = categoriasCache
+    .map(
+      (c) => `
+    <div class="fila-categoria" data-id="${c.id}">
+      <input type="text" class="input-categoria-nombre" value="${c.nombre}" data-id="${c.id}" data-original="${c.nombre}" />
+      <button type="button" class="btn btn-secundario btn-guardar-categoria" data-id="${c.id}" title="Guardar cambio de nombre">💾</button>
+      <button type="button" class="btn btn-rojo btn-eliminar-categoria" data-id="${c.id}" title="Eliminar categoría">🗑</button>
+    </div>`
+    )
+    .join("");
+
+  cont.querySelectorAll(".btn-guardar-categoria").forEach((btn) => {
+    btn.addEventListener("click", () => renombrarCategoria(btn.dataset.id));
+  });
+  cont.querySelectorAll(".btn-eliminar-categoria").forEach((btn) => {
+    btn.addEventListener("click", () => eliminarCategoria(btn.dataset.id));
+  });
+}
+
+document.getElementById("btn-agregar-categoria").addEventListener("click", async () => {
+  const input = document.getElementById("cat-nueva-nombre");
+  const nombre = input.value.trim();
+  if (!nombre) {
+    mostrarToast("⚠️ Escribe un nombre para la categoría.");
+    return;
+  }
+  if (categoriasCache.some((c) => c.nombre.toLowerCase() === nombre.toLowerCase())) {
+    mostrarToast("⚠️ Ya existe una categoría con ese nombre.");
+    return;
+  }
+  try {
+    const orden = categoriasCache.length ? Math.max(...categoriasCache.map((c) => c.orden || 0)) + 1 : 0;
+    await addDoc(collection(db, "categorias"), { nombre, orden });
+    input.value = "";
+    mostrarToast("✅ Categoría agregada.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error agregando la categoría.");
+  }
+});
+
+async function renombrarCategoria(id) {
+  const input = document.querySelector(`.input-categoria-nombre[data-id="${id}"]`);
+  const nuevoNombre = input.value.trim();
+  const nombreOriginal = input.dataset.original;
+  if (!nuevoNombre) {
+    mostrarToast("⚠️ El nombre no puede quedar vacío.");
+    return;
+  }
+  if (nuevoNombre === nombreOriginal) return; // no cambió nada
+
+  try {
+    const batch = writeBatch(db);
+    batch.update(doc(db, "categorias", id), { nombre: nuevoNombre });
+
+    // Actualiza en cascada todos los productos que ya usaban el nombre viejo
+    const snapProductos = await getDocs(query(collection(db, "productos"), where("categoria", "==", nombreOriginal)));
+    snapProductos.forEach((docProducto) => {
+      batch.update(doc(db, "productos", docProducto.id), { categoria: nuevoNombre });
+    });
+
+    await batch.commit();
+    mostrarToast(`✅ Categoría renombrada${snapProductos.size ? ` y actualizada en ${snapProductos.size} producto(s)` : ""}.`);
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error renombrando la categoría.");
+  }
+}
+
+async function eliminarCategoria(id) {
+  const cat = categoriasCache.find((c) => c.id === id);
+  if (!cat) return;
+
+  try {
+    const snapProductos = await getDocs(query(collection(db, "productos"), where("categoria", "==", cat.nombre)));
+    const enUso = snapProductos.size;
+    const mensaje =
+      enUso > 0
+        ? `"${cat.nombre}" todavía la usan ${enUso} producto(s). Si la eliminas, esos productos conservarán el nombre "${cat.nombre}" pero ya no podrás elegirla para productos nuevos. ¿Eliminar de todas formas?`
+        : `¿Eliminar la categoría "${cat.nombre}"?`;
+    if (!confirm(mensaje)) return;
+
+    await deleteDoc(doc(db, "categorias", id));
+    mostrarToast("✅ Categoría eliminada.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error eliminando la categoría.");
+  }
+}
+
 function limpiarFormularioProducto() {
   document.getElementById("p-id").value = "";
   document.getElementById("p-nombre").value = "";
@@ -2246,7 +2397,7 @@ function limpiarFormularioProducto() {
   document.getElementById("p-stock-minimo").value = "5";
   document.getElementById("p-iva").value = "19";
   document.getElementById("p-costo").value = "";
-  document.getElementById("p-ganancia-preview").textContent = "";
+  actualizarGananciaPreview();
   document.getElementById("p-imagen").value = "";
   imagenesActuales = [];
   renderPreviewImagenes();
