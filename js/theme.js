@@ -195,6 +195,7 @@ function generarLinkWhatsApp(carrito, cliente, numeroWhatsapp) {
   mensaje += `*Direccion:* ${cliente.direccion}\n`;
   if (cliente.ubicacionLink) mensaje += `*Ubicacion (Google Maps):* ${cliente.ubicacionLink}\n`;
   if (cliente.telefono) mensaje += `*Telefono:* ${cliente.telefono}\n`;
+  if (cliente.nota) mensaje += `*Nota del cliente:* ${cliente.nota}\n`;
   mensaje += `\n*Detalle del pedido:*\n`;
 
   let total = 0;
