@@ -806,6 +806,17 @@ body {
   color: var(--ink);
 }
 
+.medios-pago-tienda {
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+  background: var(--frost);
+  border: 1px solid var(--frost-line);
+  border-radius: var(--radio-sm);
+  padding: 8px 10px;
+  margin-top: 10px;
+}
+.medios-pago-tienda.oculto-banner { display: none; }
+
 .btn-whatsapp {
   width: 100%;
   background: var(--whatsapp);
