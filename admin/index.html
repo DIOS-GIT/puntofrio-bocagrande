@@ -798,8 +798,8 @@
     <div class="subpanel" id="subpanel-usuarios">
       <div class="card">
         <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
-          Un <strong>dueño</strong> ve todo el panel. Un <strong>empleado</strong> solo ve Facturación e Inventario
-          (no puede gestionar clientes, ver reportes ni cambiar la configuración).<br/><br/>
+          Un <strong>dueño</strong> ve todo el panel. Un <strong>empleado</strong> ve Facturación, Inventario y Clientes
+          (no puede ver Reportes ni cambiar la Configuración).<br/><br/>
           <strong>Cómo agregar un empleado:</strong> primero créale una cuenta en
           <em>Firebase Console → Authentication → Users → Add user</em> (correo + contraseña). Pídele que inicie sesión
           una vez en este panel (verá el panel vacío, es normal). Luego ve a
@@ -817,7 +817,7 @@
           <div class="form-field">
             <label>Rol</label>
             <select id="u-rol">
-              <option value="empleado">Empleado (solo Facturación e Inventario)</option>
+              <option value="empleado">Empleado (Facturación, Inventario y Clientes)</option>
               <option value="dueño">Dueño (acceso total)</option>
             </select>
           </div>
@@ -1038,7 +1038,7 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 function aplicarPermisosPorRol() {
-  const soloDueño = ["clientes", "reportes", "configuracion"];
+  const soloDueño = ["reportes", "configuracion"];
   document.querySelectorAll(".sidebar-link").forEach((btn) => {
     const restringida = soloDueño.includes(btn.dataset.tab);
     btn.classList.toggle("oculto", restringida && rolActual !== "dueño");
