@@ -2189,12 +2189,15 @@ function descargarFacturaPDF(factura) {
   y += 22;
 
   factura.items.forEach((item) => {
-    pdf.text(String(nombreConEnvase(item)).slice(0, 34), 46, y);
+    if (y > 760) { pdf.addPage(); y = 40; }
+    const nombreCompleto = (item.tipo === "combo" ? "🎁 " : "") + nombreConEnvase(item);
+    const lineasNombre = pdf.splitTextToSize(nombreCompleto, 245);
+    pdf.text(lineasNombre, 46, y);
     pdf.text(String(item.cantidad), 305, y);
     pdf.text(formatCOP(item.precio), 350, y);
     pdf.text(formatCOP(item.subtotal), 410, y);
     pdf.text(item.iva ? formatCOP(item.iva) : "-", 480, y);
-    y += 18;
+    y += 14 * lineasNombre.length + 6;
   });
 
   y += 10;
@@ -3523,11 +3526,12 @@ document.getElementById("btn-export-pdf-inv").addEventListener("click", () => {
   y += 14;
   productosCache.forEach((p) => {
     if (y > 780) { pdf.addPage(); y = 40; }
-    pdf.text(String(p.nombre).slice(0, 30), 40, y);
+    const lineasNombre = pdf.splitTextToSize(String(p.nombre), 170);
+    pdf.text(lineasNombre, 40, y);
     pdf.text(String(p.categoria || ""), 220, y);
     pdf.text(formatCOP(p.precio), 340, y);
     pdf.text(String(p.stock), 420, y);
-    y += 14;
+    y += 12 * lineasNombre.length + 4;
   });
   pdf.save(`inventario_puntofrio_${Date.now()}.pdf`);
 });
@@ -3577,11 +3581,12 @@ document.getElementById("btn-export-pdf-clientes").addEventListener("click", () 
   y += 14;
   clientesCache.forEach((c) => {
     if (y > 780) { pdf.addPage(); y = 40; }
+    const lineasNombre = pdf.splitTextToSize(String(c.nombre || ""), 170);
     pdf.text(String(c.cedula || ""), 40, y);
-    pdf.text(String(c.nombre || "").slice(0, 28), 140, y);
+    pdf.text(lineasNombre, 140, y);
     pdf.text(String(c.telefono || ""), 320, y);
     pdf.text(String(c.puntos || 0), 420, y);
-    y += 14;
+    y += 12 * lineasNombre.length + 4;
   });
   pdf.save(`clientes_puntofrio_${Date.now()}.pdf`);
 });
