@@ -31,6 +31,11 @@
   </select>
 </div>
 
+<section id="seccion-combos" class="oculto-banner" style="padding:6px 16px 4px;">
+  <h2 style="font-family:var(--fuente-display);font-size:1.15rem;margin-bottom:10px;">🎁 Combos</h2>
+  <div class="grid-productos" id="grid-combos" style="padding:0;"></div>
+</section>
+
 <main class="grid-productos" id="grid-productos">
   <!-- Las tarjetas de producto se renderizan aquí en tiempo real -->
 </main>
@@ -48,6 +53,7 @@
     <h2>Tu pedido 🧊</h2>
 
     <div id="lista-carrito"></div>
+    <div id="medios-pago-tienda" class="medios-pago-tienda oculto-banner"></div>
     <div class="total-carrito" id="total-carrito">Total: $ 0</div>
 
     <form class="form-cliente" id="form-cliente">
@@ -395,6 +401,46 @@ function renderProductos() {
   });
 }
 
+function renderCombosTienda() {
+  const seccion = document.getElementById("seccion-combos");
+  const grid = document.getElementById("grid-combos");
+  const visibles = combos.filter((c) => c.activo !== false);
+
+  if (!visibles.length) {
+    seccion.classList.add("oculto-banner");
+    grid.innerHTML = "";
+    return;
+  }
+  seccion.classList.remove("oculto-banner");
+
+  grid.innerHTML = visibles
+    .map((c) => {
+      const max = maxComboDisponible(c);
+      const agotado = max <= 0 || !tiendaAbierta;
+      return `
+      <div class="card-producto">
+        <div class="imagen-wrap">
+          <img src="${c.imagen || "https://placehold.co/300x200/FFF3CD/999999?text=Combo"}" alt="${c.nombre}" loading="lazy" />
+          ${agotado && tiendaAbierta ? `<span class="badge-agotado">Agotado</span>` : ""}
+        </div>
+        <div class="info">
+          <span class="categoria">Combo</span>
+          <span class="nombre">${c.nombre}</span>
+          ${c.descripcion ? `<small style="color:var(--slate);">${c.descripcion}</small>` : ""}
+          <span class="precio">${formatCOPLocal(c.precio)}</span>
+          <button class="btn-agregar ${agotado ? "agotado" : ""}" data-combo-id="${c.id}" ${agotado ? "disabled" : ""}>
+            ${!tiendaAbierta ? "Cerrado" : agotado ? "Agotado" : "Agregar"}
+          </button>
+        </div>
+      </div>`;
+    })
+    .join("");
+
+  grid.querySelectorAll(".btn-agregar:not(.agotado)").forEach((btn) => {
+    btn.addEventListener("click", () => agregarComboAlCarrito(btn.dataset.comboId));
+  });
+}
+
 function formatCOPLocal(v) {
   return "$ " + (Number(v) || 0).toLocaleString("es-CO");
 }
@@ -555,7 +601,14 @@ modalDetalleOverlay.addEventListener("click", (e) => {
 onSnapshot(collection(db, "productos"), (snapshot) => {
   productos = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
   renderProductos();
+  renderCombosTienda();
   sincronizarCarritoConStock();
+});
+
+let combos = [];
+onSnapshot(collection(db, "combos"), (snapshot) => {
+  combos = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderCombosTienda();
 });
 
 onSnapshot(query(collection(db, "categorias"), orderBy("orden")), (snapshot) => {
@@ -611,13 +664,29 @@ function evaluarEstadoTienda() {
   }
 
   renderProductos();
+  renderCombosTienda();
 }
 
 onSnapshot(doc(db, "config", "tienda"), (snap) => {
   configTienda = snap.exists() ? snap.data() : {};
   aplicarEstiloVisual(configTienda.estiloVisual || "clasico");
+  renderMediosPagoTienda();
   evaluarEstadoTienda();
 });
+
+function renderMediosPagoTienda() {
+  const cont = document.getElementById("medios-pago-tienda");
+  const medios = configTienda.mediosPago || [];
+  if (!medios.length) {
+    cont.className = "medios-pago-tienda oculto-banner";
+    cont.innerHTML = "";
+    return;
+  }
+  cont.className = "medios-pago-tienda";
+  cont.innerHTML =
+    `<strong>Medios de pago:</strong> ` +
+    medios.map((m) => `${m.nombre}${m.dato ? ` (${m.dato})` : ""}`).join(" · ");
+}
 
 // Revisa el horario cada minuto por si cruza la hora de apertura/cierre mientras el cliente navega
 setInterval(evaluarEstadoTienda, 60000);
@@ -659,6 +728,44 @@ function sincronizarCarritoConStock() {
 }
 
 /* ---------- CARRITO ---------- */
+function maxComboDisponible(combo) {
+  if (!combo.componentes || !combo.componentes.length) return 0;
+  return Math.min(
+    ...combo.componentes.map((c) => {
+      const prod = productos.find((p) => p.id === c.productoId);
+      if (!prod) return 0;
+      return Math.floor((Number(prod.stock) || 0) / c.cantidad);
+    })
+  );
+}
+
+function agregarComboAlCarrito(idCombo) {
+  if (!tiendaAbierta) return;
+  const combo = combos.find((c) => c.id === idCombo);
+  if (!combo) return;
+  const key = "combo_" + idCombo;
+  const max = maxComboDisponible(combo);
+  const yaEnCarrito = carrito.find((i) => i.key === key);
+  if ((yaEnCarrito ? yaEnCarrito.cantidad : 0) + 1 > max) return;
+
+  if (yaEnCarrito) {
+    yaEnCarrito.cantidad++;
+  } else {
+    carrito.push({
+      key,
+      id: idCombo,
+      esCombo: true,
+      nombre: combo.nombre,
+      precio: combo.precio,
+      cantidad: 1,
+      conEnvase: null,
+      modo: null
+    });
+  }
+  actualizarBadge();
+  renderCarrito();
+}
+
 function agregarAlCarrito(id) {
   if (!tiendaAbierta) return;
   const producto = productos.find((p) => p.id === id);
@@ -780,11 +887,19 @@ function renderCarrito() {
     const key = el.dataset.key;
     el.querySelector(".sumar").addEventListener("click", () => {
       const item = carrito.find((i) => i.key === key);
+      if (!item) return;
+      if (item.esCombo) {
+        const combo = combos.find((c) => c.id === item.id);
+        if (combo && item.cantidad + 1 <= maxComboDisponible(combo)) item.cantidad++;
+        actualizarBadge();
+        renderCarrito();
+        return;
+      }
       const producto = productos.find((p) => p.id === item.id);
       const stockDisponible = Number(producto?.stock) || 0;
       const factor = item.factorConsumo || 1;
       const unidadesUsadas = carrito.filter((i) => i.id === item.id).reduce((acc, i) => acc + i.cantidad * (i.factorConsumo || 1), 0);
-      if (item && unidadesUsadas + factor <= stockDisponible) item.cantidad++;
+      if (unidadesUsadas + factor <= stockDisponible) item.cantidad++;
       actualizarBadge();
       renderCarrito();
     });
