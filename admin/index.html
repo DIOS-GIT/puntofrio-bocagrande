@@ -63,6 +63,11 @@
   <section class="admin-panel activo" id="panel-inicio">
     <h2 class="panel-titulo">Inicio</h2>
 
+    <div class="card oculto" id="card-notificaciones">
+      <h3 style="margin-bottom:10px;">🔔 Notificaciones</h3>
+      <div id="lista-notificaciones" style="display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+
     <div class="card">
       <div class="nav-fecha">
         <button type="button" class="btn btn-secundario" id="btn-dia-anterior" title="Día anterior">‹</button>
@@ -127,6 +132,13 @@
           <label>Buscar producto</label>
           <input type="text" id="f-buscar-producto" placeholder="Escribe el nombre..." />
           <div id="resultados-producto" style="margin-top:6px;"></div>
+        </div>
+        <div class="form-field oculto" id="campo-combos-factura">
+          <label>🎁 Agregar combo</label>
+          <div style="display:flex;gap:8px;">
+            <select id="f-select-combo" style="flex:1;"></select>
+            <button type="button" class="btn btn-secundario" id="btn-agregar-combo-factura">+ Agregar</button>
+          </div>
         </div>
         <table class="tabla-factura" id="tabla-factura-items">
           <thead><tr><th>Producto</th><th>Cant.</th><th>Precio</th><th>Subt.</th><th>IVA</th><th></th></tr></thead>
@@ -454,6 +466,73 @@
       </p>
       <button class="btn btn-primario" id="btn-backup-completo">💾 Descargar backup completo (JSON)</button>
     </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:6px;">🎁 Combos</h3>
+      <p style="font-size:0.82rem;color:var(--muted);margin-bottom:14px;">
+        Arma paquetes de varios productos a un precio especial (ej. "Combo Parche": 1 aguardiente + 1 hielo + 2 gaseosas).
+        Se muestran en la tienda como un producto más, y al facturarlos el stock se descuenta de cada producto real que lo compone.
+      </p>
+
+      <input type="hidden" id="combo-id" />
+      <div class="grid-2">
+        <div class="form-field">
+          <label>Nombre del combo</label>
+          <input type="text" id="combo-nombre" placeholder="Ej: Combo Parche" />
+        </div>
+        <div class="form-field">
+          <label>Precio del combo (COP)</label>
+          <input type="number" id="combo-precio" min="0" />
+        </div>
+      </div>
+      <div class="grid-2">
+        <div class="form-field">
+          <label>IVA % del combo <small style="color:var(--muted);font-weight:400;">(opcional, uno solo para todo el combo)</small></label>
+          <input type="number" id="combo-iva" min="0" max="100" value="0" />
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Descripción (se muestra en la tienda)</label>
+        <input type="text" id="combo-descripcion" placeholder="Ej: 1 aguardiente + 1 hielo + 2 gaseosas — perfecto para 4 personas" />
+      </div>
+      <div class="form-field">
+        <label>Foto del combo</label>
+        <div style="display:flex;gap:10px;align-items:center;">
+          <button type="button" class="btn btn-secundario" id="btn-subir-imagen-combo">📷 Subir foto</button>
+          <img id="preview-imagen-combo" src="" class="oculto" style="width:56px;height:56px;object-fit:cover;border-radius:8px;" />
+        </div>
+      </div>
+
+      <div class="form-field">
+        <label>Productos que incluye el combo</label>
+        <div style="display:flex;gap:8px;">
+          <input type="text" id="combo-buscar-producto" placeholder="Buscar producto para agregar al combo..." style="flex:1;" />
+        </div>
+        <div id="combo-resultados-busqueda" style="position:relative;"></div>
+      </div>
+      <div id="combo-componentes-lista" style="display:flex;flex-direction:column;gap:6px;margin:10px 0;"></div>
+
+      <div class="form-field" style="margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+          <input type="checkbox" id="combo-visible-tienda" style="width:auto;" checked />
+          Mostrar este combo en la tienda pública
+        </label>
+      </div>
+
+      <div class="btn-fila">
+        <button class="btn btn-primario" id="btn-guardar-combo">💾 Guardar Combo</button>
+        <button class="btn btn-secundario oculto" id="btn-cancelar-edicion-combo">Cancelar edición</button>
+      </div>
+
+      <div style="overflow-x:auto;margin-top:18px;">
+        <table class="tabla-inventario" id="tabla-combos">
+          <thead>
+            <tr><th>Img</th><th>Nombre</th><th>Incluye</th><th>Precio</th><th>Tienda</th><th>Acciones</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
   <!-- ============ MÓDULO B2: CLIENTES ============ -->
@@ -501,6 +580,13 @@
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
         <h3>Clientes registrados</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-verde" id="btn-export-excel-clientes">📊 Excel</button>
+          <button class="btn btn-rojo" id="btn-export-pdf-clientes">📄 PDF</button>
+          <button class="btn btn-azul" id="btn-export-json-clientes">🗂 JSON</button>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
         <input
           type="text"
           id="buscar-cliente-tabla"
@@ -685,6 +771,10 @@
             <small>Aquí puedes poner la resolución DIAN, el régimen, o cualquier texto legal que tu contador te indique.</small>
           </div>
         </div>
+
+        <h3 style="margin:16px 0 10px;border-top:1px solid var(--border);padding-top:16px;">Medios de pago que se muestran en la tienda</h3>
+        <div id="lista-medios-pago" style="display:flex;flex-direction:column;gap:8px;margin-bottom:10px;"></div>
+        <button type="button" class="btn btn-secundario" id="btn-agregar-medio-pago">+ Agregar medio de pago</button>
 
         <div class="btn-fila">
           <button class="btn btn-primario" id="btn-guardar-config-tienda">💾 Guardar configuración</button>
@@ -1017,6 +1107,7 @@ function iniciarSuscripcionesFirestore() {
   onSnapshot(collection(db, "productos"), (snap) => {
     productosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     renderTablaInventario(document.getElementById("buscar-inventario")?.value || "");
+    renderNotificacionesInicio();
   });
 
   onSnapshot(collection(db, "clientes"), (snap) => {
@@ -1203,13 +1294,28 @@ function factorModo(item, modo) {
 
 // Cuántas unidades reales de inventario consume un item (según su modo: caja/sixpack/suelta)
 function unidadesConsumidasItem(item) {
+  if (item.tipo === "combo") return null; // un combo no descuenta UN producto, descuenta varios — se maneja aparte
   return item.cantidad * factorModo(item, item.modo);
 }
 
 // Cuántas unidades de "cantidad" caben según el stock disponible y el modo actual del item
 function maxCantidadItem(item) {
+  if (item.tipo === "combo") return maxCantidadCombo(item);
   const factor = factorModo(item, item.modo);
   return Math.max(0, Math.floor(item.stockDisponible / factor));
+}
+
+// Para un combo: el máximo de "paquetes" que se pueden vender según el stock
+// real disponible de CADA producto que lo compone (limita el más escaso).
+function maxCantidadCombo(item) {
+  if (!item.componentes || !item.componentes.length) return 0;
+  return Math.min(
+    ...item.componentes.map((comp) => {
+      const producto = productosCache.find((p) => p.id === comp.productoId);
+      if (!producto) return 0;
+      return Math.floor((Number(producto.stock) || 0) / comp.cantidad);
+    })
+  );
 }
 
 function agregarItemFactura(idProducto, modoForzado) {
@@ -1252,7 +1358,35 @@ function agregarItemFactura(idProducto, modoForzado) {
   renderTablaFactura();
 }
 
+function agregarComboAFactura(idCombo) {
+  const combo = combosCache.find((c) => c.id === idCombo);
+  if (!combo) return;
+  const existente = carritoFactura.find((i) => i.id === idCombo && i.tipo === "combo");
+
+  if (existente) {
+    if (existente.cantidad < maxCantidadCombo(existente)) existente.cantidad++;
+    else mostrarToast("⚠️ No hay stock suficiente de algún componente para agregar otro combo.");
+  } else {
+    const item = {
+      id: combo.id,
+      tipo: "combo",
+      nombre: combo.nombre,
+      precio: combo.precio,
+      ivaPorcentaje: Number(combo.ivaPorcentaje) || 0,
+      cantidad: 1,
+      componentes: (combo.componentes || []).map((c) => ({ ...c }))
+    };
+    if (maxCantidadCombo(item) < 1) {
+      mostrarToast("⚠️ No hay stock suficiente de algún producto del combo.");
+      return;
+    }
+    carritoFactura.push(item);
+  }
+  renderTablaFactura();
+}
+
 function precioItemFactura(item) {
+  if (item.tipo === "combo") return item.precio;
   if (item.manejaCaja && item.modo === "sixpack") return item.precioSixpack;
   if (item.manejaCaja && item.modo === "suelta") return item.precioUnidadSuelta;
   return item.manejaEnvase && item.conEnvase ? item.precioConEnvase : item.precioSinEnvase;
@@ -1294,7 +1428,7 @@ function renderTablaFactura() {
           : "";
       return `
       <tr>
-        <td>${item.nombre}${modoSelector}${
+        <td>${item.tipo === "combo" ? "🎁 " : ""}${item.nombre}${modoSelector}${
           item.manejaEnvase && item.modo === "caja"
             ? `<br><label style="font-size:0.72rem;font-weight:400;display:flex;align-items:center;gap:4px;">
                  <input type="checkbox" class="chk-envase-factura" data-idx="${idx}" ${item.conEnvase ? "checked" : ""} style="width:auto;" />
@@ -1417,16 +1551,39 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
         siguienteNumero = (snapConsecutivo.data().ultimoNumero || 0) + 1;
       }
 
-      // Verificar stock de todos los productos ANTES de escribir nada (en UNIDADES reales)
-      const refsProductos = [];
+      // Verificar stock de todos los productos ANTES de escribir nada (en UNIDADES reales).
+      // Una línea normal descuenta UN producto; una línea de combo descuenta VARIOS
+      // (cada componente × su cantidad × cuántos combos se vendieron en esa línea).
+      const deducciones = [];      // [{ref, unidadesNecesarias}] — lo que se resta de "productos"
+      const costosPorId = {};      // costo unitario por producto real (para líneas normales)
+      const costoComboPorItemId = {}; // costo total ya sumado, por id de la línea de combo
+
       for (const item of carritoFactura) {
-        const refProd = doc(db, "productos", item.id);
-        const snapProd = await tx.get(refProd);
-        const unidadesNecesarias = unidadesConsumidasItem(item);
-        if (!snapProd.exists() || Number(snapProd.data().stock) < unidadesNecesarias) {
-          throw new Error(`Stock insuficiente para "${item.nombre}".`);
+        if (item.tipo === "combo") {
+          let costoTotalCombo = 0;
+          for (const comp of item.componentes) {
+            const refProd = doc(db, "productos", comp.productoId);
+            const snapProd = await tx.get(refProd);
+            const necesarias = comp.cantidad * item.cantidad;
+            if (!snapProd.exists() || Number(snapProd.data().stock) < necesarias) {
+              throw new Error(`Stock insuficiente para "${comp.nombre}" (parte del combo "${item.nombre}").`);
+            }
+            deducciones.push({ ref: refProd, unidadesNecesarias: necesarias });
+            const costoUnit = Number(snapProd.data().costoCompra) || 0;
+            costosPorId[comp.productoId] = costoUnit;
+            costoTotalCombo += costoUnit * necesarias;
+          }
+          costoComboPorItemId[item.id] = costoTotalCombo;
+        } else {
+          const refProd = doc(db, "productos", item.id);
+          const snapProd = await tx.get(refProd);
+          const unidadesNecesarias = unidadesConsumidasItem(item);
+          if (!snapProd.exists() || Number(snapProd.data().stock) < unidadesNecesarias) {
+            throw new Error(`Stock insuficiente para "${item.nombre}".`);
+          }
+          deducciones.push({ ref: refProd, unidadesNecesarias });
+          costosPorId[item.id] = Number(snapProd.data().costoCompra) || 0;
         }
-        refsProductos.push({ ref: refProd, item, unidadesNecesarias, costoUnitario: Number(snapProd.data().costoCompra) || 0 });
       }
 
       // Leer el saldo de puntos ACTUAL del cliente (fase de lectura, antes de cualquier escritura)
@@ -1451,34 +1608,49 @@ document.getElementById("btn-generar-factura").addEventListener("click", async (
       tx.set(refConsecutivos, { ultimoNumero: siguienteNumero }, { merge: true });
 
       // 2. Descontar stock (en unidades)
-      refsProductos.forEach(({ ref, unidadesNecesarias }) => {
+      deducciones.forEach(({ ref, unidadesNecesarias }) => {
         tx.update(ref, { stock: increment(-unidadesNecesarias) });
       });
 
       // 3. Registrar factura
-      const costosPorId = {};
-      refsProductos.forEach(({ item, costoUnitario }) => { costosPorId[item.id] = costoUnitario; });
-
       const refFactura = doc(collection(db, "facturas"));
       const facturaData = {
         numero: siguienteNumero,
         cliente: { cedula: cedula || "N/A", nombre, correo },
-        items: carritoFactura.map((i) => ({
-          id: i.id,
-          nombre: i.nombre,
-          precio: precioItemFactura(i),
-          conEnvase: i.manejaEnvase ? i.conEnvase : null,
-          modo: i.manejaCaja ? i.modo : null,
-          unidadesPorCaja: i.manejaCaja ? i.unidadesPorCaja : null,
-          unidadesPorSixpack: i.manejaSixpack ? i.unidadesPorSixpack : null,
-          cantidad: i.cantidad,
-          unidadesConsumidas: unidadesConsumidasItem(i),
-          subtotal: subtotalItemFactura(i),
-          ivaPorcentaje: i.ivaPorcentaje || 0,
-          iva: ivaItemFactura(i),
-          costoUnitario: costosPorId[i.id] || 0,
-          costoTotal: (costosPorId[i.id] || 0) * unidadesConsumidasItem(i)
-        })),
+        items: carritoFactura.map((i) => {
+          if (i.tipo === "combo") {
+            return {
+              id: i.id,
+              tipo: "combo",
+              nombre: i.nombre,
+              precio: precioItemFactura(i),
+              cantidad: i.cantidad,
+              componentes: i.componentes,
+              unidadesConsumidas: null,
+              subtotal: subtotalItemFactura(i),
+              ivaPorcentaje: i.ivaPorcentaje || 0,
+              iva: ivaItemFactura(i),
+              costoUnitario: null,
+              costoTotal: costoComboPorItemId[i.id] || 0
+            };
+          }
+          return {
+            id: i.id,
+            nombre: i.nombre,
+            precio: precioItemFactura(i),
+            conEnvase: i.manejaEnvase ? i.conEnvase : null,
+            modo: i.manejaCaja ? i.modo : null,
+            unidadesPorCaja: i.manejaCaja ? i.unidadesPorCaja : null,
+            unidadesPorSixpack: i.manejaSixpack ? i.unidadesPorSixpack : null,
+            cantidad: i.cantidad,
+            unidadesConsumidas: unidadesConsumidasItem(i),
+            subtotal: subtotalItemFactura(i),
+            ivaPorcentaje: i.ivaPorcentaje || 0,
+            iva: ivaItemFactura(i),
+            costoUnitario: costosPorId[i.id] || 0,
+            costoTotal: (costosPorId[i.id] || 0) * unidadesConsumidasItem(i)
+          };
+        }),
         subtotal,
         iva: ivaTotal,
         descuento: descuentoFinal,
@@ -1628,6 +1800,10 @@ let facturaEnEdicion = null;
 let itemsEdicion = []; // copia editable: [{id, nombre, precio, conEnvase, cantidad}]
 
 function abrirEdicionFactura(factura) {
+  if ((factura.items || []).some((i) => i.componentes)) {
+    mostrarToast("⚠️ Esta factura incluye un combo — por ahora no se puede editar, solo eliminar y volver a facturar.");
+    return;
+  }
   facturaEnEdicion = factura;
   itemsEdicion = (factura.items || []).map((i) => ({ ...i }));
 
@@ -1891,6 +2067,16 @@ async function eliminarFactura(factura) {
 
       const refsProductos = [];
       for (const item of factura.items || []) {
+        if (item.componentes) {
+          // Línea de combo: restaurar stock de cada producto real que lo compone
+          for (const comp of item.componentes) {
+            const refProd = doc(db, "productos", comp.productoId);
+            const snapProd = await tx.get(refProd);
+            const unidades = comp.cantidad * (item.cantidad || 1);
+            if (snapProd.exists()) refsProductos.push({ ref: refProd, unidades });
+          }
+          continue;
+        }
         const refProd = doc(db, "productos", item.id);
         const snapProd = await tx.get(refProd);
         // Fallback a "cantidad" para facturas antiguas creadas antes de manejar cajas/unidades
@@ -2322,7 +2508,53 @@ onSnapshot(doc(db, "config", "tienda"), (snap) => {
   document.getElementById("cfg-mensaje-legal").value = configTienda.mensajeLegal || "";
   disenoSeleccionado = configTienda.estiloVisual || "clasico";
   renderSelectorDisenos();
+  renderMediosPago(configTienda.mediosPago || []);
 });
+
+/* ---------------------------------------------------------------
+   MEDIOS DE PAGO: lista libre (nombre + número/cuenta) que se
+   muestra tal cual en la tienda pública, para que el cliente sepa
+   cómo pagar antes de mandar el pedido por WhatsApp.
+--------------------------------------------------------------- */
+function renderMediosPago(lista) {
+  const cont = document.getElementById("lista-medios-pago");
+  cont.innerHTML = (lista.length ? lista : [{ nombre: "", dato: "" }])
+    .map(
+      (m) => `
+    <div class="fila-categoria fila-medio-pago" style="display:flex;gap:8px;align-items:center;">
+      <input type="text" class="mp-nombre" placeholder="Ej: Nequi" value="${(m.nombre || "").replace(/"/g, "&quot;")}" style="flex:1;" />
+      <input type="text" class="mp-dato" placeholder="Ej: 300 123 4567" value="${(m.dato || "").replace(/"/g, "&quot;")}" style="flex:1;" />
+      <button type="button" class="btn btn-rojo btn-quitar-medio-pago" title="Quitar">🗑</button>
+    </div>`
+    )
+    .join("");
+
+  cont.querySelectorAll(".btn-quitar-medio-pago").forEach((btn) => {
+    btn.addEventListener("click", () => btn.closest(".fila-medio-pago").remove());
+  });
+}
+
+document.getElementById("btn-agregar-medio-pago").addEventListener("click", () => {
+  const cont = document.getElementById("lista-medios-pago");
+  const div = document.createElement("div");
+  div.className = "fila-categoria fila-medio-pago";
+  div.style.cssText = "display:flex;gap:8px;align-items:center;";
+  div.innerHTML = `
+    <input type="text" class="mp-nombre" placeholder="Ej: Nequi" style="flex:1;" />
+    <input type="text" class="mp-dato" placeholder="Ej: 300 123 4567" style="flex:1;" />
+    <button type="button" class="btn btn-rojo btn-quitar-medio-pago" title="Quitar">🗑</button>`;
+  cont.appendChild(div);
+  div.querySelector(".btn-quitar-medio-pago").addEventListener("click", () => div.remove());
+});
+
+function leerMediosPagoDelFormulario() {
+  return Array.from(document.querySelectorAll(".fila-medio-pago"))
+    .map((fila) => ({
+      nombre: fila.querySelector(".mp-nombre").value.trim(),
+      dato: fila.querySelector(".mp-dato").value.trim()
+    }))
+    .filter((m) => m.nombre); // descarta filas vacías
+}
 
 document.getElementById("btn-guardar-config-tienda").addEventListener("click", async () => {
   const cfg = {
@@ -2337,7 +2569,8 @@ document.getElementById("btn-guardar-config-tienda").addEventListener("click", a
     nitNegocio: document.getElementById("cfg-nit-negocio").value.trim(),
     nombreEstacion: document.getElementById("cfg-nombre-estacion").value.trim(),
     regimenTexto: document.getElementById("cfg-regimen-texto").value.trim(),
-    mensajeLegal: document.getElementById("cfg-mensaje-legal").value.trim()
+    mensajeLegal: document.getElementById("cfg-mensaje-legal").value.trim(),
+    mediosPago: leerMediosPagoDelFormulario()
   };
   try {
     await setDoc(doc(db, "config", "tienda"), cfg, { merge: true });
@@ -2770,6 +3003,43 @@ function limpiarCamposIndividualesProducto() {
   document.getElementById("p-nombre").focus();
 }
 
+/* ---------- NOTIFICACIONES (Inicio): stock bajo / agotado ---------- */
+function renderNotificacionesInicio() {
+  const card = document.getElementById("card-notificaciones");
+  const cont = document.getElementById("lista-notificaciones");
+  if (!card || !cont) return;
+
+  const agotados = productosCache.filter((p) => Number(p.stock) <= 0);
+  const bajos = productosCache.filter((p) => {
+    const min = p.stockMinimo ?? 5;
+    return Number(p.stock) > 0 && Number(p.stock) <= min;
+  });
+
+  if (agotados.length === 0 && bajos.length === 0) {
+    card.classList.add("oculto");
+    cont.innerHTML = "";
+    return;
+  }
+
+  card.classList.remove("oculto");
+  const filaAviso = (p, tipo) => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-radius:8px;background:${
+      tipo === "agotado" ? "rgba(220,53,69,0.08)" : "rgba(255,160,0,0.08)"
+    };">
+      <span>${tipo === "agotado" ? "🔴" : "🟡"} <strong>${p.nombre}</strong> — ${tipo === "agotado" ? "agotado" : `quedan ${p.stock} unidad(es)`}</span>
+      <button class="btn btn-secundario" data-id="${p.id}" data-accion="ir-editar-producto" style="padding:4px 10px;font-size:0.78rem;">Ver</button>
+    </div>`;
+
+  cont.innerHTML = agotados.map((p) => filaAviso(p, "agotado")).join("") + bajos.map((p) => filaAviso(p, "bajo")).join("");
+
+  cont.querySelectorAll('button[data-accion="ir-editar-producto"]').forEach((btn) => {
+    btn.addEventListener("click", () => {
+      document.querySelector('.sidebar-link[data-tab="inventario"]').click();
+      cargarProductoParaEditar(btn.dataset.id);
+    });
+  });
+}
+
 function renderTablaInventario(filtro = "") {
   const tbody = document.querySelector("#tabla-inventario tbody");
   const texto = filtro.trim().toLowerCase();
@@ -2999,6 +3269,228 @@ async function eliminarProducto(id) {
   }
 }
 
+/* ---------------------------------------------------------------
+   COMBOS: paquetes de varios productos a precio fijo. Se muestran
+   en la tienda como un producto más; al facturarlos, el stock se
+   descuenta de cada producto real que los compone (no llevan
+   stock propio).
+--------------------------------------------------------------- */
+let combosCache = [];
+let comboComponentesActuales = []; // [{productoId, nombre, cantidad}]
+let comboImagenActual = "";
+
+onSnapshot(collection(db, "combos"), (snap) => {
+  combosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderTablaCombos();
+  renderSelectorCombosFactura();
+});
+
+function renderSelectorCombosFactura() {
+  const campo = document.getElementById("campo-combos-factura");
+  const select = document.getElementById("f-select-combo");
+  if (!combosCache.length) {
+    campo.classList.add("oculto");
+    return;
+  }
+  campo.classList.remove("oculto");
+  select.innerHTML = combosCache.map((c) => `<option value="${c.id}">${c.nombre} — ${formatCOP(c.precio)}</option>`).join("");
+}
+
+document.getElementById("btn-agregar-combo-factura").addEventListener("click", () => {
+  const id = document.getElementById("f-select-combo").value;
+  if (id) agregarComboAFactura(id);
+});
+
+document.getElementById("btn-subir-imagen-combo").addEventListener("click", () => {
+  openCloudinaryWidget((url) => {
+    comboImagenActual = url;
+    const img = document.getElementById("preview-imagen-combo");
+    img.src = url;
+    img.classList.remove("oculto");
+  });
+});
+
+document.getElementById("combo-buscar-producto").addEventListener("input", (e) => {
+  const texto = e.target.value.trim().toLowerCase();
+  const cont = document.getElementById("combo-resultados-busqueda");
+  if (!texto) {
+    cont.innerHTML = "";
+    return;
+  }
+  const coincidencias = productosCache.filter((p) => p.nombre.toLowerCase().includes(texto)).slice(0, 6);
+  cont.innerHTML = coincidencias.length
+    ? `<div style="position:absolute;z-index:20;background:var(--surface);border:1px solid var(--border);border-radius:8px;width:100%;max-height:220px;overflow-y:auto;box-shadow:0 6px 16px rgba(0,0,0,.12);">
+        ${coincidencias
+          .map(
+            (p) =>
+              `<div class="resultado-combo" data-id="${p.id}" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid var(--border);">${p.nombre} <small style="color:var(--muted);">— ${formatCOP(p.precio)}</small></div>`
+          )
+          .join("")}
+      </div>`
+    : "";
+
+  cont.querySelectorAll(".resultado-combo").forEach((el) => {
+    el.addEventListener("click", () => {
+      const producto = productosCache.find((p) => p.id === el.dataset.id);
+      if (!producto) return;
+      if (!comboComponentesActuales.some((c) => c.productoId === producto.id)) {
+        comboComponentesActuales.push({ productoId: producto.id, nombre: producto.nombre, cantidad: 1 });
+        renderComponentesCombo();
+      }
+      document.getElementById("combo-buscar-producto").value = "";
+      cont.innerHTML = "";
+    });
+  });
+});
+
+function renderComponentesCombo() {
+  const cont = document.getElementById("combo-componentes-lista");
+  cont.innerHTML = comboComponentesActuales.length
+    ? comboComponentesActuales
+        .map(
+          (c, idx) => `
+    <div style="display:flex;align-items:center;gap:10px;background:var(--fondo-suave,#f6f6f6);padding:7px 10px;border-radius:8px;">
+      <span style="flex:1;">${c.nombre}</span>
+      <label style="font-size:0.78rem;color:var(--muted);">Cantidad
+        <input type="number" min="1" value="${c.cantidad}" data-idx="${idx}" class="combo-cantidad-input" style="width:60px;margin-left:6px;" />
+      </label>
+      <button type="button" class="btn btn-rojo combo-quitar-componente" data-idx="${idx}" title="Quitar">🗑</button>
+    </div>`
+        )
+        .join("")
+    : `<small style="color:var(--muted);">Todavía no has agregado productos a este combo.</small>`;
+
+  cont.querySelectorAll(".combo-cantidad-input").forEach((input) => {
+    input.addEventListener("change", () => {
+      comboComponentesActuales[Number(input.dataset.idx)].cantidad = Math.max(1, Number(input.value) || 1);
+    });
+  });
+  cont.querySelectorAll(".combo-quitar-componente").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      comboComponentesActuales.splice(Number(btn.dataset.idx), 1);
+      renderComponentesCombo();
+    });
+  });
+}
+
+document.getElementById("btn-guardar-combo").addEventListener("click", async () => {
+  const id = document.getElementById("combo-id").value;
+  const data = {
+    nombre: document.getElementById("combo-nombre").value.trim(),
+    descripcion: document.getElementById("combo-descripcion").value.trim(),
+    precio: Number(document.getElementById("combo-precio").value) || 0,
+    ivaPorcentaje: Number(document.getElementById("combo-iva").value) || 0,
+    imagen: comboImagenActual,
+    activo: document.getElementById("combo-visible-tienda").checked,
+    componentes: comboComponentesActuales.map((c) => ({ productoId: c.productoId, nombre: c.nombre, cantidad: c.cantidad }))
+  };
+
+  if (!data.nombre) {
+    mostrarToast("⚠️ El combo necesita un nombre.");
+    return;
+  }
+  if (!data.precio) {
+    mostrarToast("⚠️ Indica el precio del combo.");
+    return;
+  }
+  if (data.componentes.length === 0) {
+    mostrarToast("⚠️ Agrega al menos un producto al combo.");
+    return;
+  }
+
+  try {
+    if (id) {
+      await updateDoc(doc(db, "combos", id), data);
+      mostrarToast("✅ Combo actualizado.");
+    } else {
+      await addDoc(collection(db, "combos"), data);
+      mostrarToast("✅ Combo agregado.");
+    }
+    limpiarFormularioCombo();
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error guardando el combo.");
+  }
+});
+
+function limpiarFormularioCombo() {
+  document.getElementById("combo-id").value = "";
+  document.getElementById("combo-nombre").value = "";
+  document.getElementById("combo-descripcion").value = "";
+  document.getElementById("combo-precio").value = "";
+  document.getElementById("combo-iva").value = "0";
+  document.getElementById("combo-visible-tienda").checked = true;
+  comboComponentesActuales = [];
+  comboImagenActual = "";
+  document.getElementById("preview-imagen-combo").classList.add("oculto");
+  document.getElementById("preview-imagen-combo").src = "";
+  document.getElementById("btn-cancelar-edicion-combo").classList.add("oculto");
+  renderComponentesCombo();
+}
+document.getElementById("btn-cancelar-edicion-combo").addEventListener("click", limpiarFormularioCombo);
+
+function cargarComboParaEditar(id) {
+  const c = combosCache.find((x) => x.id === id);
+  if (!c) return;
+  document.getElementById("combo-id").value = c.id;
+  document.getElementById("combo-nombre").value = c.nombre || "";
+  document.getElementById("combo-descripcion").value = c.descripcion || "";
+  document.getElementById("combo-precio").value = c.precio || 0;
+  document.getElementById("combo-iva").value = c.ivaPorcentaje || 0;
+  document.getElementById("combo-visible-tienda").checked = c.activo !== false;
+  comboComponentesActuales = Array.isArray(c.componentes) ? c.componentes.map((x) => ({ ...x })) : [];
+  comboImagenActual = c.imagen || "";
+  const img = document.getElementById("preview-imagen-combo");
+  if (comboImagenActual) {
+    img.src = comboImagenActual;
+    img.classList.remove("oculto");
+  } else {
+    img.classList.add("oculto");
+  }
+  renderComponentesCombo();
+  document.getElementById("btn-cancelar-edicion-combo").classList.remove("oculto");
+  document.querySelector("#panel-inventario .card:has(#combo-nombre)")?.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function eliminarCombo(id) {
+  if (!confirm("¿Eliminar este combo? Esto no afecta el stock de los productos que lo componen.")) return;
+  try {
+    await deleteDoc(doc(db, "combos", id));
+    mostrarToast("🗑 Combo eliminado.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error eliminando el combo.");
+  }
+}
+
+function renderTablaCombos() {
+  const tbody = document.querySelector("#tabla-combos tbody");
+  if (!tbody) return;
+  tbody.innerHTML = combosCache
+    .map(
+      (c) => `
+    <tr>
+      <td><img src="${c.imagen || "https://placehold.co/40x40?text=%20"}" /></td>
+      <td>${c.nombre}</td>
+      <td><small>${(c.componentes || []).map((x) => `${x.cantidad}x ${x.nombre}`).join(", ")}</small></td>
+      <td>${formatCOP(c.precio)}</td>
+      <td>${c.activo !== false ? '<span class="badge-stock badge-ok">Visible</span>' : '<span class="badge-stock badge-critico">Oculto</span>'}</td>
+      <td>
+        <button class="btn btn-secundario" data-id="${c.id}" data-accion="editar-combo" title="Editar combo">✎</button>
+        <button class="btn btn-rojo" data-id="${c.id}" data-accion="eliminar-combo" title="Eliminar combo">🗑</button>
+      </td>
+    </tr>`
+    )
+    .join("");
+
+  tbody.querySelectorAll('button[data-accion="editar-combo"]').forEach((btn) => {
+    btn.addEventListener("click", () => cargarComboParaEditar(btn.dataset.id));
+  });
+  tbody.querySelectorAll('button[data-accion="eliminar-combo"]').forEach((btn) => {
+    btn.addEventListener("click", () => eliminarCombo(btn.dataset.id));
+  });
+}
+
 /* ---------- EXPORTACIÓN DE INVENTARIO: Excel / PDF / JSON ---------- */
 document.getElementById("btn-export-excel-inv").addEventListener("click", () => {
   const hoja = productosCache.map((p) => ({
@@ -3053,6 +3545,50 @@ function descargarJSON(data, filename) {
   a.click();
   URL.revokeObjectURL(url);
 }
+
+/* ---------- EXPORTACIÓN DE CLIENTES: Excel / PDF / JSON ---------- */
+document.getElementById("btn-export-excel-clientes").addEventListener("click", () => {
+  const hoja = clientesCache.map((c) => ({
+    Cedula: c.cedula || "",
+    Nombre: c.nombre || "",
+    Correo: c.correo || "",
+    Telefono: c.telefono || "",
+    Direccion: c.direccion || "",
+    Puntos: c.puntos || 0,
+    ParticipaPuntos: c.participaPuntos ? "Sí" : "No"
+  }));
+  const ws = XLSX.utils.json_to_sheet(hoja);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+  XLSX.writeFile(wb, `clientes_puntofrio_${Date.now()}.xlsx`);
+});
+
+document.getElementById("btn-export-pdf-clientes").addEventListener("click", () => {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  pdf.setFontSize(16);
+  pdf.text("Reporte de Clientes — Punto Frío Bocagrande", 40, 40);
+  pdf.setFontSize(9);
+  let y = 70;
+  pdf.text("Cédula/NIT", 40, y);
+  pdf.text("Nombre", 140, y);
+  pdf.text("Teléfono", 320, y);
+  pdf.text("Puntos", 420, y);
+  y += 14;
+  clientesCache.forEach((c) => {
+    if (y > 780) { pdf.addPage(); y = 40; }
+    pdf.text(String(c.cedula || ""), 40, y);
+    pdf.text(String(c.nombre || "").slice(0, 28), 140, y);
+    pdf.text(String(c.telefono || ""), 320, y);
+    pdf.text(String(c.puntos || 0), 420, y);
+    y += 14;
+  });
+  pdf.save(`clientes_puntofrio_${Date.now()}.pdf`);
+});
+
+document.getElementById("btn-export-json-clientes").addEventListener("click", () => {
+  descargarJSON(clientesCache, `clientes_puntofrio_${Date.now()}.json`);
+});
 
 /* ---------- EXPORTACIÓN DEL HISTORIAL DE VENTAS ---------- */
 async function obtenerTodasLasFacturas() {
