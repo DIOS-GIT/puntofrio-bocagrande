@@ -69,8 +69,28 @@
       </div>
 
       <input type="tel" id="cliente-telefono" placeholder="Teléfono (opcional)" />
+      <textarea id="cliente-nota" rows="2" placeholder="Nota o algo específico que quieras decirnos (opcional)"></textarea>
+
+      <label class="check-terminos">
+        <input type="checkbox" id="cliente-acepta-terminos" required />
+        Acepto los <a href="#" id="link-terminos">Términos y condiciones</a> y la
+        <a href="#" id="link-datos">Política de tratamiento de datos</a>
+      </label>
+
       <button type="submit" class="btn-whatsapp">📲 Enviar pedido por WhatsApp</button>
+      <p class="nota-atencion">
+        Para una atención más rápida, por favor llama vía WhatsApp y notifícanos que tienes un pedido. ¡Gracias!
+      </p>
     </form>
+  </div>
+</div>
+
+<!-- Modal de Términos / Tratamiento de datos -->
+<div class="modal-overlay" id="modal-legal-overlay">
+  <div class="modal-legal">
+    <button class="btn-cerrar-modal" id="btn-cerrar-legal">✕</button>
+    <h2 id="titulo-legal"></h2>
+    <div id="contenido-legal"></div>
   </div>
 </div>
 
@@ -928,6 +948,49 @@ modalOverlay.addEventListener("click", (e) => {
   if (e.target === modalOverlay) modalOverlay.classList.remove("abierto");
 });
 
+/* ---------- TÉRMINOS Y CONDICIONES / TRATAMIENTO DE DATOS ---------- */
+const TEXTO_TERMINOS = `
+  <p>Al hacer un pedido en Punto Frío Bocagrande, aceptas lo siguiente:</p>
+  <ul>
+    <li><strong>Venta de licor:</strong> vendemos licor y cerveza únicamente a personas mayores de 18 años. Quien recibe el pedido puede tener que mostrar un documento de identidad al domiciliario; si no se puede verificar la edad, nos reservamos el derecho de no entregar el pedido.</li>
+    <li><strong>Pedidos:</strong> se confirman por WhatsApp. Los precios, la disponibilidad y las promociones pueden cambiar sin previo aviso. El pedido queda en firme una vez lo confirmamos por WhatsApp.</li>
+    <li><strong>Pagos:</strong> según los medios de pago que se muestran en la tienda al momento de tu compra.</li>
+    <li><strong>Entregas:</strong> los tiempos son estimados y pueden variar según la demanda, el clima o la disponibilidad del domiciliario.</li>
+    <li><strong>Devoluciones:</strong> no se aceptan devoluciones de productos ya entregados y en buen estado. Si el producto llegó dañado, vencido o es distinto al pedido, repórtalo al momento de la entrega o inmediatamente después por WhatsApp para resolverlo.</li>
+    <li>Podemos actualizar estos términos en cualquier momento; la versión vigente es la que se muestra aquí.</li>
+  </ul>`;
+
+const TEXTO_DATOS = `
+  <p>En cumplimiento de la Ley 1581 de 2012 (protección de datos personales) te informamos:</p>
+  <ul>
+    <li><strong>Responsable:</strong> Punto Frío Bocagrande, Cartagena, Colombia.</li>
+    <li><strong>Datos que recolectamos:</strong> nombre, cédula o NIT (si lo compartes), correo electrónico (si lo compartes), dirección de entrega, teléfono y tu ubicación de Google Maps si decides compartirla.</li>
+    <li><strong>Para qué los usamos:</strong> procesar y entregar tu pedido, generar la factura electrónica cuando corresponda, contactarte sobre el estado de tu pedido, y si participas, gestionar tu programa de puntos.</li>
+    <li><strong>Dónde se guardan:</strong> en servidores de Google Firebase, con medidas de seguridad estándar de la plataforma.</li>
+    <li><strong>Tus derechos:</strong> puedes conocer, actualizar, corregir o pedir la eliminación de tus datos en cualquier momento escribiéndonos por WhatsApp.</li>
+    <li>Necesitamos tu autorización para poder procesar tu pedido; sin ella no podemos atenderlo.</li>
+  </ul>`;
+
+function abrirModalLegal(titulo, contenidoHTML) {
+  document.getElementById("titulo-legal").textContent = titulo;
+  document.getElementById("contenido-legal").innerHTML = contenidoHTML;
+  document.getElementById("modal-legal-overlay").classList.add("abierto");
+}
+document.getElementById("link-terminos").addEventListener("click", (e) => {
+  e.preventDefault();
+  abrirModalLegal("Términos y condiciones", TEXTO_TERMINOS);
+});
+document.getElementById("link-datos").addEventListener("click", (e) => {
+  e.preventDefault();
+  abrirModalLegal("Política de tratamiento de datos", TEXTO_DATOS);
+});
+document.getElementById("btn-cerrar-legal").addEventListener("click", () => {
+  document.getElementById("modal-legal-overlay").classList.remove("abierto");
+});
+document.getElementById("modal-legal-overlay").addEventListener("click", (e) => {
+  if (e.target.id === "modal-legal-overlay") e.currentTarget.classList.remove("abierto");
+});
+
 /* ---------- COMPARTIR UBICACIÓN POR GOOGLE MAPS ---------- */
 document.getElementById("btn-compartir-ubicacion").addEventListener("click", () => {
   const nota = document.getElementById("nota-ubicacion");
@@ -968,7 +1031,8 @@ document.getElementById("form-cliente").addEventListener("submit", (e) => {
     correo: document.getElementById("cliente-correo").value.trim(),
     direccion: document.getElementById("cliente-direccion").value.trim(),
     ubicacionLink: document.getElementById("cliente-ubicacion-link").value.trim(),
-    telefono: document.getElementById("cliente-telefono").value.trim()
+    telefono: document.getElementById("cliente-telefono").value.trim(),
+    nota: document.getElementById("cliente-nota").value.trim()
   };
 
   const url = generarLinkWhatsApp(carrito, cliente, NUMERO_WHATSAPP_NEGOCIO);
