@@ -89,7 +89,13 @@
     </div>
 
     <div class="card">
-      <h3 style="margin-bottom:10px;">Productos vendidos ese día</h3>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+        <h3 style="margin:0;">Productos vendidos ese día</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-secundario" id="btn-imprimir-resumen-dia">🖨 Imprimir resumen del día</button>
+          <button class="btn btn-rojo" id="btn-pdf-resumen-dia">📄 Descargar PDF</button>
+        </div>
+      </div>
       <div style="overflow-x:auto;">
         <table class="tabla-factura" id="tabla-inicio-productos">
           <thead><tr><th>#</th><th>Producto</th><th>Unidades</th><th>Ingresos</th></tr></thead>
@@ -177,8 +183,8 @@
         </select>
       </div>
       <div class="form-field" style="max-width:260px;">
-        <label>Cajero / Vendedor que atiende</label>
-        <input type="text" id="f-cajero" placeholder="Ej: Jesús" />
+        <label>Cajero / Vendedor que atiende <small style="color:var(--muted);font-weight:400;">(tu usuario, automático)</small></label>
+        <input type="text" id="f-cajero" placeholder="Ej: Jesús" style="background:var(--fondo-suave,#f3f3f3);cursor:not-allowed;" />
       </div>
       <div class="btn-fila">
         <button class="btn btn-primario" id="btn-generar-factura">✅ Generar Factura</button>
@@ -804,6 +810,10 @@
           <em>Firebase Console → Authentication → Users → Add user</em> (correo + contraseña). Pídele que inicie sesión
           una vez en este panel (verá el panel vacío, es normal). Luego ve a
           <em>Firebase Console → Authentication</em>, copia su <strong>UID</strong>, y pégalo abajo.
+          <br/><br/>
+          <strong>Nota:</strong> en Facturación, el campo "Cajero" se llena solo con el nombre de quien inició sesión —
+          así que si tú (el dueño) también facturas, agrégate aquí con tu propio UID y rol "Dueño" para que tu nombre
+          aparezca bien en vez de tu correo.
         </p>
         <div class="grid-2">
           <div class="form-field">
@@ -1014,6 +1024,7 @@ btnTemaAdmin.addEventListener("click", () => {
 
 let rolActual = "dueño"; // por defecto, hasta confirmar contra la colección "usuarios"
 let miUid = null;
+let nombreUsuarioActual = "";
 
 onAuthStateChanged(auth, async (user) => {
   const loginOverlay = document.getElementById("login-overlay");
@@ -1023,11 +1034,17 @@ onAuthStateChanged(auth, async (user) => {
     try {
       const snapRol = await getDoc(doc(db, "usuarios", user.uid));
       rolActual = snapRol.exists() ? snapRol.data().rol || "dueño" : "dueño";
+      nombreUsuarioActual = (snapRol.exists() && snapRol.data().nombre) || user.displayName || user.email || "Usuario";
     } catch (err) {
       console.error("No se pudo verificar el rol, se asume dueño:", err);
       rolActual = "dueño";
+      nombreUsuarioActual = user.displayName || user.email || "Usuario";
     }
     aplicarPermisosPorRol();
+    const campoCajero = document.getElementById("f-cajero");
+    campoCajero.value = nombreUsuarioActual;
+    campoCajero.readOnly = true;
+    campoCajero.title = "Se toma automáticamente de tu sesión — quien factura queda registrado.";
     loginOverlay.classList.add("oculto");
     app.classList.remove("oculto");
     iniciarSuscripcionesFirestore();
@@ -4148,6 +4165,122 @@ async function cargarResumenDia(fecha) {
       .map(([nombre, datos], idx) => `<tr><td>${idx + 1}</td><td>${nombre}</td><td>${datos.unidades}</td><td>${formatCOP(datos.ingresos)}</td></tr>`)
       .join("") || `<tr><td colspan="4" style="text-align:center;color:var(--muted);">Sin productos vendidos ese día.</td></tr>`;
 }
+
+/* ---------------------------------------------------------------
+   RESUMEN DEL DÍA imprimible / en PDF ("factura gigante" con todo
+   lo vendido) — disponible para dueño y empleado desde Inicio.
+--------------------------------------------------------------- */
+async function calcularVentasDelDia(fecha) {
+  const inicio = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, 0, 0);
+  const fin = new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 23, 59, 59);
+
+  const facturas = await obtenerFacturasCache();
+  const delDia = facturas.filter((f) => {
+    if (!f.fecha?.toDate) return false;
+    const fechaFactura = f.fecha.toDate();
+    return fechaFactura >= inicio && fechaFactura <= fin;
+  });
+
+  const totalVentas = delDia.reduce((acc, f) => acc + (f.total || 0), 0);
+  const metodosPago = {};
+  delDia.forEach((f) => {
+    const metodo = f.metodoPago || "N/A";
+    metodosPago[metodo] = (metodosPago[metodo] || 0) + (f.total || 0);
+  });
+
+  const productosAgregados = {};
+  delDia.forEach((f) => {
+    (f.items || []).forEach((i) => {
+      const nombre = (i.tipo === "combo" ? "🎁 " : "") + i.nombre;
+      if (!productosAgregados[nombre]) productosAgregados[nombre] = { unidades: 0, ingresos: 0 };
+      productosAgregados[nombre].unidades += i.cantidad || 0;
+      productosAgregados[nombre].ingresos += i.subtotal || 0;
+    });
+  });
+  const productosOrdenados = Object.entries(productosAgregados).sort((a, b) => b[1].unidades - a[1].unidades);
+
+  return { delDia, totalVentas, numFacturas: delDia.length, productosOrdenados, metodosPago };
+}
+
+document.getElementById("btn-imprimir-resumen-dia").addEventListener("click", async () => {
+  const { totalVentas, numFacturas, productosOrdenados, metodosPago } = await calcularVentasDelDia(fechaInicioSeleccionada);
+  const cont = document.getElementById("tiquete-pos");
+  cont.innerHTML = `
+    <div class="centrado">
+      <strong>PUNTO FRÍO BOCAGRANDE</strong><br/>
+      Resumen de ventas del día<br/>
+      ${formatoFechaCorta(fechaInicioSeleccionada)}<br/>
+      Generado por: ${nombreUsuarioActual}
+    </div>
+    <hr/>
+    <table>
+      ${
+        productosOrdenados.length
+          ? productosOrdenados
+              .map(([nombre, d]) => `<tr><td>${d.unidades}x ${nombre}</td><td style="text-align:right;">${formatCOP(d.ingresos)}</td></tr>`)
+              .join("")
+          : `<tr><td>Sin ventas registradas ese día.</td></tr>`
+      }
+    </table>
+    <hr/>
+    ${Object.entries(metodosPago).map(([m, v]) => `<div>${m}: ${formatCOP(v)}</div>`).join("")}
+    <hr/>
+    <div class="centrado"><strong>TOTAL DEL DÍA: ${formatCOP(totalVentas)}</strong></div>
+    <div class="centrado">${numFacturas} factura(s)</div>
+  `;
+  window.print();
+});
+
+document.getElementById("btn-pdf-resumen-dia").addEventListener("click", async () => {
+  const { totalVentas, numFacturas, productosOrdenados, metodosPago } = await calcularVentasDelDia(fechaInicioSeleccionada);
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+
+  pdf.setFontSize(16);
+  pdf.text("PUNTO FRÍO BOCAGRANDE", 40, 40);
+  pdf.setFontSize(11);
+  pdf.text(`Resumen de ventas — ${formatoFechaCorta(fechaInicioSeleccionada)}`, 40, 60);
+  pdf.setFontSize(9);
+  pdf.text(`Generado por: ${nombreUsuarioActual}`, 40, 76);
+
+  let y = 105;
+  pdf.setFontSize(10);
+  pdf.text("Producto", 40, y);
+  pdf.text("Unidades", 350, y);
+  pdf.text("Ingresos", 430, y);
+  y += 16;
+
+  if (!productosOrdenados.length) {
+    pdf.text("Sin ventas registradas ese día.", 40, y);
+    y += 16;
+  }
+  productosOrdenados.forEach(([nombre, d]) => {
+    if (y > 780) { pdf.addPage(); y = 40; }
+    const lineas = pdf.splitTextToSize(nombre, 290);
+    pdf.text(lineas, 40, y);
+    pdf.text(String(d.unidades), 350, y);
+    pdf.text(formatCOP(d.ingresos), 430, y);
+    y += 14 * lineas.length + 4;
+  });
+
+  y += 12;
+  if (y > 760) { pdf.addPage(); y = 40; }
+  pdf.setFontSize(10);
+  Object.entries(metodosPago).forEach(([m, v]) => {
+    pdf.text(`${m}: ${formatCOP(v)}`, 40, y);
+    y += 14;
+  });
+
+  y += 10;
+  if (y > 760) { pdf.addPage(); y = 40; }
+  pdf.setFontSize(14);
+  pdf.text(`TOTAL DEL DÍA: ${formatCOP(totalVentas)}`, 40, y);
+  y += 18;
+  pdf.setFontSize(10);
+  pdf.text(`${numFacturas} factura(s)`, 40, y);
+
+  pdf.save(`resumen_dia_${claveFecha(fechaInicioSeleccionada)}.pdf`);
+});
 
 document.getElementById("btn-dia-anterior").addEventListener("click", () => {
   const nueva = new Date(fechaInicioSeleccionada);
