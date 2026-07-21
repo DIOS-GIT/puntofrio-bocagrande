@@ -13,9 +13,11 @@
 <body>
 
 <header class="header">
+  <button id="btn-idioma" class="btn-idioma" title="Switch language / Cambiar idioma">🇬🇧 EN</button>
   <button id="btn-tema" class="btn-tema" title="Cambiar a modo oscuro">🌙</button>
   <h1>🧊 Punto Frío Bocagrande</h1>
-  <p>Licores · Cervezas · Bebidas — Entrega en Bocagrande</p>
+  <p data-i18n="tagline">Licores · Cervezas · Bebidas — Entrega en Bocagrande</p>
+  <p class="nota-domicilio-gratis" data-i18n="domicilio_gratis">🚚 Domicilios gratis en Bocagrande</p>
 </header>
 
 <div id="banner-tienda" class="banner-tienda oculto-banner"></div>
@@ -23,16 +25,16 @@
 <nav class="filtros" id="filtros"></nav>
 
 <div class="toolbar-tienda">
-  <input type="text" id="buscador-productos" class="buscador-productos" placeholder="🔎 Buscar producto..." />
+  <input type="text" id="buscador-productos" class="buscador-productos" data-i18n-placeholder="buscar_placeholder" placeholder="🔎 Buscar producto..." />
   <select id="selector-orden">
-    <option value="default">Ordenar por</option>
-    <option value="precio-asc">Precio: menor a mayor</option>
-    <option value="precio-desc">Precio: mayor a menor</option>
+    <option value="default" data-i18n="ordenar_default">Ordenar por</option>
+    <option value="precio-asc" data-i18n="ordenar_asc">Precio: menor a mayor</option>
+    <option value="precio-desc" data-i18n="ordenar_desc">Precio: mayor a menor</option>
   </select>
 </div>
 
 <section id="seccion-combos" class="oculto-banner" style="padding:6px 16px 4px;">
-  <h2 style="font-family:var(--fuente-display);font-size:1.15rem;margin-bottom:10px;">🎁 Combos</h2>
+  <h2 style="font-family:var(--fuente-display);font-size:1.15rem;margin-bottom:10px;" data-i18n="combos_titulo">🎁 Combos</h2>
   <div class="grid-productos" id="grid-combos" style="padding:0;"></div>
 </section>
 
@@ -42,7 +44,7 @@
 
 <!-- Botón flotante del carrito -->
 <div class="carrito-flotante" id="btn-carrito">
-  🛒 Ver pedido
+  🛒 <span data-i18n="ver_pedido">Ver pedido</span>
   <span class="badge" id="badge-carrito">0</span>
 </div>
 
@@ -50,37 +52,37 @@
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal-carrito">
     <button class="btn-cerrar-modal" id="btn-cerrar-modal">✕</button>
-    <h2>Tu pedido 🧊</h2>
+    <h2>🧊 <span data-i18n="tu_pedido">Tu pedido</span></h2>
 
     <div id="lista-carrito"></div>
     <div id="medios-pago-tienda" class="medios-pago-tienda oculto-banner"></div>
     <div class="total-carrito" id="total-carrito">Total: $ 0</div>
 
     <form class="form-cliente" id="form-cliente">
-      <input type="text" id="cliente-nombre" placeholder="Nombre completo" required />
-      <input type="text" id="cliente-cedula" placeholder="Cédula o NIT (opcional, recomendado para factura electrónica)" />
-      <input type="email" id="cliente-correo" placeholder="Correo electrónico (opcional, recomendado para factura electrónica)" />
+      <input type="text" id="cliente-nombre" data-i18n-placeholder="nombre_placeholder" placeholder="Nombre completo" required />
+      <input type="text" id="cliente-cedula" data-i18n-placeholder="cedula_placeholder" placeholder="Cédula o NIT (opcional, recomendado para factura electrónica)" />
+      <input type="email" id="cliente-correo" data-i18n-placeholder="correo_placeholder" placeholder="Correo electrónico (opcional, recomendado para factura electrónica)" />
 
       <div class="campo-direccion">
-        <input type="text" id="cliente-direccion" placeholder="Dirección / Hotel en Bocagrande" required />
-        <button type="button" id="btn-compartir-ubicacion" class="btn-ubicacion">📍 Usar mi ubicación (Google Maps)</button>
+        <input type="text" id="cliente-direccion" data-i18n-placeholder="direccion_placeholder" placeholder="Dirección / Hotel en Bocagrande" required />
+        <button type="button" id="btn-compartir-ubicacion" class="btn-ubicacion" data-i18n="btn_ubicacion">📍 Usar mi ubicación (Google Maps)</button>
         <small id="nota-ubicacion" class="nota-ubicacion"></small>
         <input type="hidden" id="cliente-ubicacion-link" />
       </div>
 
-      <input type="tel" id="cliente-telefono" placeholder="Teléfono (opcional)" />
-      <textarea id="cliente-nota" rows="2" placeholder="Nota o algo específico que quieras decirnos (opcional)"></textarea>
+      <input type="tel" id="cliente-telefono" data-i18n-placeholder="telefono_placeholder" placeholder="Teléfono (opcional)" />
+      <textarea id="cliente-nota" rows="2" data-i18n-placeholder="nota_placeholder" placeholder="Nota o algo específico que quieras decirnos (opcional)"></textarea>
 
       <label class="check-terminos">
         <input type="checkbox" id="cliente-acepta-terminos" required />
-        Acepto los <a href="#" id="link-terminos">Términos y condiciones</a> y la
-        <a href="#" id="link-datos">Política de tratamiento de datos</a>
+        <span><span data-i18n="terminos_prefix">Acepto los</span> <a href="#" id="link-terminos" data-i18n="terminos_link">Términos y condiciones</a> <span data-i18n="terminos_y">y la</span> <a href="#" id="link-datos" data-i18n="datos_link">Política de tratamiento de datos</a></span>
       </label>
 
-      <button type="submit" class="btn-whatsapp">📲 Enviar pedido por WhatsApp</button>
-      <p class="nota-atencion">
+      <button type="submit" class="btn-whatsapp"><span data-i18n="btn_enviar">📲 Enviar pedido por WhatsApp</span></button>
+      <p class="nota-atencion" data-i18n="nota_atencion">
         Para una atención más rápida, por favor llama vía WhatsApp y notifícanos que tienes un pedido. ¡Gracias!
       </p>
+      <button type="button" id="btn-olvidar-datos" class="btn-olvidar-datos oculto-banner" data-i18n="olvidar_datos">🗑 Olvidar mis datos guardados</button>
     </form>
   </div>
 </div>
@@ -143,6 +145,158 @@ btnTema.addEventListener("click", () => {
 function aplicarEstiloVisual(estilo) {
   document.documentElement.setAttribute("data-estilo", estilo || "clasico");
 }
+
+/* ---------------------------------------------------------------
+   IDIOMA (🇨🇴 ES / 🇬🇧 EN). Traduce toda la interfaz fija y las
+   etiquetas generadas por JS. Los nombres de producto, categorías,
+   combos y textos que tú escribes en el admin (banner, descripción
+   de combos) se muestran tal cual los escribiste — eso no se traduce
+   automáticamente.
+--------------------------------------------------------------- */
+const I18N = {
+  es: {
+    tagline: "Licores · Cervezas · Bebidas — Entrega en Bocagrande",
+    domicilio_gratis: "🚚 Domicilios gratis en Bocagrande",
+    buscar_placeholder: "🔎 Buscar producto...",
+    ordenar_default: "Ordenar por",
+    ordenar_asc: "Precio: menor a mayor",
+    ordenar_desc: "Precio: mayor a menor",
+    combos_titulo: "🎁 Combos",
+    todos: "Todos",
+    ver_pedido: "Ver pedido",
+    tu_pedido: "Tu pedido",
+    carrito_vacio: "Tu carrito está vacío 🧊",
+    total: "Total: ",
+    medios_pago_label: "Medios de pago:",
+    nombre_placeholder: "Nombre completo",
+    cedula_placeholder: "Cédula o NIT (opcional, recomendado para factura electrónica)",
+    correo_placeholder: "Correo electrónico (opcional, recomendado para factura electrónica)",
+    direccion_placeholder: "Dirección / Hotel en Bocagrande",
+    btn_ubicacion: "📍 Usar mi ubicación (Google Maps)",
+    telefono_placeholder: "Teléfono (opcional)",
+    nota_placeholder: "Nota o algo específico que quieras decirnos (opcional)",
+    terminos_prefix: "Acepto los",
+    terminos_link: "Términos y condiciones",
+    terminos_y: "y la",
+    datos_link: "Política de tratamiento de datos",
+    btn_enviar: "📲 Enviar pedido por WhatsApp",
+    nota_atencion: "Para una atención más rápida, por favor llama vía WhatsApp y notifícanos que tienes un pedido. ¡Gracias!",
+    olvidar_datos: "🗑 Olvidar mis datos guardados",
+    cerrado_banner: "🕐 Estamos cerrados en este momento — abrimos a las {hora}",
+    sin_productos_categoria: "No hay productos en esta categoría.",
+    caja_completa: "Caja completa ({n} uds)",
+    six_pack: "Six pack ({n} uds)",
+    unidad_suelta: "Unidad suelta",
+    traigo_envase: "Traigo envase —",
+    sin_envase: "Sin envase —",
+    disponibles_cajas: "Disponibles: {n} caja(s)",
+    disponibles_six: "Disponibles: {n} six(es)",
+    disponibles_unidad: "Disponibles: {n} unidad(es)",
+    sin_stock_modo: "Sin stock en este modo",
+    disponibles: "Disponibles: {n}",
+    sin_stock: "Sin stock",
+    cerrado_boton: "Cerrado",
+    agotado: "Agotado",
+    agregar: "Agregar",
+    combo_categoria: "Combo",
+    caja_x: "(caja x{n})",
+    six_x: "(six x{n})",
+    unidad_suelta_carrito: "(unidad suelta)",
+    trae_envase_check: "Traigo envase",
+    cu: "c/u",
+    geo_no_soportado: "⚠️ Tu navegador no permite compartir ubicación. Escribe la dirección manualmente.",
+    geo_obteniendo: "📡 Obteniendo tu ubicación...",
+    geo_error: "⚠️ No se pudo obtener tu ubicación (revisa los permisos del navegador). Escribe la dirección manualmente.",
+    geo_ok: "✅ Ubicación lista para enviar — {link}",
+    geo_ok_link_texto: "verla en el mapa",
+    alerta_cerrado: "Lo sentimos, ya estamos cerrados. Vuelve a intentarlo en nuestro horario de atención.",
+    alerta_carrito_vacio: "Tu carrito está vacío."
+  },
+  en: {
+    tagline: "Liquor · Beer · Beverages — Delivery in Bocagrande",
+    domicilio_gratis: "🚚 Free delivery in Bocagrande",
+    buscar_placeholder: "🔎 Search product...",
+    ordenar_default: "Sort by",
+    ordenar_asc: "Price: low to high",
+    ordenar_desc: "Price: high to low",
+    combos_titulo: "🎁 Combos",
+    todos: "All",
+    ver_pedido: "View order",
+    tu_pedido: "Your order",
+    carrito_vacio: "Your cart is empty 🧊",
+    total: "Total: ",
+    medios_pago_label: "Payment methods:",
+    nombre_placeholder: "Full name",
+    cedula_placeholder: "ID or Tax ID (optional, recommended for electronic invoice)",
+    correo_placeholder: "Email (optional, recommended for electronic invoice)",
+    direccion_placeholder: "Address / Hotel in Bocagrande",
+    btn_ubicacion: "📍 Share my location (Google Maps)",
+    telefono_placeholder: "Phone (optional)",
+    nota_placeholder: "Note or anything specific you'd like to tell us (optional)",
+    terminos_prefix: "I accept the",
+    terminos_link: "Terms and conditions",
+    terminos_y: "and the",
+    datos_link: "Data processing policy",
+    btn_enviar: "📲 Send order via WhatsApp",
+    nota_atencion: "For faster service, please call us on WhatsApp and let us know you placed an order. Thank you!",
+    olvidar_datos: "🗑 Forget my saved info",
+    cerrado_banner: "🕐 We're closed right now — we open at {hora}",
+    sin_productos_categoria: "No products in this category.",
+    caja_completa: "Full case ({n} units)",
+    six_pack: "Six-pack ({n} units)",
+    unidad_suelta: "Single unit",
+    traigo_envase: "I bring the bottle —",
+    sin_envase: "No returnable —",
+    disponibles_cajas: "Available: {n} case(s)",
+    disponibles_six: "Available: {n} six-pack(s)",
+    disponibles_unidad: "Available: {n} unit(s)",
+    sin_stock_modo: "Out of stock in this option",
+    disponibles: "Available: {n}",
+    sin_stock: "Out of stock",
+    cerrado_boton: "Closed",
+    agotado: "Sold out",
+    agregar: "Add",
+    combo_categoria: "Combo",
+    caja_x: "(case x{n})",
+    six_x: "(six-pack x{n})",
+    unidad_suelta_carrito: "(single unit)",
+    trae_envase_check: "I bring the bottle",
+    cu: "each",
+    geo_no_soportado: "⚠️ Your browser doesn't support sharing location. Please type your address manually.",
+    geo_obteniendo: "📡 Getting your location...",
+    geo_error: "⚠️ We couldn't get your location (check browser permissions). Please type your address manually.",
+    geo_ok: "✅ Location ready to send — {link}",
+    geo_ok_link_texto: "view on map",
+    alerta_cerrado: "Sorry, we're closed right now. Please try again during our business hours.",
+    alerta_carrito_vacio: "Your cart is empty."
+  }
+};
+
+let idioma = localStorage.getItem("pf-idioma") || "es";
+
+function t(clave, vars) {
+  let texto = (I18N[idioma] && I18N[idioma][clave]) || I18N.es[clave] || clave;
+  if (vars) Object.keys(vars).forEach((k) => { texto = texto.replace("{" + k + "}", vars[k]); });
+  return texto;
+}
+
+function aplicarIdioma() {
+  document.documentElement.lang = idioma;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((el) => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.getElementById("btn-idioma").textContent = idioma === "es" ? "🇬🇧 EN" : "🇨🇴 ES";
+  localStorage.setItem("pf-idioma", idioma);
+  renderFiltros();
+  renderProductos();
+  renderCombosTienda();
+  renderCarrito();
+  renderMediosPagoTienda();
+  evaluarEstadoTienda();
+}
+document.getElementById("btn-idioma").addEventListener("click", () => {
+  idioma = idioma === "es" ? "en" : "es";
+  aplicarIdioma();
+});
 
 let categorias = ["Todos"]; // se llena en tiempo real desde Firestore (colección "categorias")
 
@@ -275,7 +429,7 @@ gridEl.addEventListener("click", (e) => {
 /* ---------- RENDER DE FILTROS ---------- */
 function renderFiltros() {
   filtrosEl.innerHTML = categorias.map(
-    (cat) => `<button class="filtro-btn ${cat === categoriaActiva ? "activo" : ""}" data-cat="${cat}">${cat}</button>`
+    (cat) => `<button class="filtro-btn ${cat === categoriaActiva ? "activo" : ""}" data-cat="${cat}">${cat === "Todos" ? t("todos") : cat}</button>`
   ).join("");
 
   filtrosEl.querySelectorAll(".filtro-btn").forEach((btn) => {
@@ -306,7 +460,7 @@ function renderProductos() {
   }
 
   if (lista.length === 0) {
-    gridEl.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#999;padding:30px;">No hay productos en esta categoría.</p>`;
+    gridEl.innerHTML = `<p style="grid-column:1/-1;text-align:center;color:#999;padding:30px;">${t("sin_productos_categoria")}</p>`;
     return;
   }
 
@@ -322,9 +476,9 @@ function renderProductos() {
       const permiteSueltaTienda = esCajaProducto && !!p.permiteVentaSuelta && !!p.mostrarSueltaEnTienda;
       const opcionesModo = esCajaProducto
         ? [
-            { valor: "caja", etiqueta: `Caja completa (${unidadesPorCaja} uds)`, precio: p.precio, factor: unidadesPorCaja },
-            permiteSixpackTienda ? { valor: "sixpack", etiqueta: `Six pack (${p.unidadesPorSixpack} uds)`, precio: p.precioSixpack, factor: Number(p.unidadesPorSixpack) || 1 } : null,
-            permiteSueltaTienda ? { valor: "suelta", etiqueta: "Unidad suelta", precio: p.precioUnidadSuelta, factor: 1 } : null
+            { valor: "caja", etiqueta: t("caja_completa", { n: unidadesPorCaja }), precio: p.precio, factor: unidadesPorCaja },
+            permiteSixpackTienda ? { valor: "sixpack", etiqueta: t("six_pack", { n: p.unidadesPorSixpack }), precio: p.precioSixpack, factor: Number(p.unidadesPorSixpack) || 1 } : null,
+            permiteSueltaTienda ? { valor: "suelta", etiqueta: t("unidad_suelta"), precio: p.precioUnidadSuelta, factor: 1 } : null
           ].filter(Boolean)
         : [];
       const modoActual = esCajaProducto ? (modoVentaSeleccionado[p.id] || "caja") : "caja";
@@ -338,10 +492,10 @@ function renderProductos() {
 
       let stockTexto;
       if (esCajaProducto) {
-        const unidadEtiqueta = modoActual === "caja" ? "caja(s)" : modoActual === "sixpack" ? "six(es)" : "unidad(es)";
-        stockTexto = disponibleModoActual > 0 ? `Disponibles: ${disponibleModoActual} ${unidadEtiqueta}` : "Sin stock en este modo";
+        const claveUnidad = modoActual === "caja" ? "disponibles_cajas" : modoActual === "sixpack" ? "disponibles_six" : "disponibles_unidad";
+        stockTexto = disponibleModoActual > 0 ? t(claveUnidad, { n: disponibleModoActual }) : t("sin_stock_modo");
       } else {
-        stockTexto = agotadoTotal ? "Sin stock" : `Disponibles: ${p.stock}`;
+        stockTexto = agotadoTotal ? t("sin_stock") : t("disponibles", { n: p.stock });
       }
 
       const imgs = imagenesDe(p);
@@ -352,7 +506,7 @@ function renderProductos() {
       <div class="card-producto">
         <div class="imagen-wrap" data-id="${p.id}">
           <img src="${imgSrc}" alt="${p.nombre}" loading="lazy" />
-          ${agotadoTotal ? `<span class="badge-agotado">Agotado</span>` : ""}
+          ${agotadoTotal ? `<span class="badge-agotado">${t("agotado")}</span>` : ""}
           ${
             imgs.length > 1
               ? `<div class="galeria-dots">${imgs
@@ -370,19 +524,19 @@ function renderProductos() {
               ? `<div class="selector-modo-venta" data-id="${p.id}">
                    ${opcionesModo.map((op) => `<label><input type="radio" name="modo-${p.id}" value="${op.valor}" ${modoActual === op.valor ? "checked" : ""} /> ${op.etiqueta} — ${formatCOPLocal(op.precio)}</label>`).join("")}
                  </div>`
-              : (esCajaProducto ? `<span class="categoria" style="color:#1565C0;">Caja x${unidadesPorCaja}</span>` : "")
+              : (esCajaProducto ? `<span class="categoria" style="color:#1565C0;">${t("caja_x", { n: unidadesPorCaja })}</span>` : "")
           }
           ${
             infoPrecio.envaseAplica
               ? `<div class="selector-envase" data-id="${p.id}">
-                   <label><input type="radio" name="envase-${p.id}" value="con" ${conEnvase ? "checked" : ""} /> Traigo envase — ${formatCOPLocal(infoPrecio.precioCon)}</label>
-                   <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> Sin envase — ${formatCOPLocal(infoPrecio.precioSin)} <span class="nota-envase">(+${formatCOPLocal(Math.max(0, infoPrecio.precioSin - infoPrecio.precioCon))})</span></label>
+                   <label><input type="radio" name="envase-${p.id}" value="con" ${conEnvase ? "checked" : ""} /> ${t("traigo_envase")} ${formatCOPLocal(infoPrecio.precioCon)}</label>
+                   <label><input type="radio" name="envase-${p.id}" value="sin" ${!conEnvase ? "checked" : ""} /> ${t("sin_envase")} ${formatCOPLocal(infoPrecio.precioSin)} <span class="nota-envase">(+${formatCOPLocal(Math.max(0, infoPrecio.precioSin - infoPrecio.precioCon))})</span></label>
                  </div>`
               : ""
           }
           <span class="stock-info">${stockTexto}</span>
           <button class="btn-agregar ${sinStockModoActual ? "agotado" : ""}" data-id="${p.id}" ${sinStockModoActual ? "disabled" : ""}>
-            ${!tiendaAbierta ? "Cerrado" : sinStockModoActual ? "Agotado" : "Agregar"}
+            ${!tiendaAbierta ? t("cerrado_boton") : sinStockModoActual ? t("agotado") : t("agregar")}
           </button>
         </div>
       </div>`;
@@ -441,15 +595,15 @@ function renderCombosTienda() {
       <div class="card-producto">
         <div class="imagen-wrap">
           <img src="${c.imagen || "https://placehold.co/300x200/FFF3CD/999999?text=Combo"}" alt="${c.nombre}" loading="lazy" />
-          ${agotado && tiendaAbierta ? `<span class="badge-agotado">Agotado</span>` : ""}
+          ${agotado && tiendaAbierta ? `<span class="badge-agotado">${t("agotado")}</span>` : ""}
         </div>
         <div class="info">
-          <span class="categoria">Combo</span>
+          <span class="categoria">${t("combo_categoria")}</span>
           <span class="nombre">${c.nombre}</span>
           ${c.descripcion ? `<small style="color:var(--slate);">${c.descripcion}</small>` : ""}
           <span class="precio">${formatCOPLocal(c.precio)}</span>
           <button class="btn-agregar ${agotado ? "agotado" : ""}" data-combo-id="${c.id}" ${agotado ? "disabled" : ""}>
-            ${!tiendaAbierta ? "Cerrado" : agotado ? "Agotado" : "Agregar"}
+            ${!tiendaAbierta ? t("cerrado_boton") : agotado ? t("agotado") : t("agregar")}
           </button>
         </div>
       </div>`;
@@ -674,7 +828,7 @@ function evaluarEstadoTienda() {
 
   if (!tiendaAbierta) {
     bannerEl.className = "banner-tienda banner-cerrado";
-    bannerEl.textContent = `🕐 Estamos cerrados en este momento — abrimos a las ${configTienda.horaApertura || ""}`;
+    bannerEl.textContent = t("cerrado_banner", { hora: configTienda.horaApertura || "" });
   } else if (configTienda.bannerActivo && configTienda.bannerTexto) {
     bannerEl.className = "banner-tienda banner-promo";
     bannerEl.textContent = configTienda.bannerTexto;
@@ -704,7 +858,7 @@ function renderMediosPagoTienda() {
   }
   cont.className = "medios-pago-tienda";
   cont.innerHTML =
-    `<strong>Medios de pago:</strong> ` +
+    `<strong>${t("medios_pago_label")}</strong> ` +
     medios.map((m) => `${m.nombre}${m.dato ? ` (${m.dato})` : ""}`).join(" · ");
 }
 
@@ -842,8 +996,8 @@ function actualizarBadge() {
 
 function renderCarrito() {
   if (carrito.length === 0) {
-    listaCarritoEl.innerHTML = `<div class="vacio-carrito">Tu carrito está vacío 🧊</div>`;
-    totalCarritoEl.textContent = "Total: $ 0";
+    listaCarritoEl.innerHTML = `<div class="vacio-carrito">${t("carrito_vacio")}</div>`;
+    totalCarritoEl.textContent = t("total") + "$ 0";
     return;
   }
 
@@ -852,17 +1006,17 @@ function renderCarrito() {
       (item) => `
       <div class="item-carrito" data-key="${item.key}">
         <div>
-          <strong>${item.nombre}</strong>${
-            item.modo === "caja" ? ` <small style="color:#1565C0;">(caja x${item.unidadesPorCaja})</small>` :
-            item.modo === "sixpack" ? ` <small style="color:#1565C0;">(six x${item.unidadesPorSixpack})</small>` :
-            item.modo === "suelta" ? ` <small style="color:#1565C0;">(unidad suelta)</small>` : ""
+          <strong>${item.esCombo ? "🎁 " : ""}${item.nombre}</strong>${
+            item.modo === "caja" ? ` <small style="color:#1565C0;">${t("caja_x", { n: item.unidadesPorCaja })}</small>` :
+            item.modo === "sixpack" ? ` <small style="color:#1565C0;">${t("six_x", { n: item.unidadesPorSixpack })}</small>` :
+            item.modo === "suelta" ? ` <small style="color:#1565C0;">${t("unidad_suelta_carrito")}</small>` : ""
           }<br/>
-          <small>${formatCOPLocal(item.precio)} c/u</small>
+          <small>${formatCOPLocal(item.precio)} ${t("cu")}</small>
           ${
             item.conEnvase !== null
               ? `<label style="display:flex;align-items:center;gap:5px;font-size:0.75rem;margin-top:4px;cursor:pointer;">
                    <input type="checkbox" class="chk-envase-carrito" data-key="${item.key}" ${item.conEnvase ? "checked" : ""} />
-                   Traigo envase
+                   ${t("trae_envase_check")}
                  </label>`
               : ""
           }
@@ -933,7 +1087,7 @@ function renderCarrito() {
   });
 
   const total = carrito.reduce((acc, i) => acc + i.cantidad * i.precio, 0);
-  totalCarritoEl.textContent = "Total: " + formatCOPLocal(total);
+  totalCarritoEl.textContent = t("total") + formatCOPLocal(total);
 }
 
 /* ---------- MODAL ---------- */
@@ -949,40 +1103,64 @@ modalOverlay.addEventListener("click", (e) => {
 });
 
 /* ---------- TÉRMINOS Y CONDICIONES / TRATAMIENTO DE DATOS ---------- */
-const TEXTO_TERMINOS = `
+const TEXTO_TERMINOS = {
+  es: `
   <p>Al hacer un pedido en Punto Frío Bocagrande, aceptas lo siguiente:</p>
   <ul>
     <li><strong>Venta de licor:</strong> vendemos licor y cerveza únicamente a personas mayores de 18 años. Quien recibe el pedido puede tener que mostrar un documento de identidad al domiciliario; si no se puede verificar la edad, nos reservamos el derecho de no entregar el pedido.</li>
     <li><strong>Pedidos:</strong> se confirman por WhatsApp. Los precios, la disponibilidad y las promociones pueden cambiar sin previo aviso. El pedido queda en firme una vez lo confirmamos por WhatsApp.</li>
     <li><strong>Pagos:</strong> según los medios de pago que se muestran en la tienda al momento de tu compra.</li>
-    <li><strong>Entregas:</strong> los tiempos son estimados y pueden variar según la demanda, el clima o la disponibilidad del domiciliario.</li>
+    <li><strong>Entregas:</strong> los domicilios son gratis dentro de Bocagrande. Los tiempos son estimados y pueden variar según la demanda, el clima o la disponibilidad del domiciliario.</li>
     <li><strong>Devoluciones:</strong> no se aceptan devoluciones de productos ya entregados y en buen estado. Si el producto llegó dañado, vencido o es distinto al pedido, repórtalo al momento de la entrega o inmediatamente después por WhatsApp para resolverlo.</li>
     <li>Podemos actualizar estos términos en cualquier momento; la versión vigente es la que se muestra aquí.</li>
-  </ul>`;
+  </ul>`,
+  en: `
+  <p>By placing an order with Punto Frío Bocagrande, you agree to the following:</p>
+  <ul>
+    <li><strong>Liquor sales:</strong> we sell liquor and beer only to people over 18 years old. Whoever receives the order may be asked to show ID to the delivery person; if age cannot be verified, we reserve the right not to deliver the order.</li>
+    <li><strong>Orders:</strong> confirmed via WhatsApp. Prices, availability and promotions may change without notice. The order is final once we confirm it on WhatsApp.</li>
+    <li><strong>Payments:</strong> according to the payment methods shown in the store at the time of your purchase.</li>
+    <li><strong>Delivery:</strong> delivery is free within Bocagrande. Times are estimates and may vary depending on demand, weather, or driver availability.</li>
+    <li><strong>Returns:</strong> we don't accept returns of products already delivered in good condition. If a product arrives damaged, expired, or different from what you ordered, report it upon delivery or right after via WhatsApp so we can fix it.</li>
+    <li>We may update these terms at any time; the version shown here is the one currently in effect.</li>
+  </ul>`
+};
 
-const TEXTO_DATOS = `
+const TEXTO_DATOS = {
+  es: `
   <p>En cumplimiento de la Ley 1581 de 2012 (protección de datos personales) te informamos:</p>
   <ul>
     <li><strong>Responsable:</strong> Punto Frío Bocagrande, Cartagena, Colombia.</li>
     <li><strong>Datos que recolectamos:</strong> nombre, cédula o NIT (si lo compartes), correo electrónico (si lo compartes), dirección de entrega, teléfono y tu ubicación de Google Maps si decides compartirla.</li>
     <li><strong>Para qué los usamos:</strong> procesar y entregar tu pedido, generar la factura electrónica cuando corresponda, contactarte sobre el estado de tu pedido, y si participas, gestionar tu programa de puntos.</li>
-    <li><strong>Dónde se guardan:</strong> en servidores de Google Firebase, con medidas de seguridad estándar de la plataforma.</li>
+    <li><strong>Dónde se guardan:</strong> en servidores de Google Firebase, con medidas de seguridad estándar de la plataforma. Tu nombre, dirección y teléfono también se guardan en tu propio navegador (localStorage) si eliges que los recordemos para tu próxima compra — puedes borrarlos cuando quieras desde el botón "Olvidar mis datos guardados".</li>
     <li><strong>Tus derechos:</strong> puedes conocer, actualizar, corregir o pedir la eliminación de tus datos en cualquier momento escribiéndonos por WhatsApp.</li>
     <li>Necesitamos tu autorización para poder procesar tu pedido; sin ella no podemos atenderlo.</li>
-  </ul>`;
+  </ul>`,
+  en: `
+  <p>In compliance with Colombian Law 1581 of 2012 (personal data protection), we inform you:</p>
+  <ul>
+    <li><strong>Data controller:</strong> Punto Frío Bocagrande, Cartagena, Colombia.</li>
+    <li><strong>Data we collect:</strong> name, ID or Tax ID (if shared), email (if shared), delivery address, phone number, and your Google Maps location if you choose to share it.</li>
+    <li><strong>What we use it for:</strong> processing and delivering your order, generating the electronic invoice when applicable, contacting you about your order status, and, if you participate, managing your loyalty points.</li>
+    <li><strong>Where it's stored:</strong> on Google Firebase servers, with the platform's standard security measures. Your name, address and phone are also stored in your own browser (localStorage) if you choose to have us remember them for your next order — you can delete them anytime with the "Forget my saved info" button.</li>
+    <li><strong>Your rights:</strong> you can know, update, correct or request deletion of your data at any time by writing to us on WhatsApp.</li>
+    <li>We need your authorization to process your order; without it we can't fulfill it.</li>
+  </ul>`
+};
 
-function abrirModalLegal(titulo, contenidoHTML) {
-  document.getElementById("titulo-legal").textContent = titulo;
-  document.getElementById("contenido-legal").innerHTML = contenidoHTML;
+function abrirModalLegal(tituloClave, contenidoObj) {
+  document.getElementById("titulo-legal").textContent = t(tituloClave);
+  document.getElementById("contenido-legal").innerHTML = contenidoObj[idioma] || contenidoObj.es;
   document.getElementById("modal-legal-overlay").classList.add("abierto");
 }
 document.getElementById("link-terminos").addEventListener("click", (e) => {
   e.preventDefault();
-  abrirModalLegal("Términos y condiciones", TEXTO_TERMINOS);
+  abrirModalLegal("terminos_link", TEXTO_TERMINOS);
 });
 document.getElementById("link-datos").addEventListener("click", (e) => {
   e.preventDefault();
-  abrirModalLegal("Política de tratamiento de datos", TEXTO_DATOS);
+  abrirModalLegal("datos_link", TEXTO_DATOS);
 });
 document.getElementById("btn-cerrar-legal").addEventListener("click", () => {
   document.getElementById("modal-legal-overlay").classList.remove("abierto");
@@ -995,19 +1173,19 @@ document.getElementById("modal-legal-overlay").addEventListener("click", (e) => 
 document.getElementById("btn-compartir-ubicacion").addEventListener("click", () => {
   const nota = document.getElementById("nota-ubicacion");
   if (!navigator.geolocation) {
-    nota.textContent = "⚠️ Tu navegador no permite compartir ubicación. Escribe la dirección manualmente.";
+    nota.textContent = t("geo_no_soportado");
     return;
   }
-  nota.textContent = "📡 Obteniendo tu ubicación...";
+  nota.textContent = t("geo_obteniendo");
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const { latitude, longitude } = pos.coords;
       const link = `https://www.google.com/maps?q=${latitude},${longitude}`;
       document.getElementById("cliente-ubicacion-link").value = link;
-      nota.innerHTML = `✅ Ubicación lista para enviar — <a href="${link}" target="_blank" rel="noopener">verla en el mapa</a>`;
+      nota.innerHTML = t("geo_ok", { link: `<a href="${link}" target="_blank" rel="noopener">${t("geo_ok_link_texto")}</a>` });
     },
     () => {
-      nota.textContent = "⚠️ No se pudo obtener tu ubicación (revisa los permisos del navegador). Escribe la dirección manualmente.";
+      nota.textContent = t("geo_error");
     },
     { enableHighAccuracy: true, timeout: 10000 }
   );
@@ -1017,11 +1195,11 @@ document.getElementById("btn-compartir-ubicacion").addEventListener("click", () 
 document.getElementById("form-cliente").addEventListener("submit", (e) => {
   e.preventDefault();
   if (!tiendaAbierta) {
-    alert("Lo sentimos, ya estamos cerrados. Vuelve a intentarlo en nuestro horario de atención.");
+    alert(t("alerta_cerrado"));
     return;
   }
   if (carrito.length === 0) {
-    alert("Tu carrito está vacío.");
+    alert(t("alerta_carrito_vacio"));
     return;
   }
 
@@ -1035,20 +1213,73 @@ document.getElementById("form-cliente").addEventListener("submit", (e) => {
     nota: document.getElementById("cliente-nota").value.trim()
   };
 
+  guardarDatosClienteGuardados({
+    nombre: cliente.nombre,
+    direccion: cliente.direccion,
+    telefono: cliente.telefono,
+    ubicacionLink: cliente.ubicacionLink
+  });
+
   const url = generarLinkWhatsApp(carrito, cliente, NUMERO_WHATSAPP_NEGOCIO);
   window.open(url, "_blank");
 
-  // Limpiar carrito y formulario después de enviar
+  // Limpiar carrito después de enviar (los datos de contacto se mantienen para la próxima compra)
   carrito = [];
   actualizarBadge();
   renderCarrito();
-  document.getElementById("cliente-ubicacion-link").value = "";
-  document.getElementById("nota-ubicacion").textContent = "";
   modalOverlay.classList.remove("abierto");
 });
 
+/* ---------------------------------------------------------------
+   RECORDAR MIS DATOS (localStorage, sin necesidad de cuenta):
+   guarda nombre/dirección/teléfono/ubicación tras el primer pedido
+   y los usa para prellenar el formulario la próxima vez.
+--------------------------------------------------------------- */
+const CLAVE_DATOS_CLIENTE = "pf-datos-cliente";
+
+function guardarDatosClienteGuardados(datos) {
+  if (!datos.nombre && !datos.direccion && !datos.telefono) return;
+  localStorage.setItem(CLAVE_DATOS_CLIENTE, JSON.stringify(datos));
+}
+
+function cargarDatosClienteGuardados() {
+  let datos;
+  try {
+    datos = JSON.parse(localStorage.getItem(CLAVE_DATOS_CLIENTE) || "null");
+  } catch {
+    datos = null;
+  }
+  const btnOlvidar = document.getElementById("btn-olvidar-datos");
+  if (!datos) {
+    btnOlvidar.classList.add("oculto-banner");
+    return;
+  }
+  document.getElementById("cliente-nombre").value = datos.nombre || "";
+  document.getElementById("cliente-direccion").value = datos.direccion || "";
+  document.getElementById("cliente-telefono").value = datos.telefono || "";
+  if (datos.ubicacionLink) {
+    document.getElementById("cliente-ubicacion-link").value = datos.ubicacionLink;
+    document.getElementById("nota-ubicacion").innerHTML = t("geo_ok", {
+      link: `<a href="${datos.ubicacionLink}" target="_blank" rel="noopener">${t("geo_ok_link_texto")}</a>`
+    });
+  }
+  btnOlvidar.classList.remove("oculto-banner");
+}
+
+document.getElementById("btn-olvidar-datos").addEventListener("click", () => {
+  localStorage.removeItem(CLAVE_DATOS_CLIENTE);
+  document.getElementById("cliente-nombre").value = "";
+  document.getElementById("cliente-direccion").value = "";
+  document.getElementById("cliente-telefono").value = "";
+  document.getElementById("cliente-ubicacion-link").value = "";
+  document.getElementById("nota-ubicacion").textContent = "";
+  document.getElementById("btn-olvidar-datos").classList.add("oculto-banner");
+});
+
+cargarDatosClienteGuardados();
+
 /* ---------- INICIO ---------- */
-renderFiltros();
+aplicarIdioma();
 </script>
 </body>
 </html>
