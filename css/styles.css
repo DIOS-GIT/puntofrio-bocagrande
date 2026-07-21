@@ -199,6 +199,34 @@ body, .header, .card-producto, .modal-carrito, .modal-detalle-caja, .lightbox-ov
 }
 .btn-tema:hover { background: rgba(255,255,255,0.4); }
 
+.btn-idioma {
+  position: absolute;
+  top: 16px;
+  right: 58px;
+  background: rgba(255,255,255,0.25);
+  border: none;
+  padding: 0 12px;
+  height: 36px;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 5;
+  color: inherit;
+}
+.btn-idioma:hover { background: rgba(255,255,255,0.4); }
+
+.header p.nota-domicilio-gratis {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0,0,0,0.15);
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 *:focus-visible {
@@ -873,6 +901,17 @@ body {
 }
 .check-terminos input { width: auto; margin: 2px 0 0; flex: none; }
 .check-terminos a { color: var(--amber-deep); font-weight: 700; text-decoration: underline; }
+
+.btn-olvidar-datos {
+  display: block;
+  margin: 10px auto 0;
+  background: none;
+  border: none;
+  font-size: 0.74rem;
+  color: var(--slate);
+  text-decoration: underline;
+  cursor: pointer;
+}
 
 .btn-cerrar-modal {
   background: none;
