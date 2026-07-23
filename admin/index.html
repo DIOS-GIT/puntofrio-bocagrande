@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Panel Admin — Punto Frío Bocagrande</title>
 <link rel="stylesheet" href="../css/admin.css" />
+<style>
+  /* Oculta los controles de agregar/editar/eliminar Gastos para el rol "contador" (solo lectura) */
+  body.rol-solo-lectura-gastos .rol-oculta-si-solo-lectura { display: none !important; }
+</style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -53,6 +57,7 @@
       <button class="sidebar-link" data-tab="inventario">📦 <span>Inventario</span></button>
       <button class="sidebar-link" data-tab="clientes">👥 <span>Clientes</span></button>
       <button class="sidebar-link" data-tab="facturacion">🧾 <span>Facturación</span></button>
+      <button class="sidebar-link" data-tab="gastos">💸 <span>Gastos</span></button>
       <button class="sidebar-link" data-tab="reportes">📊 <span>Reportes</span></button>
       <button class="sidebar-link" data-tab="configuracion">⚙️ <span>Configuración</span></button>
     </nav>
@@ -613,12 +618,92 @@
 
   <!-- ============ MÓDULO C: CIERRE DE CAJA ============ -->
   <!-- ============ MÓDULO C+D: REPORTES (Caja + Estadísticas) ============ -->
+  <!-- ============ MÓDULO D2: GASTOS ============ -->
+  <section class="admin-panel" id="panel-gastos">
+    <h2 class="panel-titulo">Gastos</h2>
+    <p style="font-size:0.85rem;color:var(--muted);margin-bottom:16px;">
+      Registra compras a proveedores, arriendo, servicios, nómina, transporte, etc. Esto es lo que le falta
+      a "Utilidad estimada" de Reportes para reflejar la ganancia real del negocio (ventas − costo de producto − gastos),
+      y es la base del reporte de IVA para tu contador.
+    </p>
+
+    <div class="card rol-oculta-si-solo-lectura">
+      <h3 style="margin-bottom:12px;">Agregar gasto</h3>
+      <input type="hidden" id="gasto-id" />
+      <div class="grid-2">
+        <div class="form-field">
+          <label>Fecha</label>
+          <input type="date" id="gasto-fecha" />
+        </div>
+        <div class="form-field">
+          <label>Categoría</label>
+          <select id="gasto-categoria">
+            <option>Compra de mercancía</option>
+            <option>Arriendo</option>
+            <option>Servicios públicos</option>
+            <option>Nómina</option>
+            <option>Transporte / domicilios</option>
+            <option>Mantenimiento / reparaciones</option>
+            <option>Otro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field">
+        <label>Concepto</label>
+        <input type="text" id="gasto-concepto" placeholder="Ej: Compra de 20 cajas de cerveza a Distribuidora XYZ" />
+      </div>
+      <div class="grid-2">
+        <div class="form-field">
+          <label>Proveedor <small style="color:var(--muted);font-weight:400;">(opcional)</small></label>
+          <input type="text" id="gasto-proveedor" placeholder="Ej: Distribuidora XYZ S.A.S." />
+        </div>
+        <div class="form-field">
+          <label>Valor (COP, sin IVA)</label>
+          <input type="number" id="gasto-valor" min="0" />
+        </div>
+      </div>
+      <div class="form-field" style="max-width:220px;">
+        <label>IVA %</label>
+        <select id="gasto-iva">
+          <option value="0">0% (no aplica / no facturado)</option>
+          <option value="5">5%</option>
+          <option value="19">19%</option>
+        </select>
+      </div>
+      <div class="btn-fila">
+        <button class="btn btn-primario" id="btn-guardar-gasto">💾 Guardar Gasto</button>
+        <button class="btn btn-secundario oculto" id="btn-cancelar-edicion-gasto">Cancelar edición</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:12px;">
+        <h3 style="margin:0;">Historial de gastos</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-verde" id="btn-export-excel-gastos">📊 Excel</button>
+          <button class="btn btn-rojo" id="btn-export-pdf-gastos">📄 PDF</button>
+        </div>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="tabla-factura" id="tabla-gastos">
+          <thead>
+            <tr><th>Fecha</th><th>Categoría</th><th>Concepto</th><th>Proveedor</th><th>Valor</th><th>IVA</th><th>Total</th><th class="rol-oculta-si-solo-lectura">Acciones</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div style="text-align:right;margin-top:12px;font-weight:700;" id="gastos-total-general"></div>
+    </div>
+  </section>
+
   <section class="admin-panel" id="panel-reportes">
     <h2 class="panel-titulo">Reportes</h2>
 
     <div class="subtabs">
       <button class="subtab-btn activo" data-subtab="caja">💰 Cierre de Caja</button>
       <button class="subtab-btn" data-subtab="estadisticas">📈 Estadísticas</button>
+      <button class="subtab-btn" data-subtab="iva">💵 IVA por Periodo</button>
+      <button class="subtab-btn" data-subtab="libro-fiscal">📋 Libro Fiscal</button>
     </div>
 
     <div class="subpanel activo" id="subpanel-caja">
@@ -683,6 +768,65 @@
             <thead><tr><th>#</th><th>Producto</th><th>Unidades vendidas</th><th>Ingresos generados</th><th>Utilidad</th></tr></thead>
             <tbody></tbody>
           </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="subpanel" id="subpanel-iva">
+      <div class="card">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
+          IVA cobrado en tus ventas menos IVA pagado en tus gastos, para el periodo que elijas. Esto es una guía —
+          confírmalo siempre con tu contador antes de declarar, sobre todo si no todos tus gastos quedan registrados aquí.
+        </p>
+        <div class="grid-2" style="max-width:520px;">
+          <div class="form-field">
+            <label>Desde</label>
+            <input type="date" id="iva-desde" />
+          </div>
+          <div class="form-field">
+            <label>Hasta</label>
+            <input type="date" id="iva-hasta" />
+          </div>
+        </div>
+        <button class="btn btn-primario" id="btn-calcular-iva">🔄 Calcular</button>
+
+        <div class="resumen-caja" style="margin-top:18px;">
+          <div class="caja-metric"><div class="valor" id="iva-cobrado">$ 0</div><div class="label">IVA COBRADO EN VENTAS</div></div>
+          <div class="caja-metric"><div class="valor" id="iva-pagado">$ 0</div><div class="label">IVA PAGADO EN GASTOS</div></div>
+          <div class="caja-metric" style="border-left-color:var(--green);"><div class="valor" id="iva-a-pagar">$ 0</div><div class="label">IVA A PAGAR (aprox.)</div></div>
+        </div>
+        <div class="btn-fila" style="margin-top:14px;">
+          <button class="btn btn-rojo" id="btn-pdf-iva">📄 Descargar PDF para el contador</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="subpanel" id="subpanel-libro-fiscal">
+      <div class="card">
+        <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
+          Registro diario de ingresos y totales mensuales de compras/gastos — pensado como referencia para el
+          <strong>Libro Fiscal de Registro de Operaciones Diarias</strong> (obligación del Art. 616 del Estatuto
+          Tributario para quienes no son responsables de IVA). Confirma con tu contador si te aplica y si necesitas
+          llevarlo en un formato específico.
+        </p>
+        <div class="form-field" style="max-width:220px;">
+          <label>Mes</label>
+          <input type="month" id="libro-mes" />
+        </div>
+        <button class="btn btn-primario" id="btn-calcular-libro-fiscal">🔄 Generar</button>
+
+        <div style="overflow-x:auto;margin-top:16px;">
+          <table class="tabla-factura" id="tabla-libro-fiscal">
+            <thead><tr><th>Fecha</th><th># Facturas</th><th>Ingresos del día</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="resumen-caja" style="margin-top:14px;">
+          <div class="caja-metric"><div class="valor" id="libro-total-ingresos">$ 0</div><div class="label">TOTAL INGRESOS DEL MES</div></div>
+          <div class="caja-metric"><div class="valor" id="libro-total-gastos">$ 0</div><div class="label">TOTAL COMPRAS/GASTOS DEL MES</div></div>
+        </div>
+        <div class="btn-fila" style="margin-top:14px;">
+          <button class="btn btn-rojo" id="btn-pdf-libro-fiscal">📄 Descargar PDF</button>
         </div>
       </div>
     </div>
@@ -804,8 +948,9 @@
     <div class="subpanel" id="subpanel-usuarios">
       <div class="card">
         <p style="font-size:0.85rem;color:var(--muted);margin-bottom:14px;">
-          Un <strong>dueño</strong> ve todo el panel. Un <strong>empleado</strong> ve Facturación, Inventario y Clientes
-          (no puede ver Reportes ni cambiar la Configuración).<br/><br/>
+          Un <strong>dueño</strong> ve todo el panel. Un <strong>empleado</strong> ve Facturación, Inventario, Clientes y Gastos
+          (no puede ver Reportes ni cambiar la Configuración). Un <strong>contador</strong> ve Reportes y Gastos, pero solo
+          para consultar y exportar — no puede facturar, ni tocar inventario, ni agregar/editar gastos.<br/><br/>
           <strong>Cómo agregar un empleado:</strong> primero créale una cuenta en
           <em>Firebase Console → Authentication → Users → Add user</em> (correo + contraseña). Pídele que inicie sesión
           una vez en este panel (verá el panel vacío, es normal). Luego ve a
@@ -828,6 +973,7 @@
             <label>Rol</label>
             <select id="u-rol">
               <option value="empleado">Empleado (Facturación, Inventario y Clientes)</option>
+              <option value="contador">Contador (solo lectura: Reportes y Gastos)</option>
               <option value="dueño">Dueño (acceso total)</option>
             </select>
           </div>
@@ -1054,18 +1200,33 @@ onAuthStateChanged(auth, async (user) => {
   }
 });
 
+const TABS_POR_ROL = {
+  "dueño": ["inicio", "inventario", "clientes", "facturacion", "gastos", "reportes", "configuracion"],
+  "empleado": ["inicio", "inventario", "clientes", "facturacion", "gastos"],
+  "contador": ["inicio", "gastos", "reportes"]
+};
+const TAB_INICIO_POR_ROL = { "dueño": "inicio", "empleado": "facturacion", "contador": "reportes" };
+
+function puedeVerTab(tab) {
+  return (TABS_POR_ROL[rolActual] || TABS_POR_ROL["empleado"]).includes(tab);
+}
+
 function aplicarPermisosPorRol() {
-  const soloDueño = ["reportes", "configuracion"];
   document.querySelectorAll(".sidebar-link").forEach((btn) => {
-    const restringida = soloDueño.includes(btn.dataset.tab);
-    btn.classList.toggle("oculto", restringida && rolActual !== "dueño");
+    btn.classList.toggle("oculto", !puedeVerTab(btn.dataset.tab));
   });
   if (rolActual !== "dueño") {
-    document.querySelector('.sidebar-link[data-tab="facturacion"]').click();
+    document.querySelector(`.sidebar-link[data-tab="${TAB_INICIO_POR_ROL[rolActual] || "facturacion"}"]`).click();
   }
 
-  // El costo de compra y la utilidad son información sensible: solo el dueño las ve
-  document.body.classList.toggle("rol-empleado", rolActual !== "dueño");
+  // El costo de compra y la utilidad son información sensible frente a un empleado
+  // (no debería ver el margen del negocio) — pero el contador SÍ necesita verla,
+  // es justamente su trabajo. Por eso esta clase solo se activa para "empleado".
+  document.body.classList.toggle("rol-empleado", rolActual === "empleado");
+
+  // Los botones de agregar/editar/eliminar Gastos son solo para dueño y empleado;
+  // el contador solo consulta y exporta.
+  document.body.classList.toggle("rol-solo-lectura-gastos", rolActual === "contador");
 }
 
 /* =====================================================================
@@ -1073,6 +1234,7 @@ function aplicarPermisosPorRol() {
 ===================================================================== */
 document.querySelectorAll(".sidebar-link").forEach((btn) => {
   btn.addEventListener("click", () => {
+    if (!puedeVerTab(btn.dataset.tab)) return;
     document.querySelectorAll(".sidebar-link").forEach((b) => b.classList.remove("activo"));
     document.querySelectorAll(".admin-panel").forEach((p) => p.classList.remove("activo"));
     btn.classList.add("activo");
@@ -3612,6 +3774,182 @@ document.getElementById("btn-export-json-clientes").addEventListener("click", ()
   descargarJSON(clientesCache, `clientes_puntofrio_${Date.now()}.json`);
 });
 
+/* ---------------------------------------------------------------
+   GASTOS: compras a proveedores, arriendo, servicios, etc. — para que
+   Reportes refleje utilidad real y el contador tenga el IVA pagado.
+--------------------------------------------------------------- */
+let gastosCache = [];
+
+onSnapshot(query(collection(db, "gastos"), orderBy("fecha", "desc")), (snap) => {
+  gastosCache = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  renderTablaGastos();
+});
+
+function calcularTotalesGasto(valor, ivaPorcentaje) {
+  const base = Number(valor) || 0;
+  const iva = base * ((Number(ivaPorcentaje) || 0) / 100);
+  return { base, iva, total: base + iva };
+}
+
+document.getElementById("btn-guardar-gasto").addEventListener("click", async () => {
+  const id = document.getElementById("gasto-id").value;
+  const fechaTexto = document.getElementById("gasto-fecha").value;
+  const concepto = document.getElementById("gasto-concepto").value.trim();
+  const valor = Number(document.getElementById("gasto-valor").value) || 0;
+  const ivaPorcentaje = Number(document.getElementById("gasto-iva").value) || 0;
+
+  if (!fechaTexto) { mostrarToast("⚠️ Elige la fecha del gasto."); return; }
+  if (!concepto) { mostrarToast("⚠️ Escribe el concepto del gasto."); return; }
+  if (!valor) { mostrarToast("⚠️ Indica el valor del gasto."); return; }
+
+  const { iva, total } = calcularTotalesGasto(valor, ivaPorcentaje);
+  const data = {
+    fecha: new Date(fechaTexto + "T12:00:00"),
+    categoria: document.getElementById("gasto-categoria").value,
+    concepto,
+    proveedor: document.getElementById("gasto-proveedor").value.trim(),
+    valor,
+    ivaPorcentaje,
+    iva,
+    total,
+    registradoPor: nombreUsuarioActual || ""
+  };
+
+  try {
+    if (id) {
+      await updateDoc(doc(db, "gastos", id), data);
+      mostrarToast("✅ Gasto actualizado.");
+    } else {
+      await addDoc(collection(db, "gastos"), data);
+      mostrarToast("✅ Gasto agregado.");
+    }
+    limpiarFormularioGasto();
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error guardando el gasto.");
+  }
+});
+
+function limpiarFormularioGasto() {
+  document.getElementById("gasto-id").value = "";
+  document.getElementById("gasto-fecha").value = "";
+  document.getElementById("gasto-categoria").value = "Compra de mercancía";
+  document.getElementById("gasto-concepto").value = "";
+  document.getElementById("gasto-proveedor").value = "";
+  document.getElementById("gasto-valor").value = "";
+  document.getElementById("gasto-iva").value = "0";
+  document.getElementById("btn-cancelar-edicion-gasto").classList.add("oculto");
+}
+document.getElementById("btn-cancelar-edicion-gasto").addEventListener("click", limpiarFormularioGasto);
+
+function cargarGastoParaEditar(id) {
+  const g = gastosCache.find((x) => x.id === id);
+  if (!g) return;
+  document.getElementById("gasto-id").value = g.id;
+  document.getElementById("gasto-fecha").value = g.fecha?.toDate ? g.fecha.toDate().toISOString().slice(0, 10) : "";
+  document.getElementById("gasto-categoria").value = g.categoria || "Otro";
+  document.getElementById("gasto-concepto").value = g.concepto || "";
+  document.getElementById("gasto-proveedor").value = g.proveedor || "";
+  document.getElementById("gasto-valor").value = g.valor || 0;
+  document.getElementById("gasto-iva").value = g.ivaPorcentaje || 0;
+  document.getElementById("btn-cancelar-edicion-gasto").classList.remove("oculto");
+  document.getElementById("gasto-concepto").scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+async function eliminarGasto(id) {
+  if (!confirm("¿Eliminar este gasto?")) return;
+  try {
+    await deleteDoc(doc(db, "gastos", id));
+    mostrarToast("🗑 Gasto eliminado.");
+  } catch (err) {
+    console.error(err);
+    mostrarToast("❌ Error eliminando el gasto.");
+  }
+}
+
+function renderTablaGastos() {
+  const tbody = document.querySelector("#tabla-gastos tbody");
+  if (!tbody) return;
+  tbody.innerHTML = gastosCache
+    .map(
+      (g) => `
+    <tr>
+      <td>${g.fecha?.toDate ? g.fecha.toDate().toLocaleDateString("es-CO") : ""}</td>
+      <td>${g.categoria || ""}</td>
+      <td>${g.concepto || ""}</td>
+      <td>${g.proveedor || ""}</td>
+      <td>${formatCOP(g.valor)}</td>
+      <td>${formatCOP(g.iva)}</td>
+      <td>${formatCOP(g.total)}</td>
+      <td class="rol-oculta-si-solo-lectura">
+        <button class="btn btn-secundario" data-id="${g.id}" data-accion="editar-gasto" title="Editar">✎</button>
+        <button class="btn btn-rojo" data-id="${g.id}" data-accion="eliminar-gasto" title="Eliminar">🗑</button>
+      </td>
+    </tr>`
+    )
+    .join("");
+
+  tbody.querySelectorAll('button[data-accion="editar-gasto"]').forEach((btn) => {
+    btn.addEventListener("click", () => cargarGastoParaEditar(btn.dataset.id));
+  });
+  tbody.querySelectorAll('button[data-accion="eliminar-gasto"]').forEach((btn) => {
+    btn.addEventListener("click", () => eliminarGasto(btn.dataset.id));
+  });
+
+  const totalGeneral = gastosCache.reduce((acc, g) => acc + (Number(g.total) || 0), 0);
+  document.getElementById("gastos-total-general").textContent = `Total de gastos registrados: ${formatCOP(totalGeneral)}`;
+}
+
+document.getElementById("btn-export-excel-gastos").addEventListener("click", () => {
+  const hoja = gastosCache.map((g) => ({
+    Fecha: g.fecha?.toDate ? g.fecha.toDate().toLocaleDateString("es-CO") : "",
+    Categoria: g.categoria || "",
+    Concepto: g.concepto || "",
+    Proveedor: g.proveedor || "",
+    Valor: g.valor || 0,
+    "IVA %": g.ivaPorcentaje || 0,
+    IVA: g.iva || 0,
+    Total: g.total || 0,
+    RegistradoPor: g.registradoPor || ""
+  }));
+  const ws = XLSX.utils.json_to_sheet(hoja);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Gastos");
+  XLSX.writeFile(wb, `gastos_puntofrio_${Date.now()}.xlsx`);
+});
+
+document.getElementById("btn-export-pdf-gastos").addEventListener("click", () => {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  pdf.setFontSize(16);
+  pdf.text("Reporte de Gastos — Punto Frío Bocagrande", 40, 40);
+  pdf.setFontSize(9);
+  let y = 70;
+  pdf.text("Fecha", 40, y);
+  pdf.text("Concepto", 100, y);
+  pdf.text("Valor", 340, y);
+  pdf.text("IVA", 410, y);
+  pdf.text("Total", 470, y);
+  y += 14;
+  let totalGeneral = 0;
+  gastosCache.forEach((g) => {
+    if (y > 780) { pdf.addPage(); y = 40; }
+    const lineasConcepto = pdf.splitTextToSize(`${g.concepto || ""} (${g.categoria || ""})`, 230);
+    pdf.text(g.fecha?.toDate ? g.fecha.toDate().toLocaleDateString("es-CO") : "", 40, y);
+    pdf.text(lineasConcepto, 100, y);
+    pdf.text(formatCOP(g.valor), 340, y);
+    pdf.text(formatCOP(g.iva), 410, y);
+    pdf.text(formatCOP(g.total), 470, y);
+    totalGeneral += Number(g.total) || 0;
+    y += 12 * lineasConcepto.length + 4;
+  });
+  y += 10;
+  if (y > 780) { pdf.addPage(); y = 40; }
+  pdf.setFontSize(12);
+  pdf.text(`TOTAL: ${formatCOP(totalGeneral)}`, 40, y);
+  pdf.save(`gastos_puntofrio_${Date.now()}.pdf`);
+});
+
 /* ---------- EXPORTACIÓN DEL HISTORIAL DE VENTAS ---------- */
 async function obtenerTodasLasFacturas() {
   const snap = await getDocs(query(collection(db, "facturas"), orderBy("numero", "desc")));
@@ -4348,6 +4686,163 @@ document.getElementById("btn-elegir-fecha-caja").addEventListener("click", () =>
 document.querySelector('.subtab-btn[data-subtab="caja"]').addEventListener("click", async () => {
   await obtenerFacturasCache(true);
   calcularCierreCaja(fechaCajaSeleccionada);
+});
+
+/* ---------------------------------------------------------------
+   REPORTE DE IVA POR PERIODO — IVA cobrado en ventas vs. IVA pagado
+   en gastos, para que el contador sepa cuánto toca declarar.
+--------------------------------------------------------------- */
+let ultimoResultadoIva = null;
+
+async function calcularIvaPeriodo() {
+  const desdeTexto = document.getElementById("iva-desde").value;
+  const hastaTexto = document.getElementById("iva-hasta").value;
+  if (!desdeTexto || !hastaTexto) {
+    mostrarToast("⚠️ Elige la fecha de inicio y de fin.");
+    return;
+  }
+  const desde = new Date(desdeTexto + "T00:00:00");
+  const hasta = new Date(hastaTexto + "T23:59:59");
+
+  const facturas = await obtenerFacturasCache();
+  const ivaCobrado = facturas
+    .filter((f) => f.fecha?.toDate && f.fecha.toDate() >= desde && f.fecha.toDate() <= hasta)
+    .reduce((acc, f) => acc + (f.iva || 0), 0);
+
+  const ivaPagado = gastosCache
+    .filter((g) => g.fecha?.toDate && g.fecha.toDate() >= desde && g.fecha.toDate() <= hasta)
+    .reduce((acc, g) => acc + (g.iva || 0), 0);
+
+  const ivaAPagar = Math.max(0, ivaCobrado - ivaPagado);
+
+  document.getElementById("iva-cobrado").textContent = formatCOP(ivaCobrado);
+  document.getElementById("iva-pagado").textContent = formatCOP(ivaPagado);
+  document.getElementById("iva-a-pagar").textContent = formatCOP(ivaAPagar);
+
+  ultimoResultadoIva = { desdeTexto, hastaTexto, ivaCobrado, ivaPagado, ivaAPagar };
+}
+document.getElementById("btn-calcular-iva").addEventListener("click", calcularIvaPeriodo);
+
+document.getElementById("btn-pdf-iva").addEventListener("click", async () => {
+  if (!ultimoResultadoIva) await calcularIvaPeriodo();
+  if (!ultimoResultadoIva) return;
+  const { desdeTexto, hastaTexto, ivaCobrado, ivaPagado, ivaAPagar } = ultimoResultadoIva;
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  pdf.setFontSize(16);
+  pdf.text("Punto Frío Bocagrande — Reporte de IVA", 40, 40);
+  pdf.setFontSize(10);
+  pdf.text(`Periodo: ${desdeTexto} a ${hastaTexto}`, 40, 62);
+  pdf.text(`Generado por: ${nombreUsuarioActual || ""}`, 40, 78);
+
+  let y = 110;
+  pdf.setFontSize(12);
+  pdf.text(`IVA cobrado en ventas: ${formatCOP(ivaCobrado)}`, 40, y);
+  y += 20;
+  pdf.text(`IVA pagado en gastos: ${formatCOP(ivaPagado)}`, 40, y);
+  y += 20;
+  pdf.setFontSize(14);
+  pdf.text(`IVA a pagar (aprox.): ${formatCOP(ivaAPagar)}`, 40, y);
+  y += 30;
+  pdf.setFontSize(8);
+  pdf.setTextColor(120);
+  pdf.text("Este valor es una guía calculada a partir de lo registrado en el sistema.", 40, y);
+  pdf.text("Confírmalo con tu contador antes de presentar cualquier declaración.", 40, y + 12);
+
+  pdf.save(`iva_${desdeTexto}_a_${hastaTexto}.pdf`);
+});
+
+/* ---------------------------------------------------------------
+   LIBRO FISCAL DE REGISTRO DE OPERACIONES DIARIAS (referencia) —
+   ingresos día a día + totales mensuales de ingresos y gastos.
+--------------------------------------------------------------- */
+let ultimoResultadoLibroFiscal = null;
+
+async function calcularLibroFiscal() {
+  const mesTexto = document.getElementById("libro-mes").value; // "YYYY-MM"
+  if (!mesTexto) {
+    mostrarToast("⚠️ Elige el mes.");
+    return;
+  }
+  const [anio, mes] = mesTexto.split("-").map(Number);
+  const inicioMes = new Date(anio, mes - 1, 1, 0, 0, 0);
+  const finMes = new Date(anio, mes, 0, 23, 59, 59);
+
+  const facturas = await obtenerFacturasCache();
+  const facturasDelMes = facturas.filter((f) => f.fecha?.toDate && f.fecha.toDate() >= inicioMes && f.fecha.toDate() <= finMes);
+
+  const porDia = {};
+  facturasDelMes.forEach((f) => {
+    const clave = f.fecha.toDate().toISOString().slice(0, 10);
+    if (!porDia[clave]) porDia[clave] = { numFacturas: 0, ingresos: 0 };
+    porDia[clave].numFacturas++;
+    porDia[clave].ingresos += f.total || 0;
+  });
+  const filas = Object.entries(porDia).sort((a, b) => (a[0] < b[0] ? -1 : 1));
+
+  const totalIngresos = facturasDelMes.reduce((acc, f) => acc + (f.total || 0), 0);
+  const totalGastos = gastosCache
+    .filter((g) => g.fecha?.toDate && g.fecha.toDate() >= inicioMes && g.fecha.toDate() <= finMes)
+    .reduce((acc, g) => acc + (g.total || 0), 0);
+
+  const tbody = document.querySelector("#tabla-libro-fiscal tbody");
+  tbody.innerHTML = filas.length
+    ? filas
+        .map(
+          ([fecha, d]) =>
+            `<tr><td>${new Date(fecha + "T12:00:00").toLocaleDateString("es-CO")}</td><td>${d.numFacturas}</td><td>${formatCOP(d.ingresos)}</td></tr>`
+        )
+        .join("")
+    : `<tr><td colspan="3">Sin ventas registradas ese mes.</td></tr>`;
+
+  document.getElementById("libro-total-ingresos").textContent = formatCOP(totalIngresos);
+  document.getElementById("libro-total-gastos").textContent = formatCOP(totalGastos);
+
+  ultimoResultadoLibroFiscal = { mesTexto, filas, totalIngresos, totalGastos };
+}
+document.getElementById("btn-calcular-libro-fiscal").addEventListener("click", calcularLibroFiscal);
+
+document.getElementById("btn-pdf-libro-fiscal").addEventListener("click", async () => {
+  if (!ultimoResultadoLibroFiscal) await calcularLibroFiscal();
+  if (!ultimoResultadoLibroFiscal) return;
+  const { mesTexto, filas, totalIngresos, totalGastos } = ultimoResultadoLibroFiscal;
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: "pt", format: "a4" });
+  pdf.setFontSize(16);
+  pdf.text("Libro Fiscal de Registro de Operaciones Diarias", 40, 40);
+  pdf.setFontSize(10);
+  pdf.text("Punto Frío Bocagrande", 40, 58);
+  pdf.text(`Periodo: ${mesTexto}`, 40, 74);
+
+  let y = 105;
+  pdf.setFontSize(10);
+  pdf.text("Fecha", 40, y);
+  pdf.text("# Facturas", 200, y);
+  pdf.text("Ingresos del día", 320, y);
+  y += 16;
+  filas.forEach(([fecha, d]) => {
+    if (y > 780) { pdf.addPage(); y = 40; }
+    pdf.text(new Date(fecha + "T12:00:00").toLocaleDateString("es-CO"), 40, y);
+    pdf.text(String(d.numFacturas), 200, y);
+    pdf.text(formatCOP(d.ingresos), 320, y);
+    y += 14;
+  });
+
+  y += 14;
+  if (y > 760) { pdf.addPage(); y = 40; }
+  pdf.setFontSize(12);
+  pdf.text(`TOTAL INGRESOS DEL MES: ${formatCOP(totalIngresos)}`, 40, y);
+  y += 18;
+  pdf.text(`TOTAL COMPRAS/GASTOS DEL MES: ${formatCOP(totalGastos)}`, 40, y);
+  y += 26;
+  pdf.setFontSize(8);
+  pdf.setTextColor(120);
+  pdf.text("Documento de referencia generado automáticamente. Verifica con tu contador si aplica", 40, y);
+  pdf.text("a tu régimen tributario y si necesitas llevarlo en un formato oficial específico.", 40, y + 12);
+
+  pdf.save(`libro_fiscal_${mesTexto}.pdf`);
 });
 
 /* ---------------------------------------------------------------
