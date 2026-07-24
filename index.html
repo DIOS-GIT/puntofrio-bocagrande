@@ -418,13 +418,8 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") document.getElementById("lightbox-next").click();
 });
 
-// Delegado: clic en la imagen de un producto abre el detalle completo (fotos + precios)
-gridEl.addEventListener("click", (e) => {
-  if (e.target.classList.contains("dot")) return; // los puntos ya cambian de foto por su cuenta
-  const wrap = e.target.closest(".imagen-wrap");
-  if (!wrap) return;
-  abrirDetalleProducto(wrap.dataset.id);
-});
+// (Se quitó el modal de detalle al hacer clic en la imagen — la tarjeta ya muestra
+// foto, precio y opciones completas, así que no hacía falta un paso extra.)
 
 /* ---------- RENDER DE FILTROS ---------- */
 function renderFiltros() {
