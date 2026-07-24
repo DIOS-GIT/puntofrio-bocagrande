@@ -653,6 +653,16 @@
     <div class="card rol-oculta-si-solo-lectura">
       <h3 style="margin-bottom:12px;">Agregar gasto</h3>
       <input type="hidden" id="gasto-id" />
+
+      <div class="card" style="background:var(--fondo-suave,#f6f6f6);margin-bottom:16px;padding:14px;">
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-secundario" id="btn-subir-xml-factura">📎 Subir factura XML (DIAN) y llenar automático</button>
+          <input type="file" id="input-xml-factura" accept=".xml,text/xml" class="oculto" />
+          <small style="color:var(--muted);">Lee fecha, proveedor, valor e IVA del XML de la factura electrónica de tu proveedor. Revisa siempre los datos antes de guardar.</small>
+        </div>
+        <div id="xml-factura-estado" style="margin-top:10px;font-size:0.85rem;"></div>
+      </div>
+
       <div class="grid-2">
         <div class="form-field">
           <label>Fecha</label>
@@ -3798,6 +3808,139 @@ document.getElementById("btn-export-json-clientes").addEventListener("click", ()
 });
 
 /* ---------------------------------------------------------------
+   LECTOR DE FACTURAS XML (DIAN — estándar UBL 2.1)
+   La DIAN exige UBL 2.1 para toda factura electrónica en Colombia, sin
+   importar qué software use el proveedor (Siigo, Alegra, World Office,
+   etc.) — por eso los campos base deberían leerse igual venga de donde
+   venga. A veces el archivo es el "AttachedDocument" (un sobre que trae
+   la factura real incrustada como texto/CDATA adentro); este lector
+   detecta ambos casos.
+   Si algún archivo real no se lee bien, guárdalo (puedes tapar datos
+   sensibles) y pídele a Claude que ajuste el lector con ese ejemplo.
+--------------------------------------------------------------- */
+
+/** Busca el primer elemento descendiente cuyo nombre local (sin importar el prefijo cbc:/cac:) coincida. */
+function buscarElemento(nodo, nombreLocal) {
+  if (!nodo) return null;
+  const todos = nodo.getElementsByTagName("*");
+  for (let i = 0; i < todos.length; i++) {
+    if (todos[i].localName === nombreLocal) return todos[i];
+  }
+  return null;
+}
+
+/** Igual que buscarElemento, pero devuelve TODOS los que coincidan. */
+function buscarElementos(nodo, nombreLocal) {
+  if (!nodo) return [];
+  const todos = Array.from(nodo.getElementsByTagName("*"));
+  return todos.filter((el) => el.localName === nombreLocal);
+}
+
+function textoDe(elemento) {
+  return elemento ? (elemento.textContent || "").trim() : "";
+}
+
+/**
+ * Extrae los datos de un <Invoice> UBL 2.1 ya parseado (sin el sobre
+ * AttachedDocument, si lo traía).
+ */
+function extraerDatosFacturaUBL(invoiceEl) {
+  const numero = textoDe(buscarElemento(invoiceEl, "ID"));
+  const fechaTexto = textoDe(buscarElemento(invoiceEl, "IssueDate")); // formato YYYY-MM-DD
+
+  const supplierParty = buscarElemento(invoiceEl, "AccountingSupplierParty");
+  let nombreProveedor =
+    textoDe(buscarElemento(supplierParty, "RegistrationName")) || textoDe(buscarElemento(supplierParty, "Name"));
+  const nitProveedor = textoDe(buscarElemento(supplierParty, "CompanyID"));
+
+  const totalEl = buscarElemento(invoiceEl, "LegalMonetaryTotal");
+  const valorSinIva = Number(textoDe(buscarElemento(totalEl, "LineExtensionAmount"))) || 0;
+  const totalPagar = Number(textoDe(buscarElemento(totalEl, "PayableAmount"))) || 0;
+
+  // Puede haber varios <TaxTotal> (IVA, ICA, etc.) — sumamos todos los TaxAmount de nivel factura.
+  const taxTotals = buscarElementos(invoiceEl, "TaxTotal").filter((tt) => tt.parentNode === invoiceEl || tt.parentNode?.localName === "Invoice");
+  let ivaValor = 0;
+  (taxTotals.length ? taxTotals : buscarElementos(invoiceEl, "TaxTotal")).forEach((tt) => {
+    const monto = Number(textoDe(buscarElemento(tt, "TaxAmount"))) || 0;
+    ivaValor += monto;
+  });
+
+  let ivaPorcentaje = 0;
+  if (valorSinIva > 0 && ivaValor > 0) {
+    const calculado = (ivaValor / valorSinIva) * 100;
+    // Redondeamos a las tarifas reales de IVA en Colombia (0%, 5%, 19%) para que
+    // encaje con el <select> del formulario, aceptando un margen de error normal.
+    ivaPorcentaje = [0, 5, 19].reduce((mejor, tarifa) => (Math.abs(calculado - tarifa) < Math.abs(calculado - mejor) ? tarifa : mejor), 19);
+  }
+
+  return { numero, fechaTexto, nombreProveedor, nitProveedor, valorSinIva, ivaValor, ivaPorcentaje, totalPagar };
+}
+
+document.getElementById("btn-subir-xml-factura").addEventListener("click", () => {
+  document.getElementById("input-xml-factura").click();
+});
+
+document.getElementById("input-xml-factura").addEventListener("change", async (e) => {
+  const archivo = e.target.files[0];
+  const estadoEl = document.getElementById("xml-factura-estado");
+  if (!archivo) return;
+
+  estadoEl.innerHTML = `⏳ Leyendo ${archivo.name}...`;
+  try {
+    const texto = await archivo.text();
+    const parser = new DOMParser();
+    let doc = parser.parseFromString(texto, "application/xml");
+
+    if (doc.querySelector("parsererror")) {
+      throw new Error("El archivo no es un XML válido.");
+    }
+
+    let invoiceEl = doc.documentElement;
+
+    // Si es un "AttachedDocument" (el sobre), la factura real puede venir
+    // incrustada como texto dentro de una Description/contenido en CDATA.
+    if (invoiceEl.localName === "AttachedDocument") {
+      const descripcion = buscarElemento(invoiceEl, "Description");
+      const posibleXmlInterno = descripcion ? descripcion.textContent : "";
+      if (posibleXmlInterno && posibleXmlInterno.includes("<")) {
+        const docInterno = parser.parseFromString(posibleXmlInterno, "application/xml");
+        if (!docInterno.querySelector("parsererror") && docInterno.documentElement.localName === "Invoice") {
+          invoiceEl = docInterno.documentElement;
+        }
+      }
+    }
+
+    if (invoiceEl.localName !== "Invoice") {
+      throw new Error('El XML no parece ser una factura de venta ("Invoice") en formato UBL/DIAN.');
+    }
+
+    const datos = extraerDatosFacturaUBL(invoiceEl);
+
+    if (!datos.valorSinIva && !datos.totalPagar) {
+      throw new Error("No se pudieron leer los montos de la factura. Revisa el archivo o llena los datos a mano.");
+    }
+
+    // Rellenar el formulario
+    if (datos.fechaTexto) document.getElementById("gasto-fecha").value = datos.fechaTexto;
+    document.getElementById("gasto-categoria").value = "Compra de mercancía";
+    document.getElementById("gasto-concepto").value = `Factura ${datos.numero || "(sin número)"} — ${datos.nombreProveedor || "proveedor"}`;
+    document.getElementById("gasto-proveedor").value = datos.nitProveedor
+      ? `${datos.nombreProveedor} (NIT ${datos.nitProveedor})`
+      : datos.nombreProveedor || "";
+    document.getElementById("gasto-valor").value = datos.valorSinIva || Math.round(datos.totalPagar / (1 + datos.ivaPorcentaje / 100));
+    document.getElementById("gasto-iva").value = String(datos.ivaPorcentaje);
+
+    estadoEl.innerHTML = `✅ Datos leídos del XML — <strong>revisa que todo esté correcto</strong> antes de guardar. Total detectado: ${formatCOP(datos.totalPagar || datos.valorSinIva)}.`;
+    document.getElementById("gasto-concepto").scrollIntoView({ behavior: "smooth", block: "center" });
+  } catch (err) {
+    console.error(err);
+    estadoEl.innerHTML = `❌ No se pudo leer el archivo: ${err.message} Puedes llenar el formulario a mano.`;
+  } finally {
+    e.target.value = ""; // permite volver a subir el mismo archivo si hace falta
+  }
+});
+
+/* ---------------------------------------------------------------
    GASTOS: compras a proveedores, arriendo, servicios, etc. — para que
    Reportes refleje utilidad real y el contador tenga el IVA pagado.
 --------------------------------------------------------------- */
@@ -3854,6 +3997,7 @@ document.getElementById("btn-guardar-gasto").addEventListener("click", async () 
 });
 
 function limpiarFormularioGasto() {
+  document.getElementById("xml-factura-estado").innerHTML = "";
   document.getElementById("gasto-id").value = "";
   document.getElementById("gasto-fecha").value = "";
   document.getElementById("gasto-categoria").value = "Compra de mercancía";
