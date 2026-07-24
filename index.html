@@ -418,8 +418,13 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowRight") document.getElementById("lightbox-next").click();
 });
 
-// (Se quitó el modal de detalle al hacer clic en la imagen — la tarjeta ya muestra
-// foto, precio y opciones completas, así que no hacía falta un paso extra.)
+// Delegado: clic en la imagen de un producto abre el detalle completo (fotos + precios)
+gridEl.addEventListener("click", (e) => {
+  if (e.target.classList.contains("dot")) return; // los puntos ya cambian de foto por su cuenta
+  const wrap = e.target.closest(".imagen-wrap");
+  if (!wrap) return;
+  abrirDetalleProducto(wrap.dataset.id);
+});
 
 /* ---------- RENDER DE FILTROS ---------- */
 function renderFiltros() {
@@ -720,7 +725,8 @@ function renderDetalleProducto(id) {
     </div>
   `;
 
-  // Fotos: puntos y clic para ampliar (lightbox)
+  // Fotos: los puntos cambian de foto dentro del propio detalle (sin lightbox extra,
+  // la foto ya se ve en tamaño grande dentro del modal).
   detalleContenidoEl.querySelectorAll(".galeria-dots .dot").forEach((dot) => {
     dot.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -729,10 +735,6 @@ function renderDetalleProducto(id) {
       renderProductos();
     });
   });
-  const imgDetalle = detalleContenidoEl.querySelector(".detalle-imagen-wrap img");
-  if (imgDetalle && imgs.length) {
-    imgDetalle.addEventListener("click", () => abrirLightbox(imgs, idxActivo));
-  }
 
   detalleContenidoEl.querySelectorAll(".selector-modo-venta input[type=radio]").forEach((radio) => {
     radio.addEventListener("change", (e) => {
